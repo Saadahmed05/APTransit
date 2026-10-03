@@ -116,6 +116,8 @@ export class HealthController {
 
 Rate limits fail open when Redis is down (a cache outage never blocks traffic). OTP attempts are still capped per code in the database.
 
+Seat holds: only through `modules/bookings/seat-holds.ts` (`holdSeats`, `releaseSeats`). Each is one Lua script, so a hold is all or nothing and a release never frees another booking's seat (D-019). Queue job ids must not contain ":" (BullMQ rejects them).
+
 ## Tests
 
 - Vitest with SWC (decorators and metadata). `pnpm --filter api test`.

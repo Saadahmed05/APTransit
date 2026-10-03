@@ -4,44 +4,51 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { cn } from "../cn";
 import { StatusBadge } from "./status-badge";
 
-export interface TripCardProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface TripCardProps extends React.HTMLAttributes<HTMLElement> {
   departureTime: string;
   arrivalTime: string;
   duration: string;
   serviceTypeName: string;
-  destinationName: string;
+  /** Visible destination line, already translated (for example "to Vijayawada"). */
+  destinationText: string;
   seatsLeft: number;
   fareFormatted: string;
   status?: DisplayStatus;
   statusLabel?: string;
   freeTravelEligible?: boolean;
-  freeTravelLabel?: string;
-  approxLabel?: string;
+  freeTravelLabel: string;
+  approxLabel: string;
   seatsLeftText: string;
-  fullLabel?: string;
+  fullLabel: string;
+  /** Accessible name for the whole card, already translated. */
+  label: string;
   href?: string;
   routeCode?: string;
+  /** Link component, for example next/link, so navigation stays client side. Defaults to a plain anchor. */
+  linkAs?: React.ElementType;
 }
 
-export const TripCard = React.forwardRef<HTMLDivElement, TripCardProps>(
+export const TripCard = React.forwardRef<HTMLElement, TripCardProps>(
   (
     {
       departureTime,
       arrivalTime,
       duration,
       serviceTypeName,
-      destinationName,
+      destinationText,
       seatsLeft,
       fareFormatted,
       status = "UPCOMING",
       statusLabel,
       freeTravelEligible = false,
-      freeTravelLabel = "Free travel eligible",
-      approxLabel = "approx.",
+      freeTravelLabel,
+      approxLabel,
       seatsLeftText,
-      fullLabel = "Full",
+      fullLabel,
+      label,
       href,
       routeCode,
+      linkAs: LinkComponent = "a",
       className,
       ...props
     },
@@ -50,10 +57,9 @@ export const TripCard = React.forwardRef<HTMLDivElement, TripCardProps>(
     const isFull = seatsLeft <= 0;
     const isLowSeats = seatsLeft > 0 && seatsLeft <= 5;
     const isNonUpcoming = status !== "UPCOMING";
+    const isLink = Boolean(href) && !isFull;
 
     const displaySeatsText = isFull ? fullLabel : seatsLeftText;
-
-    const accessibleName = `${departureTime} ${serviceTypeName} to ${destinationName}, arrives ${arrivalTime}, ${displaySeatsText}, ${fareFormatted}`;
 
     const content = (
       <div
@@ -61,8 +67,8 @@ export const TripCard = React.forwardRef<HTMLDivElement, TripCardProps>(
           "rounded-lg border p-4 transition-colors relative",
           isFull
             ? "bg-surface border-default opacity-80 cursor-not-allowed"
-            : "bg-surface-raised border-default hover:border-strong cursor-pointer active:bg-surface focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2",
-          className
+            : "bg-surface-raised border-default hover:border-strong active:bg-surface",
+          isLink && "cursor-pointer"
         )}
       >
         {/* Top row: Departure time, arrow, arrival time, and fare */}
@@ -104,8 +110,8 @@ export const TripCard = React.forwardRef<HTMLDivElement, TripCardProps>(
               ({routeCode})
             </span>
           )}
-          <span className="text-small text-muted truncate">
-            to {destinationName}
+          <span className="text-small text-muted min-w-0 break-words">
+            {destinationText}
           </span>
         </div>
 
@@ -141,25 +147,31 @@ export const TripCard = React.forwardRef<HTMLDivElement, TripCardProps>(
       </div>
     );
 
-    if (href && !isFull) {
+    if (isLink) {
       return (
-        <a
+        <LinkComponent
+          ref={ref}
           href={href}
-          aria-label={accessibleName}
-          className="block outline-none focus-visible:outline-none select-none rounded-lg"
-          data-testid={(props as Record<string, unknown>)["data-testid"] as string | undefined}
+          aria-label={label}
+          className={cn(
+            "block rounded-lg outline-none select-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+            className
+          )}
+          {...props}
         >
           {content}
-        </a>
+        </LinkComponent>
       );
     }
 
+    // Full or not linked: a labelled group, not a control
     return (
       <div
-        ref={ref}
-        aria-label={accessibleName}
-        role={isFull ? undefined : "button"}
+        ref={ref as React.Ref<HTMLDivElement>}
+        role="group"
+        aria-label={label}
         aria-disabled={isFull ? "true" : undefined}
+        className={className}
         {...props}
       >
         {content}

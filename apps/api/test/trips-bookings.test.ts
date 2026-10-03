@@ -14,6 +14,7 @@ import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AppModule } from "../src/app.module";
 import { AuthService } from "../src/modules/auth/auth.service";
+import { BookingsService, expiryJobId } from "../src/modules/bookings/bookings.service";
 import { configureHttpApp } from "../src/http-app";
 import { QUEUES } from "../src/modules/queue/queue.constants";
 import { PrismaService } from "../src/prisma/prisma.service";
@@ -22,6 +23,7 @@ import { RedisService } from "../src/redis/redis.service";
 describe("Trips and Bookings endpoints (Day 5)", () => {
   let app: NestExpressApplication;
   let authService: AuthService;
+  let bookingsService: BookingsService;
   let userToken: string;
   const userId = "usertestcitizen1";
 
@@ -30,6 +32,8 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
   const bookings: any[] = [];
   const bookingPassengers: any[] = [];
   const tickets: any[] = [];
+  const queuedJobs: { name: string; data: any; opts: any }[] = [];
+  const auditRows: any[] = [];
   const settings = new Map<string, any>([
     ["booking.maxPassengers", 6],
     ["booking.daysAhead", 30],
@@ -168,10 +172,14 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
           if (settings.has(where.key)) return { value: settings.get(where.key) };
           return null;
         },
+        findMany: async ({ where }: any) =>
+          [...settings.entries()]
+            .filter(([key]) => where.key.in.includes(key))
+            .map(([key, value]) => ({ key, value })),
       },
       booking: {
         create: async ({ data }: any) => {
-          const id = `bkg${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
+          const id = data.id ?? `bkg${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
           const passengers = data.passengers?.create?.map((p: any) => ({
             id: `bp${Date.now()}${Math.random().toString(36).slice(2, 7)}`,
             bookingId: id,
@@ -208,6 +216,11 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
           if (b) Object.assign(b, data);
           return b;
         },
+        updateMany: async ({ where, data }: any) => {
+          const matched = bookings.filter((x) => x.id === where.id && (!where.status || x.status === where.status));
+          for (const b of matched) Object.assign(b, data);
+          return { count: matched.length };
+        },
       },
       user: {
         findUnique: async ({ where }: any) => {
@@ -226,6 +239,12 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
       },
       userRole: {
         findMany: async () => [{ role: "CITIZEN", depotId: null, districtId: null }],
+      },
+      auditLog: {
+        create: async ({ data }: any) => {
+          auditRows.push(data);
+          return data;
+        },
       },
       onModuleDestroy: async () => undefined,
     };
@@ -263,17 +282,48 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
           return next;
         },
         expire: async () => 1,
-        eval: async (_script: string, _keys: number, key: string, windowMs: string) => {
+        eval: async (script: string, numKeys: number, ...rest: string[]) => {
+          const keys = rest.slice(0, numKeys);
+          const argv = rest.slice(numKeys);
+          if (script.includes("-- seat-hold")) {
+            const seatKeys = keys.slice(0, -1);
+            const taken = seatKeys.findIndex((k) => redisStore.has(k));
+            if (taken !== -1) return taken + 1;
+            for (const k of seatKeys) redisStore.set(k, argv[0]!);
+            const countKey = keys[keys.length - 1]!;
+            redisStore.set(countKey, String(Number(redisStore.get(countKey) ?? 0) + seatKeys.length));
+            return 0;
+          }
+          if (script.includes("-- seat-release")) {
+            let released = 0;
+            for (const k of keys.slice(0, -1)) {
+              if (redisStore.get(k) === argv[0]) {
+                redisStore.delete(k);
+                released++;
+              }
+            }
+            const countKey = keys[keys.length - 1]!;
+            const left = Number(redisStore.get(countKey) ?? 0) - released;
+            if (left <= 0) redisStore.delete(countKey);
+            else redisStore.set(countKey, String(left));
+            return released;
+          }
+          // Rate limit window script
+          const key = keys[0]!;
           const val = Number(redisStore.get(key) ?? 0) + 1;
           redisStore.set(key, String(val));
-          return [val, Number(windowMs)];
+          return [val, Number(argv[0])];
         },
       },
       onModuleDestroy: async () => undefined,
     };
 
     const mockQueue = {
-      add: async () => ({ id: "mock_job_id" }),
+      add: async (name: string, data: unknown, opts: any) => {
+        queuedJobs.push({ name, data, opts });
+        return { id: opts?.jobId ?? "mock_job_id" };
+      },
+      remove: async () => 1,
     };
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -296,6 +346,7 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
     await app.init();
 
     authService = moduleRef.get(AuthService);
+    bookingsService = moduleRef.get(BookingsService);
     userToken = await (authService as any).generateAccessToken(userId, [
       { role: "CITIZEN", depotId: null, districtId: null },
     ]);
@@ -306,6 +357,8 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
     bookings.length = 0;
     bookingPassengers.length = 0;
     tickets.length = 0;
+    queuedJobs.length = 0;
+    settings.set("booking.maxPassengers", 6);
   });
 
   afterAll(async () => {
@@ -401,6 +454,7 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
         expect(parsed.data.status).toBe("PENDING_PAYMENT");
         expect(parsed.data.passengers[0]?.seatNo).toBe("12");
         expect(redisStore.get(`hold:${mockTripId}:12`)).toBe(parsed.data.id);
+        expect(auditRows.some((row) => row.action === "booking.create" && row.entityId === parsed.data.id)).toBe(true);
       }
     });
 
@@ -489,6 +543,131 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
         .expect(400);
 
       expect(badSeatRes.body.error.code).toBe("VALIDATION_FAILED");
+    });
+
+    const post = (body: object, headers: Record<string, string> = {}) =>
+      request(app.getHttpServer())
+        .post("/api/v1/bookings")
+        .set("Authorization", `Bearer ${userToken}`)
+        .set(headers)
+        .send(body);
+    const passenger = (seatNo: string) => ({ name: "Test", age: 30, gender: "F", seatNo });
+
+    it("rejects more passengers than booking.maxPassengers", async () => {
+      settings.set("booking.maxPassengers", 2);
+      const res = await post({ ...bookingPayload, passengers: [passenger("1"), passenger("2"), passenger("3")] }).expect(400);
+      expect(res.body.error.code).toBe("VALIDATION_FAILED");
+      expect(redisStore.has(`hold:${mockTripId}:1`)).toBe(false);
+    });
+
+    it("rejects a booking after booking.closeMinutesBefore", async () => {
+      const original = mockTrip.scheduledDepartureAt;
+      mockTrip.scheduledDepartureAt = new Date(Date.now() + 5 * 60_000);
+      try {
+        const res = await post(bookingPayload).expect(400);
+        expect(res.body.error.code).toBe("VALIDATION_FAILED");
+        const trip = await request(app.getHttpServer()).get(`/api/v1/trips/${mockTripId}`).expect(200);
+        expect(trip.body.bookingOpen).toBe(false);
+      } finally {
+        mockTrip.scheduledDepartureAt = original;
+      }
+    });
+
+    it("never trusts useFreeTravel from the client", async () => {
+      const res = await post({ ...bookingPayload, useFreeTravel: true }).expect(422);
+      expect(res.body.error.code).toBe("ELIGIBILITY_REQUIRED");
+      expect(bookings).toHaveLength(0);
+    });
+
+    it("computes totalPaise on the server for every passenger", async () => {
+      const fare = await request(app.getHttpServer())
+        .get(`/api/v1/trips/${mockTripId}/fare?from=${fromStopId}&to=${toStopId}`)
+        .expect(200);
+      const res = await post({ ...bookingPayload, passengers: [passenger("3"), passenger("4")] }).expect(201);
+      expect(res.body.totalPaise).toBe(fare.body.totalPaise * 2);
+    });
+
+    it("schedules the expiry job with a BullMQ safe job id", async () => {
+      const res = await post(bookingPayload).expect(201);
+      expect(queuedJobs).toHaveLength(1);
+      expect(queuedJobs[0]?.name).toBe("booking-hold-expired");
+      expect(queuedJobs[0]?.opts.jobId).toBe(expiryJobId(res.body.id));
+      expect(queuedJobs[0]?.opts.jobId).not.toContain(":");
+      expect(queuedJobs[0]?.opts.delay).toBeGreaterThan(9 * 60_000);
+    });
+
+    it("subtracts live holds from seatsLeft and frees them on DELETE", async () => {
+      const res = await post({ ...bookingPayload, passengers: [passenger("7"), passenger("8")] }).expect(201);
+      const held = await request(app.getHttpServer()).get(`/api/v1/trips/${mockTripId}`).expect(200);
+      expect(held.body.seatsLeft).toBe(38);
+      expect(held.body.bookingOpen).toBe(true);
+
+      await request(app.getHttpServer())
+        .delete(`/api/v1/bookings/${res.body.id}`)
+        .set("Authorization", `Bearer ${userToken}`)
+        .expect(204);
+      const freed = await request(app.getHttpServer()).get(`/api/v1/trips/${mockTripId}`).expect(200);
+      expect(freed.body.seatsLeft).toBe(40);
+      expect(redisStore.has(`holdcount:${mockTripId}`)).toBe(false);
+    });
+
+    it("idempotency: same key and body returns the first booking, a different body is rejected", async () => {
+      const key = "6f1c2a52-6c55-4f5c-9a3e-0f3b9a1c2d4e";
+      const first = await post(bookingPayload, { "Idempotency-Key": key }).expect(201);
+      const again = await post(bookingPayload, { "Idempotency-Key": key }).expect(201);
+      expect(again.body.id).toBe(first.body.id);
+      expect(bookings).toHaveLength(1);
+
+      const other = await post({ ...bookingPayload, passengers: [passenger("30")] }, { "Idempotency-Key": key }).expect(400);
+      expect(other.body.error.code).toBe("VALIDATION_FAILED");
+
+      const bad = await post(bookingPayload, { "Idempotency-Key": "not-a-uuid" }).expect(400);
+      expect(bad.body.error.code).toBe("VALIDATION_FAILED");
+    });
+  });
+
+  describe("hold expiry job", () => {
+    it("marks the booking EXPIRED and frees its seats", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/api/v1/bookings")
+        .set("Authorization", `Bearer ${userToken}`)
+        .send({
+          tripId: mockTripId,
+          boardingStopId: fromStopId,
+          droppingStopId: toStopId,
+          passengers: [{ name: "Expiring", age: 40, gender: "M", seatNo: "15" }],
+        })
+        .expect(201);
+
+      // Too early: nothing changes
+      await bookingsService.releaseExpiredHold(res.body.id, new Date());
+      expect(bookings[0]?.status).toBe("PENDING_PAYMENT");
+      expect(redisStore.has(`hold:${mockTripId}:15`)).toBe(true);
+
+      await bookingsService.releaseExpiredHold(res.body.id, new Date(Date.now() + 11 * 60_000));
+      expect(bookings[0]?.status).toBe("EXPIRED");
+      expect(redisStore.has(`hold:${mockTripId}:15`)).toBe(false);
+
+      const seats = await request(app.getHttpServer()).get(`/api/v1/trips/${mockTripId}/seats`).expect(200);
+      expect(seats.body.seats.find((s: { seatNo: string }) => s.seatNo === "15")?.state).toBe("FREE");
+    });
+
+    it("never frees a seat that another booking holds now", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/api/v1/bookings")
+        .set("Authorization", `Bearer ${userToken}`)
+        .send({
+          tripId: mockTripId,
+          boardingStopId: fromStopId,
+          droppingStopId: toStopId,
+          passengers: [{ name: "Late", age: 40, gender: "M", seatNo: "16" }],
+        })
+        .expect(201);
+
+      // The hold lapsed in Redis and someone else holds the seat before the job runs
+      redisStore.set(`hold:${mockTripId}:16`, "someoneelse0000");
+      await bookingsService.releaseExpiredHold(res.body.id, new Date(Date.now() + 11 * 60_000));
+      expect(redisStore.get(`hold:${mockTripId}:16`)).toBe("someoneelse0000");
     });
   });
 });

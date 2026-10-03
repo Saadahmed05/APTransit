@@ -21,12 +21,9 @@ import {
 } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowLeft,
   ArrowRight,
   Bus,
-  Calendar,
   ChevronRight,
-  Clock,
   Home,
   MapPin,
   Navigation,
@@ -139,7 +136,7 @@ export function RouteTimetableClient({
   return (
     <div className="flex flex-col gap-6 pb-12">
       {/* Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-small text-muted flex-wrap">
+      <nav aria-label={t("common.breadcrumb")} className="flex items-center gap-2 text-small text-muted flex-wrap">
         <Link
           href="/"
           className="inline-flex items-center gap-1 hover:text-fg transition-colors"
@@ -181,7 +178,7 @@ export function RouteTimetableClient({
               <span>{originName}</span>
               <ArrowRight className="size-3.5 text-subtle" aria-hidden="true" />
               <span>{destName}</span>
-              <span>•</span>
+              <span aria-hidden="true">·</span>
               <span>{formatDistance(route.distanceKm, locale)}</span>
             </div>
           </div>
@@ -193,21 +190,21 @@ export function RouteTimetableClient({
             <div className="flex flex-col rounded-md bg-surface p-2.5 border border-default">
               <span className="text-caption text-muted">{t("timetable.firstBus")}</span>
               <span className="text-body font-bold font-tabular text-fg">
-                {timetable.firstDepartureLocal ?? "N/A"}
+                {timetable.firstDepartureLocal ?? t("common.notAvailable")}
               </span>
             </div>
 
             <div className="flex flex-col rounded-md bg-surface p-2.5 border border-default">
               <span className="text-caption text-muted">{t("timetable.lastBus")}</span>
               <span className="text-body font-bold font-tabular text-fg">
-                {timetable.lastDepartureLocal ?? "N/A"}
+                {timetable.lastDepartureLocal ?? t("common.notAvailable")}
               </span>
             </div>
 
             <div className="flex flex-col rounded-md bg-surface p-2.5 border border-default">
               <span className="text-caption text-muted">{t("timetable.nextBus")}</span>
               <span className="text-body font-bold font-tabular text-primary">
-                {nextBusFormatted ?? "N/A"}
+                {nextBusFormatted ?? t("common.notAvailable")}
               </span>
             </div>
 
@@ -216,7 +213,7 @@ export function RouteTimetableClient({
               <span className="text-body font-bold text-fg">
                 {timetable.frequencyMin
                   ? t("timetable.everyMinutes", { minutes: timetable.frequencyMin })
-                  : "N/A"}
+                  : t("common.notAvailable")}
               </span>
             </div>
           </div>
@@ -297,7 +294,7 @@ export function RouteTimetableClient({
                 return (
                   <Link
                     key={trip.tripId}
-                    href={`/bus/${trip.tripId}?from=${route.origin.id}&to=${route.destination.id}`}
+                    href={`/bus/${trip.tripId}?${new URLSearchParams({ from: route.origin.id, to: route.destination.id }).toString()}`}
                     className="flex items-center justify-between p-3.5 rounded-lg border border-default bg-surface-raised hover:border-strong hover:bg-surface transition-colors"
                   >
                     <div className="flex items-center gap-3">
@@ -316,8 +313,9 @@ export function RouteTimetableClient({
                             {serviceName}
                           </span>
                           {trip.freeTravelEligible && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-xs text-[10px] font-medium bg-status-success-soft text-status-success">
-                              <Sparkles className="size-2.5" aria-hidden="true" />
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-caption font-medium bg-status-success-soft text-status-success">
+                              <Sparkles className="size-3" aria-hidden="true" />
+                              {t("search.freeTravelEligible")}
                             </span>
                           )}
                         </div>
@@ -348,7 +346,7 @@ export function RouteTimetableClient({
               {t("timetable.stops")} ({route.stops.length})
             </h2>
 
-            <div className="relative pl-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-border-default space-y-3.5">
+            <div className="relative pl-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-default space-y-3.5">
               {route.stops.map((stop, index) => {
                 const isFirst = index === 0;
                 const isLast = index === route.stops.length - 1;
@@ -373,7 +371,7 @@ export function RouteTimetableClient({
                       </span>
                       <span className="text-caption text-muted">
                         {formatDistance(stop.kmFromOrigin, locale)}
-                        {stop.minutesFromOrigin > 0 && ` • +${formatDuration(stop.minutesFromOrigin, locale)}`}
+                        {stop.minutesFromOrigin > 0 && ` · +${formatDuration(stop.minutesFromOrigin, locale)}`}
                       </span>
                     </div>
                   </div>

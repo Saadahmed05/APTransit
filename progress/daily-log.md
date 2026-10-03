@@ -4,6 +4,41 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## Day 05 review · 2026-10-03 · Dev B
+
+**Done**
+- Reviewed the Day 5 merge (PR #3) and fixed the bugs below.
+
+**Verified**
+- `pnpm check:dashes`, `pnpm i18n:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` (shared 96, ui 29, web 33, api 128 + 6 database tests), `pnpm build` all pass.
+- The 6 database tests pass against a local PGlite database.
+- Live API on local PGlite and `scripts/dev-redis.mjs`: two parallel POST /bookings for one seat give 201 and 409 SEAT_TAKEN, the seat shows HELD, seatsLeft drops in search and trip detail, DELETE gives 204 and frees it, useFreeTravel gives 422.
+- Browser: home to /search Kurnool to Vijayawada tomorrow, Morning filter, open the 06:30 Express (Rs 541), Back keeps `timeBand=morning`. Telugu at 360 px: TripCard not clipped. No hydration errors.
+
+**Bugs found**
+- Fixed (S1): expiry job never scheduled. BullMQ rejects a custom job id with ":" (`expiry:<id>`) and the error was swallowed, so bookings stayed PENDING_PAYMENT forever.
+- Fixed (S1): `useFreeTravel` was trusted from the client and priced the booking at zero.
+- Fixed (S1): /search showed "Origin" and "Destination" (hardcoded) because it searched places by stop id. Names now come from the search saved on the tab.
+- Fixed (S2): seat holds were not atomic across seats and a late release (DELETE or expiry) deleted holds that belonged to another booking. Now one Lua script each, release checks the owner.
+- Fixed (S2): holdcount could go negative or drift (DECRBY on an expired key), so seatsLeft was overstated.
+- Fixed (S2): DB failure after holding seats leaked the holds; DELETE and expiry raced on status (now conditional updates).
+- Fixed (S2): POST /bookings rate limit was 10 per minute (docs/12: 10 per 10 min), no `@Can("booking:create")`, no `booking.create` audit row, Idempotency-Key not validated.
+- Fixed (S2): BullMQ connection had `retryStrategy: () => null`, so the worker stopped for good after the first Upstash idle disconnect. Repeatable job now uses `upsertJobScheduler`. Queue calls in a booking have a 3 s timeout.
+- Fixed (S2): bus details showed route origin times, not the searched segment; "Book" ignored booking close time (now `bookingOpen` from the API); fare showed Rs 0 when unknown; trip 404 showed a retry error.
+- Fixed (S2): CI failed every run without secrets (cited a D-019 that did not exist). Database steps and E2E now skip without secrets.
+- Fixed (S3): `pnpm lint` failed (any casts, unused imports, stray `apps/api/tmp-check.ts`); hardcoded "Search results", "Bus details", "N/A", "Breadcrumb", English TripCard accessible name; nested `<main>`; non token classes (`text-primary-fg`, `bg-border-default`, `rounded-xs`, `text-[10px]`); TripCard had no visible focus ring; filter chips under 44 px and without `aria-pressed`; page titles repeated the app name; PlaceCombobox hydration mismatch from browser storage; dev-redis crashed on a client reset.
+- Removed `@electric-sql/pglite` and `pglite-socket` from root devDependencies (not in docs/04; the handoff says run it with npx).
+
+**Carry over**
+- E2E-1 not run locally: Playwright Chromium is not installed on this machine (`pnpm --filter web exec playwright install chromium`).
+- Worker drainDelay and Upstash command count still need a real Upstash instance.
+
+**Contract changes (packages/shared)**
+- `TripDetailDto.bookingOpen` (D-019).
+
+**Decisions needed**
+- D-019.
+
 ## Day 05 · 2026-10-02 · Dev B
 
 **Done**

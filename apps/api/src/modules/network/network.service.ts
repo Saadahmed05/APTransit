@@ -17,6 +17,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { AppError } from "../../common/errors/app-error";
 import { TtlCache } from "../../common/services/ttl-cache";
 import { RedisService } from "../../redis/redis.service";
+import { holdCountKey } from "../bookings/seat-holds";
 import { NetworkRepository, type StopSearchRow } from "./network.repository";
 import { boardingDepartureMs, hasFare, medianGapMinutes, toTripSummary } from "./trip-summary";
 
@@ -153,17 +154,11 @@ export class NetworkService {
     const map = new Map<string, number>();
     if (!this.redis || tripIds.length === 0) return map;
     try {
-      const keys = tripIds.map((id) => `holdcount:${id}`);
-      const values = await this.redis.client.mget(keys);
-      for (let i = 0; i < tripIds.length; i++) {
-        const val = values[i];
-        if (val) {
-          const num = parseInt(val, 10);
-            if (tripIds[i]) {
-              map.set(tripIds[i]!, num);
-            }
-        }
-      }
+      const values = await this.redis.client.mget(tripIds.map((id) => holdCountKey(id)));
+      tripIds.forEach((tripId, i) => {
+        const count = Number.parseInt(values[i] ?? "0", 10);
+        if (Number.isFinite(count) && count > 0) map.set(tripId, count);
+      });
     } catch {
       // Redis fail open: return empty map
     }

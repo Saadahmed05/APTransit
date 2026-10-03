@@ -1,5 +1,5 @@
 import type { BookingDto } from "@aptransit/shared";
-import { CreateBookingInput } from "@aptransit/shared";
+import { CreateBookingInput, PublicId } from "@aptransit/shared";
 import {
   Body,
   Controller,
@@ -13,8 +13,9 @@ import {
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { AuthenticatedUser } from "../../common/auth/auth.types";
+import { Audit } from "../../common/decorators/audit.decorator";
+import { Can } from "../../common/decorators/can.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
-import { AppError } from "../../common/errors/app-error";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { BookingsService } from "./bookings.service";
 
@@ -22,28 +23,25 @@ import { BookingsService } from "./bookings.service";
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
+  // docs/12: 10 per user per 10 min
   @Post()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Can("booking:create")
+  @Audit("booking.create")
+  @Throttle({ default: { limit: 10, ttl: 600_000 } })
   @HttpCode(HttpStatus.CREATED)
   createBooking(
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(CreateBookingInput)) body: CreateBookingInput,
     @Headers("idempotency-key") idempotencyKey?: string,
   ): Promise<BookingDto> {
-    if (!user) {
-      throw new AppError("UNAUTHENTICATED", "Authentication required");
-    }
     return this.bookingsService.createBooking(user.id, body, idempotencyKey);
   }
 
   @Get(":id")
   getBooking(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("id") id: string,
+    @Param("id", new ZodValidationPipe(PublicId)) id: string,
   ): Promise<BookingDto> {
-    if (!user) {
-      throw new AppError("UNAUTHENTICATED", "Authentication required");
-    }
     return this.bookingsService.getBooking(user.id, id);
   }
 
@@ -51,11 +49,8 @@ export class BookingsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async cancelBooking(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("id") id: string,
+    @Param("id", new ZodValidationPipe(PublicId)) id: string,
   ): Promise<void> {
-    if (!user) {
-      throw new AppError("UNAUTHENTICATED", "Authentication required");
-    }
     await this.bookingsService.cancelPendingBooking(user.id, id);
   }
 }

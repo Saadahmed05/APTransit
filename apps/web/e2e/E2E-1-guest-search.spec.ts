@@ -53,6 +53,14 @@ test.describe("E2E-1: Guest search journey", () => {
       await expect(tripCard.first()).toBeVisible();
     }
 
+    // The summary bar shows the picked place names, not ids
+    await expect(summaryBar).toContainText(/Kurnool/i);
+    await expect(summaryBar).toContainText(/Vijayawada/i);
+
+    // The 06:30 Express is a morning bus: set the Morning filter before opening it
+    await page.getByRole("button", { name: /morning/i }).click();
+    await page.waitForURL(/timeBand=morning/, { timeout: 5_000 });
+
     const cardCount = await tripCard.count();
     if (cardCount > 0) {
       const firstCard = tripCard.first();
@@ -75,6 +83,8 @@ test.describe("E2E-1: Guest search journey", () => {
       const urlBack = new URL(page.url());
       expect(urlBack.searchParams.get("from")).toBeTruthy();
       expect(urlBack.searchParams.get("to")).toBeTruthy();
+      expect(urlBack.searchParams.get("timeBand")).toBe("morning");
+      await expect(page.getByRole("button", { name: /morning/i })).toHaveAttribute("aria-pressed", "true");
     }
   });
 

@@ -15,7 +15,7 @@ interface BusDetailPageProps {
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations();
   return {
-    title: `${t("bus.title")} · ${t("common.appName")}`,
+    title: t("bus.title"),
   };
 }
 
@@ -25,12 +25,11 @@ export default async function BusDetailPage({
 }: BusDetailPageProps) {
   const { tripId } = await params;
   const search = await searchParams;
+  const t = await getTranslations();
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
-      <h1 className="sr-only">
-        Bus details
-      </h1>
+      <h1 className="sr-only">{t("bus.title")}</h1>
       <BusDetailClient
         tripId={tripId}
         initialFrom={search.from}

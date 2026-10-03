@@ -24,8 +24,6 @@
   },
   "devDependencies": {
     "@aptransit/config": "workspace:*",
-    "@electric-sql/pglite": "^0.5.8",
-    "@electric-sql/pglite-socket": "^0.2.11",
     "prettier": "3.9.9",
     "turbo": "2.11.3"
   }

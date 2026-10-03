@@ -13,17 +13,20 @@ export { QUEUES } from "./queue.constants";
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => {
         const redisUrl = new URL(config.get("REDIS_URL", { infer: true }));
+        const isWorker = process.env.WORKER === "1";
         return {
           connection: {
             host: redisUrl.hostname,
-            port: parseInt(redisUrl.port || (redisUrl.protocol === "rediss:" ? "6380" : "6379"), 10),
+            port: parseInt(redisUrl.port || "6379", 10),
             username: redisUrl.username ? decodeURIComponent(redisUrl.username) : undefined,
             password: redisUrl.password ? decodeURIComponent(redisUrl.password) : undefined,
             tls: redisUrl.protocol === "rediss:" ? {} : undefined,
             maxRetriesPerRequest: null,
-            enableOfflineQueue: false,
+            // API producers fail fast when Redis is down; workers queue commands and wait.
+            enableOfflineQueue: isWorker,
             lazyConnect: true,
-            retryStrategy: () => null,
+            // Upstash closes idle connections: always reconnect, never give up.
+            retryStrategy: (attempt: number) => Math.min(attempt * 500, 10_000),
           },
         };
       },

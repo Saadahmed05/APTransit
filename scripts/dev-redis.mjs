@@ -76,6 +76,38 @@ function runEval(script, keys, argv) {
     }
     return [hits, ttl];
   }
+  // apps/api/src/modules/bookings/seat-holds.ts
+  if (compact.includes("-- seat-hold")) {
+    const countKey = keys[keys.length - 1];
+    const seatKeys = keys.slice(0, -1);
+    const taken = seatKeys.findIndex((key) => getEntry(key));
+    if (taken !== -1) return taken + 1;
+    const ttlMs = Number.parseInt(argv[1] ?? "0", 10) * 1000;
+    for (const key of seatKeys) store.set(key, { value: argv[0], expireAt: now() + ttlMs });
+    const entry = getEntry(countKey);
+    const count = (entry ? Number.parseInt(entry.value, 10) : 0) + seatKeys.length;
+    store.set(countKey, { value: String(count), expireAt: entry?.expireAt ?? null });
+    const countTtlMs = Number.parseInt(argv[2] ?? "0", 10) * 1000;
+    if (pttl(countKey) < countTtlMs) expireMs(countKey, countTtlMs);
+    return 0;
+  }
+  if (compact.includes("-- seat-release")) {
+    const countKey = keys[keys.length - 1];
+    let released = 0;
+    for (const key of keys.slice(0, -1)) {
+      if (getEntry(key)?.value === argv[0]) {
+        store.delete(key);
+        released += 1;
+      }
+    }
+    if (released > 0) {
+      const entry = getEntry(countKey);
+      const left = (entry ? Number.parseInt(entry.value, 10) : 0) - released;
+      if (left <= 0) store.delete(countKey);
+      else store.set(countKey, { value: String(left), expireAt: entry?.expireAt ?? null });
+    }
+    return released;
+  }
   throw new Error("unsupported lua script");
 }
 
@@ -232,6 +264,8 @@ function parseBuffer(buffer) {
 
 const server = createServer((socket) => {
   let pending = Buffer.alloc(0);
+  // A client that disconnects hard (ECONNRESET) must not take the server down
+  socket.on("error", () => socket.destroy());
   socket.on("data", (chunk) => {
     pending = Buffer.concat([pending, chunk]);
     const parsed = parseBuffer(pending);

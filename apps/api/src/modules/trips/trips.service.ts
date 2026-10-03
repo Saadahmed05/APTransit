@@ -3,7 +3,6 @@ import {
   DEFAULT_REFUND_TIERS,
   deriveTripDisplayStatus,
   type FareDto,
-  formatIstDate,
   RefundTiers,
   type RouteDto,
   type SeatMapDto,
@@ -14,7 +13,10 @@ import { Injectable, Logger } from "@nestjs/common";
 import { AppError } from "../../common/errors/app-error";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { holdCountKey, holdKey } from "../bookings/seat-holds";
 import { SEAT_TAKING_STATUSES } from "../network/network.repository";
+
+const DEFAULT_CLOSE_MINUTES_BEFORE = 10;
 
 @Injectable()
 export class TripsService {
@@ -29,8 +31,8 @@ export class TripsService {
    * GET /trips/:id (public)
    * Fetches full trip details with boarding/dropping points, timeline, seats left, and optional fare.
    */
-  async getTrip(tripId: string, fromStopId?: string, toStopId?: string): Promise<TripDetailDto> {
-    const tripRecord = await this.prisma.trip.findUnique({
+  async getTrip(tripId: string, fromStopId?: string, toStopId?: string, now = new Date()): Promise<TripDetailDto> {
+    const trip = await this.prisma.trip.findUnique({
       where: { id: tripId },
       include: {
         busType: true,
@@ -56,74 +58,64 @@ export class TripsService {
       },
     });
 
-    if (!tripRecord) {
+    if (!trip) {
       throw new AppError("NOT_FOUND", "Trip not found");
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const trip = tripRecord as any;
-
-    const serviceDateStr = formatIstDate(trip.scheduledDepartureAt);
     const busRegNo = trip.assignments[0]?.bus?.regNo ?? null;
-
     const baseDepartureMs = trip.scheduledDepartureAt.getTime();
+    const atStop = (minutesFromOrigin: number) => new Date(baseDepartureMs + minutesFromOrigin * 60_000).toISOString();
+    const routeStops = trip.route.routeStops;
 
-    const stops = trip.route.routeStops.map((rs: any) => {
-      const scheduledArrivalAt = new Date(baseDepartureMs + rs.minutesFromOrigin * 60_000).toISOString();
-      const scheduledDepartureAt = new Date(baseDepartureMs + rs.minutesFromOrigin * 60_000).toISOString();
-      return {
-        stopId: rs.stop.id,
-        code: rs.stop.code,
-        nameEn: rs.stop.nameEn,
-        nameTe: rs.stop.nameTe,
-        seq: rs.seq,
-        kmFromOrigin: rs.kmFromOrigin,
-        minutesFromOrigin: rs.minutesFromOrigin,
-        isBoarding: rs.isBoarding,
-        isDropping: rs.isDropping,
-        scheduledArrivalAt,
-        scheduledDepartureAt,
-        actualArrivalAt: null,
-        actualDepartureAt: null,
-      };
-    });
+    const stops = routeStops.map((rs) => ({
+      stopId: rs.stop.id,
+      code: rs.stop.code,
+      nameEn: rs.stop.nameEn,
+      nameTe: rs.stop.nameTe,
+      seq: rs.seq,
+      kmFromOrigin: rs.kmFromOrigin,
+      minutesFromOrigin: rs.minutesFromOrigin,
+      isBoarding: rs.isBoarding,
+      isDropping: rs.isDropping,
+      scheduledArrivalAt: atStop(rs.minutesFromOrigin),
+      scheduledDepartureAt: atStop(rs.minutesFromOrigin),
+      actualArrivalAt: null,
+      actualDepartureAt: null,
+    }));
 
-    const boardingPoints = trip.route.routeStops
-      .filter((rs: any) => rs.isBoarding)
-      .map((rs: any) => ({
+    const boardingPoints = routeStops
+      .filter((rs) => rs.isBoarding)
+      .map((rs) => ({
         stopId: rs.stop.id,
         nameEn: rs.stop.nameEn,
         nameTe: rs.stop.nameTe,
         seq: rs.seq,
         kmFromOrigin: rs.kmFromOrigin,
         minutesFromOrigin: rs.minutesFromOrigin,
-        departureAt: new Date(baseDepartureMs + rs.minutesFromOrigin * 60_000).toISOString(),
+        departureAt: atStop(rs.minutesFromOrigin),
       }));
 
-    const droppingPoints = trip.route.routeStops
-      .filter((rs: any) => rs.isDropping)
-      .map((rs: any) => ({
+    const droppingPoints = routeStops
+      .filter((rs) => rs.isDropping)
+      .map((rs) => ({
         stopId: rs.stop.id,
         nameEn: rs.stop.nameEn,
         nameTe: rs.stop.nameTe,
         seq: rs.seq,
         kmFromOrigin: rs.kmFromOrigin,
         minutesFromOrigin: rs.minutesFromOrigin,
-        arrivalAt: new Date(baseDepartureMs + rs.minutesFromOrigin * 60_000).toISOString(),
+        arrivalAt: atStop(rs.minutesFromOrigin),
       }));
 
-    // Taken tickets from DB
+    // Taken tickets from DB plus live holds from Redis (docs/05 seat rule: whole trip)
     const takenTicketsCount = await this.prisma.ticket.count({
       where: {
         tripId,
         status: { in: [...SEAT_TAKING_STATUSES] },
       },
     });
-
-    // Holds from Redis
     const holdCount = await this.getTripHoldCount(tripId);
-    const totalTaken = takenTicketsCount + holdCount;
-    const seatsLeft = Math.max(0, trip.busType.totalSeats - totalTaken);
+    const seatsLeft = Math.max(0, trip.busType.totalSeats - takenTicketsCount - holdCount);
 
     const displayStatus = deriveTripDisplayStatus({
       status: trip.status,
@@ -141,6 +133,15 @@ export class TripsService {
       }
     }
 
+    // Booking closes closeMinutesBefore departure from the boarding stop (same rule as POST /bookings)
+    const boarding =
+      routeStops.find((rs) => rs.stopId === fromStopId && rs.isBoarding) ?? routeStops.find((rs) => rs.isBoarding);
+    const closeMinutes = (await this.settingNumber("booking.closeMinutesBefore")) ?? DEFAULT_CLOSE_MINUTES_BEFORE;
+    const boardingDepartureMs = baseDepartureMs + (boarding?.minutesFromOrigin ?? 0) * 60_000;
+    const bookingOpen =
+      (trip.status === "SCHEDULED" || trip.status === "RUNNING") &&
+      boardingDepartureMs > now.getTime() + closeMinutes * 60_000;
+
     const routeDto: RouteDto = {
       id: trip.route.id,
       code: trip.route.code,
@@ -150,7 +151,7 @@ export class TripsService {
       polyline: trip.route.polyline,
       origin: trip.route.originStop,
       destination: trip.route.destinationStop,
-      stops: trip.route.routeStops.map((rs: any) => ({
+      stops: routeStops.map((rs) => ({
         stopId: rs.stop.id,
         seq: rs.seq,
         nameEn: rs.stop.nameEn,
@@ -167,7 +168,7 @@ export class TripsService {
 
     return {
       tripId: trip.id,
-      serviceDate: serviceDateStr,
+      serviceDate: trip.serviceDate.toISOString().slice(0, 10),
       route: routeDto,
       busType: {
         id: trip.busType.id,
@@ -183,6 +184,7 @@ export class TripsService {
       droppingPoints,
       stops,
       seatsLeft,
+      bookingOpen,
       displayStatus,
       delayMinutes: trip.delayMinutes,
       scheduledDepartureAt: trip.scheduledDepartureAt.toISOString(),
@@ -195,19 +197,17 @@ export class TripsService {
   /**
    * GET /trips/:id/seats?from&to (public)
    * Returns bus seat layout with seat states: FREE, TAKEN, HELD, BLOCKED.
+   * A seat is taken for the whole trip (docs/05), so from and to do not change the map yet.
    */
   async getSeats(tripId: string): Promise<SeatMapDto> {
-    const tripRecord = await this.prisma.trip.findUnique({
+    const trip = await this.prisma.trip.findUnique({
       where: { id: tripId },
       include: { busType: true },
     });
 
-    if (!tripRecord) {
+    if (!trip) {
       throw new AppError("NOT_FOUND", "Trip not found");
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const trip = tripRecord as any;
 
     const layout = SeatLayoutSchema.parse(trip.busType.seatLayout);
 
@@ -222,29 +222,24 @@ export class TripsService {
     });
     const takenSeatNos = new Set(tickets.map((t) => t.seatNo as string));
 
-    // Holds in Redis: check keys hold:{tripId}:{seatNo}
+    // Holds in Redis: hold:{tripId}:{seatNo}, one MGET for the bus
     const heldSeatNos = new Set<string>();
     try {
       if (layout.labels.length > 0) {
-        const holdKeys = layout.labels.map((seatNo) => `hold:${tripId}:${seatNo}`);
-        const values = await this.redis.client.mget(holdKeys);
-        for (let i = 0; i < layout.labels.length; i++) {
-          if (values[i] !== null && values[i] !== undefined && layout.labels[i]) {
-            heldSeatNos.add(layout.labels[i]!);
-          }
-        }
+        const values = await this.redis.client.mget(layout.labels.map((seatNo) => holdKey(tripId, seatNo)));
+        layout.labels.forEach((seatNo, i) => {
+          if (values[i] !== null && values[i] !== undefined) heldSeatNos.add(seatNo);
+        });
       }
     } catch (err) {
       this.logger.warn(`Failed to read seat holds from Redis for trip ${tripId}: ${(err as Error).message}`);
     }
 
-    // Build seats array
     const blockedLabels = new Set<string>();
     for (const blocked of layout.blockedCells) {
       const idx = blocked.row * layout.columns + blocked.col;
-      if (idx >= 0 && idx < layout.labels.length && layout.labels[idx]) {
-        blockedLabels.add(layout.labels[idx]!);
-      }
+      const label = layout.labels[idx];
+      if (label) blockedLabels.add(label);
     }
 
     const seats = layout.labels.map((seatNo) => {
@@ -267,10 +262,9 @@ export class TripsService {
    * Computes base fare, reservation fee, total paise, distance in km, and active refund tiers.
    */
   async getFare(tripId: string, fromStopId: string, toStopId: string): Promise<FareDto> {
-    const tripRecord = await this.prisma.trip.findUnique({
+    const trip = await this.prisma.trip.findUnique({
       where: { id: tripId },
       include: {
-        busType: true,
         route: {
           include: {
             routeStops: {
@@ -282,15 +276,12 @@ export class TripsService {
       },
     });
 
-    if (!tripRecord) {
+    if (!trip) {
       throw new AppError("NOT_FOUND", "Trip not found");
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const trip = tripRecord as any;
-
-    const fromStop = trip.route.routeStops.find((rs: any) => rs.stopId === fromStopId);
-    const toStop = trip.route.routeStops.find((rs: any) => rs.stopId === toStopId);
+    const fromStop = trip.route.routeStops.find((rs) => rs.stopId === fromStopId);
+    const toStop = trip.route.routeStops.find((rs) => rs.stopId === toStopId);
 
     if (!fromStop || !toStop || fromStop.seq >= toStop.seq || !fromStop.isBoarding || !toStop.isDropping) {
       throw new AppError("VALIDATION_FAILED", "Invalid boarding or dropping stop for this trip");
@@ -329,7 +320,7 @@ export class TripsService {
     });
 
     let refundTiers = DEFAULT_REFUND_TIERS;
-    if (policy && policy.tiers) {
+    if (policy?.tiers) {
       const parsed = RefundTiers.safeParse(policy.tiers);
       if (parsed.success) {
         refundTiers = parsed.data;
@@ -347,14 +338,20 @@ export class TripsService {
 
   private async getTripHoldCount(tripId: string): Promise<number> {
     try {
-      const val = await this.redis.client.get(`holdcount:${tripId}`);
-      if (val) {
-        const count = parseInt(val, 10);
-        return isNaN(count) ? 0 : Math.max(0, count);
-      }
+      const count = Number.parseInt((await this.redis.client.get(holdCountKey(tripId))) ?? "0", 10);
+      return Number.isFinite(count) ? Math.max(0, count) : 0;
     } catch {
-      // Redis down: return 0
+      // Redis down: holds unknown, show the ticket count only
+      return 0;
     }
-    return 0;
+  }
+
+  private async settingNumber(key: string): Promise<number | null> {
+    try {
+      const row = await this.prisma.setting.findUnique({ where: { key }, select: { value: true } });
+      return typeof row?.value === "number" ? row.value : null;
+    } catch {
+      return null;
+    }
   }
 }

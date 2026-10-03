@@ -1,44 +1,18 @@
 "use client";
 
-import { formatIstDate, PlaceDto, ServiceDateString } from "@aptransit/shared";
-import { addDays, Button, Card, DatePicker, IconButton, Skeleton } from "@aptransit/ui";
+import { formatIstDate, type PlaceDto } from "@aptransit/shared";
+import { Button, Card, DatePicker, IconButton, Skeleton } from "@aptransit/ui";
 import { ArrowUpDown, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState, useSyncExternalStore } from "react";
-import { z } from "zod";
 import { PlaceCombobox } from "../../components/place-combobox";
-
-const MAX_DAYS_AHEAD = 30;
-const STORAGE_KEY = "apt.homeSearch";
-
-const SavedSearch = z.object({
-  from: PlaceDto.nullable(),
-  to: PlaceDto.nullable(),
-  date: ServiceDateString,
-});
-type SavedSearch = z.infer<typeof SavedSearch>;
-
-/** The last form on this tab, so Back from /search shows it again (docs/11 checklist). */
-function readSaved(today: string): SavedSearch {
-  const empty = { from: null, to: null, date: today };
-  try {
-    const parsed = SavedSearch.safeParse(JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) ?? "null"));
-    if (!parsed.success) return empty;
-    const date = parsed.data.date >= today && parsed.data.date <= addDays(today, MAX_DAYS_AHEAD) ? parsed.data.date : today;
-    return { ...parsed.data, date };
-  } catch {
-    return empty;
-  }
-}
-
-function save(search: SavedSearch) {
-  try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(search));
-  } catch {
-    // Storage blocked: the form simply starts empty next time
-  }
-}
+import {
+  MAX_DAYS_AHEAD,
+  readSavedSearch as readSaved,
+  type SavedSearch,
+  saveSearch as save,
+} from "../../lib/saved-search";
 
 const noopSubscribe = () => () => {};
 

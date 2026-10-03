@@ -27,16 +27,11 @@ async function bootstrap(): Promise<void> {
   // Register repeatable maintenance job: daily at 00:30 IST
   try {
     const maintenanceQueue = app.get<Queue>(getQueueToken(QUEUES.MAINTENANCE));
-    await maintenanceQueue.add(
+    // Upsert, so restarts never stack duplicate schedules.
+    await maintenanceQueue.upsertJobScheduler(
       "generate-trips",
-      {},
-      {
-        repeat: {
-          pattern: "30 0 * * *",
-          tz: "Asia/Kolkata",
-        },
-        jobId: "repeatable:generate-trips",
-      },
+      { pattern: "30 0 * * *", tz: "Asia/Kolkata" },
+      { name: "generate-trips" },
     );
     logger.log("Scheduled repeatable generate-trips job at 00:30 IST daily", "Worker");
   } catch (err) {

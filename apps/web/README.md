@@ -16,7 +16,7 @@ pnpm dev                        # from the repo root: web on http://localhost:30
 | `dev`, `build`, `start` | Next on port 3000 (Turbopack) |
 | `lint` | ESLint: Next core web vitals, Next TypeScript, full jsx-a11y recommended, our shared rules |
 | `test` | Vitest for `lib/` and `proxy.ts` |
-| `e2e` | Playwright E2E-1 (starts API and web unless they are already running) |
+| `e2e` | Playwright E2E-1. Locally start API and web first; in CI (`CI=1`) Playwright starts the built apps. First run: `pnpm exec playwright install chromium` |
 | `typecheck` | `next typegen` (route types) then `tsc --noEmit` |
 
 ## How it is wired

@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import {
   type BookingDto,
   calculateFare,
@@ -5,19 +6,89 @@ import {
   generateBookingCode,
   SeatLayoutSchema,
 } from "@aptransit/shared";
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import type { Queue } from "bullmq";
+import { z } from "zod";
 import { AppError } from "../../common/errors/app-error";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { SEAT_TAKING_STATUSES } from "../network/network.repository";
 import { QUEUES } from "../queue/queue.constants";
+import { holdSeats, releaseSeats } from "./seat-holds";
 
 const DEFAULT_MAX_PASSENGERS = 6;
 const DEFAULT_DAYS_AHEAD = 30;
 const DEFAULT_CLOSE_MINUTES_BEFORE = 10;
 const DEFAULT_HOLD_MINUTES = 10;
+const IDEMPOTENCY_TTL_SEC = 86_400;
+/** Queue calls must never hold up a booking response. Holds still expire by TTL. */
+const QUEUE_ADD_TIMEOUT_MS = 3_000;
+const SETTING_KEYS = [
+  "booking.maxPassengers",
+  "booking.daysAhead",
+  "booking.closeMinutesBefore",
+  "booking.holdMinutes",
+] as const;
+
+/** docs/06: the Idempotency-Key header is a uuid. */
+const IdempotencyKey = z.string().uuid();
+
+/** BullMQ custom job ids cannot contain ":". */
+export function expiryJobId(bookingId: string): string {
+  return `expiry-${bookingId}`;
+}
+
+type BookingWithPassengers = {
+  id: string;
+  code: string;
+  status: BookingDto["status"];
+  totalPaise: number;
+  holdExpiresAt: Date;
+  tripId: string;
+  boardingStopId: string;
+  droppingStopId: string;
+  createdAt: Date;
+  passengers: { id: string; name: string; age: number; gender: string; seatNo: string }[];
+};
+
+function toBookingDto(booking: BookingWithPassengers): BookingDto {
+  return {
+    id: booking.id,
+    code: booking.code,
+    status: booking.status,
+    totalPaise: booking.totalPaise,
+    holdExpiresAt: booking.holdExpiresAt.toISOString(),
+    tripId: booking.tripId,
+    boardingStopId: booking.boardingStopId,
+    droppingStopId: booking.droppingStopId,
+    passengers: booking.passengers.map((p) => ({
+      id: p.id,
+      name: p.name,
+      age: p.age,
+      gender: p.gender,
+      seatNo: p.seatNo,
+    })),
+    createdAt: booking.createdAt.toISOString(),
+  };
+}
+
+async function withTimeout<T>(work: Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("queue call timed out")), QUEUE_ADD_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Booking ids are made here so the Redis hold can carry the id before the row exists. */
+function newBookingId(): string {
+  return `c${randomBytes(12).toString("hex")}`;
+}
 
 @Injectable()
 export class BookingsService {
@@ -26,7 +97,7 @@ export class BookingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
-    @InjectQueue(QUEUES.EXPIRY) private readonly expiryQueue?: Queue,
+    @Optional() @InjectQueue(QUEUES.EXPIRY) private readonly expiryQueue?: Queue,
   ) {}
 
   /**
@@ -39,23 +110,35 @@ export class BookingsService {
     idempotencyKey?: string,
     now = new Date(),
   ): Promise<BookingDto> {
-    // 1. Check idempotency
-    if (idempotencyKey) {
-      try {
-        const cached = await this.redis.client.get(`idemp:booking:${userId}:${idempotencyKey}`);
-        if (cached) {
-          return JSON.parse(cached) as BookingDto;
+    // 1. Idempotency: same key and body returns the first result (docs/06)
+    let idempotencyCacheKey: string | null = null;
+    const bodyHash = createHash("sha256").update(JSON.stringify(input)).digest("hex");
+    if (idempotencyKey !== undefined) {
+      if (!IdempotencyKey.safeParse(idempotencyKey).success) {
+        throw new AppError("VALIDATION_FAILED", "Idempotency-Key must be a uuid");
+      }
+      idempotencyCacheKey = `idemp:booking:${userId}:${idempotencyKey}`;
+      const cached = await this.readIdempotent(idempotencyCacheKey);
+      if (cached) {
+        if (cached.bodyHash !== bodyHash) {
+          throw new AppError("VALIDATION_FAILED", "Idempotency-Key was already used with a different body");
         }
-      } catch {
-        // Continue if Redis cache lookup fails
+        return cached.booking;
       }
     }
 
+    // Free travel needs an active FREE_TRAVEL pass checked on the server (docs/06, Day 8).
+    // Never take the client's word for eligibility.
+    if (input.useFreeTravel) {
+      throw new AppError("ELIGIBILITY_REQUIRED", "Free travel needs an active free travel pass");
+    }
+
     // 2. Validate settings
-    const maxPassengers = (await this.getSettingNumber("booking.maxPassengers")) ?? DEFAULT_MAX_PASSENGERS;
-    const daysAhead = (await this.getSettingNumber("booking.daysAhead")) ?? DEFAULT_DAYS_AHEAD;
-    const closeMinutesBefore = (await this.getSettingNumber("booking.closeMinutesBefore")) ?? DEFAULT_CLOSE_MINUTES_BEFORE;
-    const holdMinutes = (await this.getSettingNumber("booking.holdMinutes")) ?? DEFAULT_HOLD_MINUTES;
+    const settings = await this.getSettingNumbers();
+    const maxPassengers = settings.get("booking.maxPassengers") ?? DEFAULT_MAX_PASSENGERS;
+    const daysAhead = settings.get("booking.daysAhead") ?? DEFAULT_DAYS_AHEAD;
+    const closeMinutesBefore = settings.get("booking.closeMinutesBefore") ?? DEFAULT_CLOSE_MINUTES_BEFORE;
+    const holdMinutes = settings.get("booking.holdMinutes") ?? DEFAULT_HOLD_MINUTES;
 
     if (input.passengers.length > maxPassengers) {
       throw new AppError("VALIDATION_FAILED", `Maximum ${maxPassengers} passengers allowed per booking`);
@@ -79,6 +162,9 @@ export class BookingsService {
 
     if (!trip || trip.status === "CANCELLED") {
       throw new AppError("NOT_FOUND", "Trip not found or cancelled");
+    }
+    if (trip.status === "COMPLETED") {
+      throw new AppError("VALIDATION_FAILED", "Booking is closed for this trip");
     }
 
     // Check days ahead
@@ -138,7 +224,7 @@ export class BookingsService {
       throw new AppError("SEAT_TAKEN", `Seat ${takenSeat} is no longer available`, { seatNo: takenSeat });
     }
 
-    // 6. Compute fare
+    // 6. Compute fare on the server, never from the client
     const fareRule = await this.prisma.fareRule.findFirst({
       where: {
         busTypeId: trip.busTypeId,
@@ -161,132 +247,85 @@ export class BookingsService {
         minFarePaise: fareRule.minFarePaise,
         reservationFeePaise: fareRule.reservationFeePaise,
       },
-      isFreeTravel: input.useFreeTravel,
     });
     const totalPaise = singleFare.totalPaise * input.passengers.length;
 
-    // 7. Atomically hold all seats in Redis
+    // 7. Hold all seats in one atomic Redis command. A hold we cannot place is never assumed free.
+    const bookingId = newBookingId();
     const holdTtlSec = holdMinutes * 60;
-    const tempHoldVal = `hold_${userId}_${Date.now()}`;
-    const acquiredKeys: string[] = [];
-
-    for (const seatNo of seatNos) {
-      const holdKey = `hold:${trip.id}:${seatNo}`;
-      let setOk = false;
-      try {
-        const res = await this.redis.client.set(holdKey, tempHoldVal, "EX", holdTtlSec, "NX");
-        setOk = res === "OK";
-      } catch (err) {
-        this.logger.warn(`Redis seat hold error: ${(err as Error).message}`);
-      }
-
-      if (!setOk) {
-        // Rollback all acquired holds
-        for (const acquiredKey of acquiredKeys) {
-          try {
-            await this.redis.client.del(acquiredKey);
-          } catch {
-            // Ignore rollback deletion error
-          }
-        }
-        throw new AppError("SEAT_TAKEN", `Seat ${seatNo} is no longer available`, { seatNo });
-      }
-      acquiredKeys.push(holdKey);
-    }
-
-    // Update holdcount for the trip
+    let takenSeat: string | null;
     try {
-      await this.redis.client.incrby(`holdcount:${trip.id}`, seatNos.length);
-      await this.redis.client.expire(`holdcount:${trip.id}`, holdTtlSec + 60);
-    } catch {
-      // Non-critical metric
+      takenSeat = await holdSeats(this.redis.client, trip.id, seatNos, bookingId, holdTtlSec);
+    } catch (err) {
+      this.logger.warn(`Redis seat hold error: ${(err as Error).message}`);
+      throw new AppError("INTERNAL", "Could not hold seats, please try again");
+    }
+    if (takenSeat) {
+      throw new AppError("SEAT_TAKEN", `Seat ${takenSeat} is no longer available`, { seatNo: takenSeat });
     }
 
-    // 8. Create booking in DB
-    const holdExpiresAt = new Date(now.getTime() + holdMinutes * 60_000);
-    const code = generateBookingCode();
-
-    const booking = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.booking.create({
-        data: {
-          code,
-          userId,
-          tripId: trip.id,
-          boardingStopId: input.boardingStopId,
-          droppingStopId: input.droppingStopId,
-          status: "PENDING_PAYMENT",
-          totalPaise,
-          holdExpiresAt,
-          passengers: {
-            create: input.passengers.map((p) => ({
-              name: p.name,
-              age: p.age,
-              gender: p.gender,
-              seatNo: p.seatNo,
-            })),
+    // 8. Create booking and passengers in one transaction. On failure give the seats back.
+    const holdExpiresAt = new Date(now.getTime() + holdTtlSec * 1000);
+    let booking: BookingWithPassengers;
+    try {
+      booking = await this.prisma.$transaction((tx) =>
+        tx.booking.create({
+          data: {
+            id: bookingId,
+            code: generateBookingCode(),
+            userId,
+            tripId: trip.id,
+            boardingStopId: input.boardingStopId,
+            droppingStopId: input.droppingStopId,
+            status: "PENDING_PAYMENT",
+            totalPaise,
+            holdExpiresAt,
+            passengers: {
+              create: input.passengers.map((p) => ({
+                name: p.name,
+                age: p.age,
+                gender: p.gender,
+                seatNo: p.seatNo,
+              })),
+            },
           },
-        },
-        include: {
-          passengers: true,
-        },
-      });
-      return created;
-    });
-
-    // Update Redis hold values with real bookingId
-    for (const holdKey of acquiredKeys) {
-      try {
-        await this.redis.client.set(holdKey, booking.id, "KEEPTTL");
-      } catch {
-        // Ignore key value update error
-      }
+          include: { passengers: true },
+        }),
+      );
+    } catch (err) {
+      await this.release(trip.id, seatNos, bookingId);
+      throw err;
     }
 
-    // 9. Schedule BullMQ expiry job
+    // 9. Schedule BullMQ expiry job at holdExpiresAt
     if (this.expiryQueue) {
       try {
-        await this.expiryQueue.add(
-          "booking-hold-expired",
-          { bookingId: booking.id },
-          {
-            delay: holdMinutes * 60 * 1000,
-            jobId: `expiry:${booking.id}`,
-            removeOnComplete: true,
-            removeOnFail: true,
-          },
+        await withTimeout(
+          this.expiryQueue.add(
+            "booking-hold-expired",
+            { bookingId: booking.id },
+            {
+              delay: Math.max(0, holdExpiresAt.getTime() - Date.now()),
+              jobId: expiryJobId(booking.id),
+              removeOnComplete: true,
+              removeOnFail: true,
+            },
+          ),
         );
       } catch (err) {
-        this.logger.warn(`Failed to schedule hold expiry job: ${(err as Error).message}`);
+        this.logger.warn(`Failed to schedule hold expiry job for ${booking.id}: ${(err as Error).message}`);
       }
     }
 
-    const bookingDto: BookingDto = {
-      id: booking.id,
-      code: booking.code,
-      status: booking.status,
-      totalPaise: booking.totalPaise,
-      holdExpiresAt: booking.holdExpiresAt.toISOString(),
-      tripId: booking.tripId,
-      boardingStopId: booking.boardingStopId,
-      droppingStopId: booking.droppingStopId,
-      passengers: booking.passengers.map((p) => ({
-        id: p.id,
-        name: p.name,
-        age: p.age,
-        gender: p.gender,
-        seatNo: p.seatNo,
-      })),
-      createdAt: booking.createdAt.toISOString(),
-    };
+    const bookingDto = toBookingDto(booking);
 
-    // Cache idempotency response for 24h
-    if (idempotencyKey) {
+    if (idempotencyCacheKey) {
       try {
         await this.redis.client.set(
-          `idemp:booking:${userId}:${idempotencyKey}`,
-          JSON.stringify(bookingDto),
+          idempotencyCacheKey,
+          JSON.stringify({ bodyHash, booking: bookingDto }),
           "EX",
-          86_400,
+          IDEMPOTENCY_TTL_SEC,
         );
       } catch {
         // Non-critical cache
@@ -309,24 +348,7 @@ export class BookingsService {
       throw new AppError("NOT_FOUND", "Booking not found");
     }
 
-    return {
-      id: booking.id,
-      code: booking.code,
-      status: booking.status,
-      totalPaise: booking.totalPaise,
-      holdExpiresAt: booking.holdExpiresAt.toISOString(),
-      tripId: booking.tripId,
-      boardingStopId: booking.boardingStopId,
-      droppingStopId: booking.droppingStopId,
-      passengers: booking.passengers.map((p) => ({
-        id: p.id,
-        name: p.name,
-        age: p.age,
-        gender: p.gender,
-        seatNo: p.seatNo,
-      })),
-      createdAt: booking.createdAt.toISOString(),
-    };
+    return toBookingDto(booking);
   }
 
   /**
@@ -343,57 +365,81 @@ export class BookingsService {
       throw new AppError("NOT_FOUND", "Booking not found");
     }
 
-    if (booking.status !== "PENDING_PAYMENT") {
+    // Conditional update: a payment or the expiry job may change the status at the same time.
+    const { count } = await this.prisma.booking.updateMany({
+      where: { id: bookingId, status: "PENDING_PAYMENT" },
+      data: { status: "CANCELLED" },
+    });
+    if (count === 0) {
       throw new AppError("VALIDATION_FAILED", "Only pending bookings can be cancelled");
     }
 
-    await this.prisma.booking.update({
-      where: { id: bookingId },
-      data: { status: "CANCELLED" },
-    });
-
-    // Release seat holds
-    await this.releaseSeats(booking.tripId, booking.passengers.map((p) => p.seatNo));
+    await this.release(booking.tripId, booking.passengers.map((p) => p.seatNo), booking.id);
+    await this.removeExpiryJob(booking.id);
   }
 
   /**
    * Called by BullMQ expiry processor when hold timer runs out.
    */
-  async releaseExpiredHold(bookingId: string): Promise<void> {
+  async releaseExpiredHold(bookingId: string, now = new Date()): Promise<void> {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: { passengers: true },
     });
 
-    if (!booking || booking.status !== "PENDING_PAYMENT") {
+    if (!booking || booking.status !== "PENDING_PAYMENT" || booking.holdExpiresAt.getTime() > now.getTime()) {
       return;
     }
 
-    await this.prisma.booking.update({
-      where: { id: bookingId },
+    const { count } = await this.prisma.booking.updateMany({
+      where: { id: bookingId, status: "PENDING_PAYMENT" },
       data: { status: "EXPIRED" },
     });
+    if (count === 0) return;
 
-    await this.releaseSeats(booking.tripId, booking.passengers.map((p) => p.seatNo));
+    await this.release(booking.tripId, booking.passengers.map((p) => p.seatNo), booking.id);
   }
 
-  private async releaseSeats(tripId: string, seatNos: string[]): Promise<void> {
-    if (seatNos.length === 0) return;
+  private async release(tripId: string, seatNos: string[], bookingId: string): Promise<void> {
     try {
-      const keys = seatNos.map((seatNo) => `hold:${tripId}:${seatNo}`);
-      await this.redis.client.del(...keys);
-      await this.redis.client.decrby(`holdcount:${tripId}`, seatNos.length);
+      await releaseSeats(this.redis.client, tripId, seatNos, bookingId);
     } catch (err) {
+      // Holds still expire on their own TTL.
       this.logger.warn(`Failed to release seat holds for trip ${tripId}: ${(err as Error).message}`);
     }
   }
 
-  private async getSettingNumber(key: string): Promise<number | null> {
+  private async removeExpiryJob(bookingId: string): Promise<void> {
+    if (!this.expiryQueue) return;
     try {
-      const row = await this.prisma.setting.findUnique({ where: { key }, select: { value: true } });
-      return typeof row?.value === "number" ? row.value : null;
+      await withTimeout(this.expiryQueue.remove(expiryJobId(bookingId)));
+    } catch {
+      // The job is a no-op for a cancelled booking anyway
+    }
+  }
+
+  private async readIdempotent(key: string): Promise<{ bodyHash: string; booking: BookingDto } | null> {
+    try {
+      const cached = await this.redis.client.get(key);
+      return cached ? (JSON.parse(cached) as { bodyHash: string; booking: BookingDto }) : null;
     } catch {
       return null;
     }
+  }
+
+  private async getSettingNumbers(): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    try {
+      const rows = await this.prisma.setting.findMany({
+        where: { key: { in: [...SETTING_KEYS] } },
+        select: { key: true, value: true },
+      });
+      for (const row of rows) {
+        if (typeof row.value === "number") map.set(row.key, row.value);
+      }
+    } catch {
+      // Defaults apply
+    }
+    return map;
   }
 }

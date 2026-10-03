@@ -30,7 +30,10 @@
     "useDarkTheme": "Use dark theme",
     "notSelected": "Not selected",
     "loading": "Loading",
-    "close": "Close"
+    "close": "Close",
+    "back": "Back",
+    "breadcrumb": "Breadcrumb",
+    "notAvailable": "Not available"
   },
   "home": {
     "question": "Where do you want to go?",
@@ -83,7 +86,9 @@
     "resultsCount": "{count, plural, =0 {No buses found} one {# bus found} other {# buses found}}",
     "full": "Full",
     "approx": "approx.",
-    "freeTravelEligible": "Free travel eligible"
+    "freeTravelEligible": "Free travel eligible",
+    "toDestination": "to {destination}",
+    "tripCardLabel": "{departure} {service} to {destination}, arrives {arrival}, {seats}, {fare}"
   },
   "bus": {
     "title": "Bus details",

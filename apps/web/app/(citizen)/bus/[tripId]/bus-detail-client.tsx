@@ -27,14 +27,13 @@ import {
   Info,
   MapPin,
   Navigation,
-  ShieldAlert,
   Sparkles,
   Ticket,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { api, errorKey } from "../../../../lib/api";
+import { api, errorKey, isApiError } from "../../../../lib/api";
 import { queryKeys } from "../../../../lib/query-keys";
 
 export function BusDetailClient({
@@ -93,7 +92,8 @@ export function BusDetailClient({
     );
   }
 
-  if (tripQuery.isError) {
+  const notFound = isApiError(tripQuery.error) && tripQuery.error.code === "NOT_FOUND";
+  if (tripQuery.isError && !notFound) {
     return (
       <ErrorState
         title={t("bus.errorTitle")}
@@ -128,21 +128,25 @@ export function BusDetailClient({
   const statusKey = `status.${trip.displayStatus}`;
   const statusLabel = t.has(statusKey) ? t(statusKey) : trip.displayStatus;
 
-  const originName = locale === "te" ? trip.route.origin.nameTe : trip.route.origin.nameEn;
-  const destName = locale === "te" ? trip.route.destination.nameTe : trip.route.destination.nameEn;
-  const depTimeFormatted = formatTime(trip.scheduledDepartureAt, locale);
-  const arrTimeFormatted = formatTime(trip.scheduledArrivalAt, locale);
+  // The searched segment (from and to in the URL), else the whole route
+  const boarding = trip.boardingPoints.find((bp) => bp.stopId === from);
+  const dropping = trip.droppingPoints.find((dp) => dp.stopId === to);
+  const pick = (place: { nameEn: string; nameTe: string }) => (locale === "te" ? place.nameTe : place.nameEn);
+  const originName = pick(boarding ?? trip.route.origin);
+  const destName = pick(dropping ?? trip.route.destination);
+  const depTimeFormatted = formatTime(boarding?.departureAt ?? trip.scheduledDepartureAt, locale);
+  const arrTimeFormatted = formatTime(dropping?.arrivalAt ?? trip.scheduledArrivalAt, locale);
+  const segmentKm =
+    boarding && dropping ? dropping.kmFromOrigin - boarding.kmFromOrigin : trip.route.distanceKm;
   const serviceDateFormatted = formatDate(new Date(`${trip.serviceDate}T00:00:00.000Z`), locale);
 
   const isFull = trip.seatsLeft <= 0;
-  const isBookingClosed = trip.displayStatus === "COMPLETED" || trip.displayStatus === "CANCELLED";
-  const canBook = !isFull && !isBookingClosed;
+  const canBook = !isFull && trip.bookingOpen;
 
   const fareData = fareQuery.data;
-  const totalFarePaise = fareData?.totalPaise ?? trip.farePaise ?? 0;
-  const totalFareFormatted = formatMoney(totalFarePaise, locale);
+  const totalFarePaise = fareData?.totalPaise ?? trip.farePaise;
 
-  const bookUrl = `/book/${tripId}${from && to ? `?from=${from}&to=${to}` : ""}`;
+  const bookUrl = `/book/${tripId}${from && to ? `?${new URLSearchParams({ from, to }).toString()}` : ""}`;
   const trackUrl = `/track/${tripId}`;
   const routeUrl = `/timetable/route/${trip.route.id}`;
 
@@ -153,15 +157,15 @@ export function BusDetailClient({
         <button
           type="button"
           onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-body font-medium text-fg hover:text-muted cursor-pointer"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-md text-body font-medium text-fg hover:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
-          <span>{t("common.appName")}</span>
+          <span>{t("common.back")}</span>
         </button>
 
         <Link
           href={routeUrl}
-          className="text-small font-medium text-primary hover:underline"
+          className="inline-flex min-h-11 items-center rounded-md text-small font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           {t("bus.viewRoute")}
         </Link>
@@ -184,11 +188,11 @@ export function BusDetailClient({
             </div>
             <div className="mt-1 flex items-center gap-2 text-caption text-muted flex-wrap">
               <span className="font-mono">{trip.route.code}</span>
-              <span>•</span>
+              <span aria-hidden="true">·</span>
               <span>
                 {t("bus.busNumber")}: {trip.busRegNo ?? t("bus.notAssigned")}
               </span>
-              <span>•</span>
+              <span aria-hidden="true">·</span>
               <span>{serviceDateFormatted}</span>
             </div>
           </div>
@@ -208,10 +212,10 @@ export function BusDetailClient({
 
           <div className="flex flex-col items-center justify-center px-2 text-center">
             <span className="text-caption text-muted">
-              {formatDistance(trip.route.distanceKm, locale)}
+              {formatDistance(segmentKm, locale)}
             </span>
             <div className="flex items-center gap-1 text-subtle my-1">
-              <div className="h-0.5 w-12 bg-border-default" />
+              <div className="h-0.5 w-12 bg-default" />
               <ArrowRight className="size-4 text-muted" aria-hidden="true" />
             </div>
           </div>
@@ -244,14 +248,16 @@ export function BusDetailClient({
             </span>
           </div>
 
-          <div className="text-right">
-            <span className="text-caption text-muted block">
-              {t("bus.totalFare")}
-            </span>
-            <span className="text-h2 font-bold font-tabular text-fg">
-              {totalFareFormatted}
-            </span>
-          </div>
+          {totalFarePaise !== undefined && (
+            <div className="text-right">
+              <span className="text-caption text-muted block">
+                {t("bus.totalFare")}
+              </span>
+              <span className="text-h2 font-bold font-tabular text-fg">
+                {formatMoney(totalFarePaise, locale)}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Primary Action Buttons */}
@@ -319,16 +325,16 @@ export function BusDetailClient({
                 {t("bus.cancellationPolicy")}
               </span>
               <ul className="list-disc list-inside space-y-1">
-                {fareData.refundTiers.map((tier, idx) => (
-                  <li key={idx}>
-                    {tier.minHoursBefore > 0
-                      ? t("bus.refundTier", {
-                          hours: tier.minHoursBefore,
-                          percent: tier.percent,
-                        })
-                      : t("bus.noRefund")}
-                  </li>
-                ))}
+                {fareData.refundTiers.map((tier, idx, tiers) => {
+                  const above = tiers[idx - 1];
+                  return (
+                    <li key={tier.minHoursBefore}>
+                      {tier.minHoursBefore > 0 || !above
+                        ? t("bus.refundTier", { hours: tier.minHoursBefore, percent: tier.percent })
+                        : t("bus.refundTierLess", { hours: above.minHoursBefore, percent: tier.percent })}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
@@ -405,7 +411,7 @@ export function BusDetailClient({
           {t("bus.stopsTimeline")} ({trip.stops.length})
         </h2>
 
-        <div className="relative pl-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-border-default space-y-4">
+        <div className="relative pl-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-default space-y-4">
           {trip.stops.map((stop, index) => {
             const isFirst = index === 0;
             const isLast = index === trip.stops.length - 1;
@@ -435,14 +441,14 @@ export function BusDetailClient({
                       {name}
                     </span>
                     {stop.isBoarding && (
-                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded-xs bg-surface-raised text-muted border border-default">
+                      <span className="text-caption px-1.5 py-0.5 rounded-sm bg-surface-raised text-muted border border-default">
                         {t("common.boardingPoint")}
                       </span>
                     )}
                   </div>
                   <span className="text-caption text-muted">
                     {formatDistance(stop.kmFromOrigin, locale)}
-                    {stop.minutesFromOrigin > 0 && ` • +${formatDuration(stop.minutesFromOrigin, locale)}`}
+                    {stop.minutesFromOrigin > 0 && ` · +${formatDuration(stop.minutesFromOrigin, locale)}`}
                   </span>
                 </div>
 

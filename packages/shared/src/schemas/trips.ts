@@ -66,6 +66,8 @@ export const TripDetailDto = z.object({
   droppingPoints: z.array(TripDroppingPointDto),
   stops: z.array(TripStopTimelineDto),
   seatsLeft: z.number().int().nonnegative(),
+  /** Server decides: trip not finished and the boarding stop departs after booking.closeMinutesBefore. */
+  bookingOpen: z.boolean(),
   displayStatus: DisplayStatus,
   delayMinutes: z.number().int().nonnegative(),
   scheduledDepartureAt: z.string().datetime(),

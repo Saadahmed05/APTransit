@@ -30,7 +30,10 @@
     "useDarkTheme": "డార్క్ థీమ్ వాడండి",
     "notSelected": "ఎంచుకోలేదు",
     "loading": "లోడ్ అవుతోంది",
-    "close": "మూసివేయండి"
+    "close": "మూసివేయండి",
+    "back": "వెనక్కి",
+    "breadcrumb": "నావిగేషన్ మార్గం",
+    "notAvailable": "అందుబాటులో లేదు"
   },
   "home": {
     "question": "మీరు ఎక్కడికి వెళ్లాలనుకుంటున్నారు?",
@@ -83,7 +86,9 @@
     "resultsCount": "{count, plural, =0 {బస్సులు ఏవీ దొరకలేదు} one {# బస్సు దొరికింది} other {# బస్సులు దొరికాయి}}",
     "full": "పూర్తయింది",
     "approx": "సుమారుగా",
-    "freeTravelEligible": "ఉచిత ప్రయాణానికి అర్హత ఉంది"
+    "freeTravelEligible": "ఉచిత ప్రయాణానికి అర్హత ఉంది",
+    "toDestination": "{destination} వరకు",
+    "tripCardLabel": "{departure} {service} {destination} వరకు, {arrival}కి చేరుతుంది, {seats}, {fare}"
   },
   "bus": {
     "title": "బస్సు వివరాలు",

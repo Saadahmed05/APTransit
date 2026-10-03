@@ -1,15 +1,14 @@
 "use client";
 
 import {
-  BusStandDto,
-  BusStandRouteDto,
+  type BusStandDto,
+  type BusStandRouteDto,
   BusStandRoutesResponse,
   BusStandsResponse,
-  DistrictDto,
+  type DistrictDto,
   DistrictsResponse,
 } from "@aptransit/shared";
 import {
-  Card,
   EmptyState,
   ErrorState,
   Skeleton,
@@ -19,7 +18,6 @@ import {
   ArrowRight,
   Building2,
   ChevronRight,
-  Compass,
   Home,
   MapPin,
   Navigation,
@@ -99,7 +97,7 @@ export function TimetableClient({
   return (
     <div className="flex flex-col gap-6 pb-12">
       {/* Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-small text-muted flex-wrap">
+      <nav aria-label={t("common.breadcrumb")} className="flex items-center gap-2 text-small text-muted flex-wrap">
         <Link
           href="/"
           className="inline-flex items-center gap-1 hover:text-fg transition-colors"

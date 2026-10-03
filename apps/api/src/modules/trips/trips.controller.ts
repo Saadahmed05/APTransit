@@ -1,6 +1,6 @@
 import type { FareDto, SeatMapDto, TripDetailDto } from "@aptransit/shared";
-import { TripFareQuery, TripSeatsQuery } from "@aptransit/shared";
-import { Controller, Get, Param, Query, UsePipes } from "@nestjs/common";
+import { PublicId, TripFareQuery, TripSeatsQuery } from "@aptransit/shared";
+import { Controller, Get, Param, Query } from "@nestjs/common";
 import { Public } from "../../common/decorators/public.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { TripsService } from "./trips.service";
@@ -12,7 +12,7 @@ export class TripsController {
   @Public()
   @Get(":id")
   getTrip(
-    @Param("id") id: string,
+    @Param("id", new ZodValidationPipe(PublicId)) id: string,
     @Query(new ZodValidationPipe(TripSeatsQuery)) query: TripSeatsQuery,
   ): Promise<TripDetailDto> {
     return this.tripsService.getTrip(id, query.from, query.to);
@@ -21,7 +21,8 @@ export class TripsController {
   @Public()
   @Get(":id/seats")
   getSeats(
-    @Param("id") id: string,
+    @Param("id", new ZodValidationPipe(PublicId)) id: string,
+    @Query(new ZodValidationPipe(TripSeatsQuery)) _query: TripSeatsQuery,
   ): Promise<SeatMapDto> {
     return this.tripsService.getSeats(id);
   }
@@ -29,7 +30,7 @@ export class TripsController {
   @Public()
   @Get(":id/fare")
   getFare(
-    @Param("id") id: string,
+    @Param("id", new ZodValidationPipe(PublicId)) id: string,
     @Query(new ZodValidationPipe(TripFareQuery)) query: TripFareQuery,
   ): Promise<FareDto> {
     return this.tripsService.getFare(id, query.from, query.to);

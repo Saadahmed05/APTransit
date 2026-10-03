@@ -5,13 +5,14 @@ import { Button, cn, Skeleton } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, History, MapPin } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { type KeyboardEvent, useEffect, useId, useState } from "react";
+import { type KeyboardEvent, useEffect, useId, useState, useSyncExternalStore } from "react";
 import { api, errorKey } from "../lib/api";
 import { queryKeys } from "../lib/query-keys";
 import { readRecentPlaces, rememberPlace } from "../lib/recent-places";
 
 const MIN_CHARS = 2;
 const DEBOUNCE_MS = 200;
+const noopSubscribe = () => () => {};
 
 function useDebounced<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -51,7 +52,14 @@ export function PlaceCombobox({ id, label, placeholder, value, onChange, error, 
   const [draft, setDraft] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
-  const [recent, setRecent] = useState<PlaceDto[]>(readRecentPlaces);
+  // Recent places live in browser storage: read them only after hydration so server and client match.
+  const mounted = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+  const [recentOverride, setRecent] = useState<PlaceDto[] | null>(null);
+  const recent = recentOverride ?? (mounted ? readRecentPlaces() : []);
 
   const text = draft ?? (value ? placeName(value, locale) : "");
   const typed = (draft ?? "").trim();
