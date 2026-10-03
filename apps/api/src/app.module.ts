@@ -12,8 +12,11 @@ import { RedisThrottlerStorage } from "./common/throttler/redis-throttler.storag
 import { validateEnv } from "./config/env";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { BookingsModule } from "./modules/bookings/bookings.module";
 import { HealthModule } from "./modules/health/health.module";
 import { NetworkModule } from "./modules/network/network.module";
+import { QueueModule } from "./modules/queue/queue.module";
+import { TripsModule } from "./modules/trips/trips.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
 import { RedisService } from "./redis/redis.service";
@@ -44,6 +47,9 @@ import { RedisService } from "./redis/redis.service";
     AuthModule,
     HealthModule,
     NetworkModule,
+    TripsModule,
+    BookingsModule,
+    QueueModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

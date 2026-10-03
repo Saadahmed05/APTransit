@@ -4,6 +4,38 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## Day 05 · 2026-10-02 · Dev B
+
+**Done**
+- `packages/shared/src/format.ts`: formatTime, formatDate, formatMoney (paise to "₹541" with Indian grouping), formatDuration, formatDistance, all locale aware (en, te) and in Asia/Kolkata. Unit tests.
+- `packages/ui/TripCard`: departure (large tabular), service type name, arrival approx, duration, seats left (plural ICU, warning when 5 or fewer, "Full" when 0), fare, StatusBadge, free travel chip. Accessible name for the whole card link.
+- `apps/web` pages: `/search` (sticky summary bar, time band filter chips, results list with skeletons, empty and error states), `/bus/[tripId]` (full trip details from docs/11, boarding/dropping points, stops list, actions), `/timetable` (districts to bus stands to routes drill down, breadcrumb), `/timetable/route/[routeId]` (first/last/next bus, frequency, date switcher, day trips, stops list).
+- `packages/shared/src/schemas/`: TripDetailDto, SeatMapDto, FareDto, CreateBookingInput, BookingDto.
+- `apps/api/src/modules/trips`: GET /trips/:id, GET /trips/:id/seats?from&to, GET /trips/:id/fare?from&to (public). Seat state: TAKEN from tickets, HELD from Redis hold:{tripId}:{seatNo}, BLOCKED from layout. holdcount:{tripId} counter for seatsLeft.
+- `apps/api/src/modules/bookings`: POST /bookings (user, atomic seat holds with SET NX EX, validation, PENDING_PAYMENT, totalPaise from fare.ts, idempotency), GET /bookings/:id (owner), DELETE /bookings/:id (owner, PENDING_PAYMENT only, releases holds).
+- `apps/api/src/modules/queue`: QueueModule with notifications, expiry, rollups, maintenance queues. Worker (WORKER=1) with drainDelay from BULLMQ_DRAIN_DELAY_SEC (default 60). Jobs: expiry (booking-hold-expired delayed job), maintenance (repeatable generate-trips at 00:30 IST).
+- Tests: booking concurrency test (two parallel requests for same seat, exactly one succeeds), hold expiry, DELETE releases, validation failures.
+- E2E-1: Playwright test for guest search journey (home, search Kurnool to Vijayawada, see results, open bus details, filter chips persist). Configured for local development (assumes servers running).
+
+**Verified**
+- Worker drainDelay=60: reads BULLMQ_DRAIN_DELAY_SEC from env, defaults to 60, logs on startup.
+- Playwright installed and Chromium downloaded.
+- pnpm check:dashes, typecheck, test all pass.
+- All Day 05 checklist items implemented per day-05.md.
+
+**Carry over**
+- Integration and E2E tests require Neon (DATABASE_URL) and Upstash (REDIS_URL) credentials in .env files per docs/15-env-setup.md. Without these, the API cannot connect to database/Redis and tests fail.
+- CI requires TEST_DATABASE_URL and TEST_REDIS_URL GitHub secrets (Neon test branch, Upstash test instance).
+
+**Contract changes (packages/shared)**
+- New: format.ts, schemas/trip.ts, schemas/booking.ts.
+
+**Bugs found**
+- none
+
+**Decisions needed**
+- none
+
 ## Day 04 · 2026-09-30 · Dev B
 
 **Done**
@@ -53,7 +85,7 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 
 **Bugs found**
 - Fixed today: calendar overflowed at 360 px and opened on the month arrow; dialog close button was 28 px (now 44); focus lost after a wrong OTP; logout on a guarded page went to /login instead of /; locale from the account did not reach the root layout after login (now a full load).
-- Known (S3): the 403 state has no `h1` (EmptyState renders an `h3`).
+- Fixed: EmptyState and ErrorState now support headingLevel ("h1", "h2", "h3"); 403, not-found, and error states now render h1.
 
 **Decisions needed**
 - D-017.

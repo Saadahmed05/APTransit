@@ -14,6 +14,8 @@ pnpm dev:worker                 # worker process (WORKER=1)
 
 Check it: `http://localhost:4000/api/v1/health` answers 200 with `db: "ok"` and `redis: "ok"`. 503 means one of them is unreachable (check `.env`).
 
+Without Neon yet, a local PGlite socket server plus `node scripts/dev-redis.mjs` is enough for search and E2E-1 (data in gitignored `.local/`, Redis on 127.0.0.1:6380). Point `DATABASE_URL` and `DIRECT_URL` at PGlite, then `pnpm db:deploy` and `pnpm db:seed`. The worker still needs real Redis (Upstash) for BullMQ.
+
 ## Scripts
 
 | Script | What it does |

@@ -17,6 +17,7 @@ export default function GlobalError({
   return (
     <main id="main-content" className="flex min-h-[70vh] flex-col items-center justify-center gap-4 p-4">
       <ErrorState
+        headingLevel="h1"
         title={t("error.title")}
         message={t("error.description")}
         retryLabel={t("common.retry")}

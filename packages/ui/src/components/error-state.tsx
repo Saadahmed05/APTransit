@@ -11,6 +11,7 @@ export interface ErrorStateProps extends React.HTMLAttributes<HTMLDivElement> {
   retryLabel: string;
   onRetry?: () => void;
   requestId?: string;
+  headingLevel?: "h1" | "h2" | "h3";
 }
 
 export const ErrorState = React.forwardRef<HTMLDivElement, ErrorStateProps>(
@@ -21,11 +22,13 @@ export const ErrorState = React.forwardRef<HTMLDivElement, ErrorStateProps>(
       retryLabel,
       onRetry,
       requestId,
+      headingLevel = "h3",
       className,
       ...props
     },
     ref
   ) => {
+    const HeadingTag = headingLevel;
     return (
       <div
         ref={ref}
@@ -39,7 +42,7 @@ export const ErrorState = React.forwardRef<HTMLDivElement, ErrorStateProps>(
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-status-danger-soft text-status-danger mb-4">
           <AlertTriangle className="h-7 w-7" aria-hidden="true" />
         </div>
-        {title && <h3 className="text-h3 font-semibold text-fg">{title}</h3>}
+        {title && <HeadingTag className="text-h3 font-semibold text-fg">{title}</HeadingTag>}
         <p className="mt-1.5 max-w-md text-body text-muted">{message}</p>
 
         {requestId && (

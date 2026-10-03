@@ -8,7 +8,8 @@
     "start": "next start --port 3000",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@aptransit/shared": "workspace:*",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@aptransit/config": "workspace:*",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "22.20.4",
     "@types/react": "19.3.0",

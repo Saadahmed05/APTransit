@@ -17,6 +17,9 @@ test-results/
 *.tsbuildinfo
 next-env.d.ts
 
+# local PGlite data and other scratch (never commit)
+.local/
+
 # generated
 apps/api/src/generated/
 

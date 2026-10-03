@@ -80,6 +80,7 @@ function PermissionGate({ anyOf, children }: RequirePermissionProps) {
 
   return (
     <EmptyState
+      headingLevel="h1"
       icon={ShieldAlert}
       title={t("auth.forbidden.title")}
       hint={t("auth.forbidden.hint")}

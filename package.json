@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "turbo dev",
     "dev:worker": "pnpm --filter api dev:worker",
+    "dev:redis": "node scripts/dev-redis.mjs",
     "build": "turbo build",
     "lint": "turbo lint && pnpm check:dashes",
     "typecheck": "turbo typecheck",
@@ -18,10 +19,13 @@
     "format": "prettier --write .",
     "db:migrate": "pnpm --filter api db:migrate",
     "db:seed": "pnpm --filter api db:seed",
-    "db:reset": "pnpm --filter api db:reset"
+    "db:reset": "pnpm --filter api db:reset",
+    "e2e": "pnpm --filter web e2e"
   },
   "devDependencies": {
     "@aptransit/config": "workspace:*",
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
     "prettier": "3.9.9",
     "turbo": "2.11.3"
   }

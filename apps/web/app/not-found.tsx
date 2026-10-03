@@ -9,6 +9,7 @@ export default function NotFound() {
   return (
     <main id="main-content" className="flex min-h-[70vh] items-center justify-center p-4">
       <EmptyState
+        headingLevel="h1"
         icon={FileQuestion}
         title={t("notFound.title")}
         hint={t("notFound.description")}

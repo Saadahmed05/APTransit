@@ -7,10 +7,12 @@ export interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
   title: string;
   hint?: string;
   action?: React.ReactNode;
+  headingLevel?: "h1" | "h2" | "h3";
 }
 
 export const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
-  ({ icon: Icon, title, hint, action, className, ...props }, ref) => {
+  ({ icon: Icon, title, hint, action, headingLevel = "h3", className, ...props }, ref) => {
+    const HeadingTag = headingLevel;
     return (
       <div
         ref={ref}
@@ -23,7 +25,7 @@ export const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface text-muted mb-4">
           <Icon className="h-7 w-7" aria-hidden="true" />
         </div>
-        <h3 className="text-h3 font-semibold text-fg">{title}</h3>
+        <HeadingTag className="text-h3 font-semibold text-fg">{title}</HeadingTag>
         {hint && (
           <p className="mt-1.5 max-w-sm text-small text-subtle">{hint}</p>
         )}

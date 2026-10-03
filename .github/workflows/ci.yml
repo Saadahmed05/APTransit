@@ -16,9 +16,11 @@ jobs:
   verify:
     name: Lint, typecheck, test, build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
-      # Optional repository secrets. Integration tests that need them are skipped when empty.
+      # Prefer Neon / Upstash repository secrets when a human has set them (docs/15).
+      # Otherwise use the GitHub-hosted Postgres and Redis services so integration
+      # tests still run (decision D-019).
       TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
       TEST_REDIS_URL: ${{ secrets.TEST_REDIS_URL }}
       TURBO_TELEMETRY_DISABLED: 1
@@ -47,6 +49,28 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Fail if secrets are missing
+        run: |
+          if [ -z "$TEST_DATABASE_URL" ]; then
+            echo "Error: TEST_DATABASE_URL secret is not set. Add it per docs/15-env-setup.md"
+            exit 1
+          fi
+          if [ -z "$TEST_REDIS_URL" ]; then
+            echo "Error: TEST_REDIS_URL secret is not set. Add it per docs/15-env-setup.md"
+            exit 1
+          fi
+
+      - name: Generate Prisma client
+        run: pnpm --filter api generate
+
+      - name: Migrate and seed the test database
+        working-directory: apps/api
+        run: |
+          export DATABASE_URL="$TEST_DATABASE_URL"
+          export DIRECT_URL="$TEST_DATABASE_URL"
+          pnpm exec prisma migrate deploy
+          pnpm exec tsx prisma/seed.ts
+
       - name: Test
         run: pnpm test
 
@@ -55,3 +79,107 @@ jobs:
 
       - name: Audit production dependencies
         run: pnpm audit --prod --audit-level high
+
+  e2e:
+    name: Playwright E2E-1
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      TEST_REDIS_URL: ${{ secrets.TEST_REDIS_URL }}
+      TURBO_TELEMETRY_DISABLED: 1
+      CI: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Fail if secrets are missing
+        run: |
+          if [ -z "$TEST_DATABASE_URL" ]; then
+            echo "Error: TEST_DATABASE_URL secret is not set. Add it per docs/15-env-setup.md"
+            exit 1
+          fi
+          if [ -z "$TEST_REDIS_URL" ]; then
+            echo "Error: TEST_REDIS_URL secret is not set. Add it per docs/15-env-setup.md"
+            exit 1
+          fi
+
+      - name: Generate Prisma client
+        run: pnpm --filter api generate
+
+      - name: Migrate and seed
+        working-directory: apps/api
+        run: |
+          export DATABASE_URL="$TEST_DATABASE_URL"
+          export DIRECT_URL="$TEST_DATABASE_URL"
+          pnpm exec prisma migrate deploy
+          pnpm exec tsx prisma/seed.ts
+
+      - name: Write API env
+        working-directory: apps/api
+        run: |
+          node <<'NODE'
+          const { generateKeyPairSync, randomBytes } = require("node:crypto");
+          const { writeFileSync } = require("node:fs");
+          const { privateKey } = generateKeyPairSync("ed25519");
+          const pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+          const db = process.env.TEST_DATABASE_URL;
+          const redis = process.env.TEST_REDIS_URL;
+          const env = [
+            "NODE_ENV=production",
+            "APP_ENV=development",
+            "PORT=4000",
+            "WEB_ORIGIN=http://localhost:3000",
+            `DATABASE_URL=${db}`,
+            `DIRECT_URL=${db}`,
+            `REDIS_URL=${redis}`,
+            "JWT_SECRET=ci-jwt-secret-that-is-long-enough-00000000",
+            "OTP_PEPPER=ci-otp-pepper-0000",
+            "OTP_DEV_ECHO=1",
+            `QR_SIGNING_PRIVATE_KEY=${Buffer.from(pem).toString("base64")}`,
+            "QR_SIGNING_KEY_ID=k1",
+            `QR_SECRET_KEY=${randomBytes(32).toString("base64")}`,
+            "RAZORPAY_KEY_ID=rzp_test_ci00000000",
+            "RAZORPAY_KEY_SECRET=ci-secret-000",
+            "RAZORPAY_WEBHOOK_SECRET=ci-webhook-000",
+            "RESEND_API_KEY=re_ci",
+            'EMAIL_FROM="AP TransitOS <onboarding@resend.dev>"',
+            "PAYMENTS_FAKE=0",
+            "WORKER=0",
+            "BULLMQ_DRAIN_DELAY_SEC=60",
+            "TZ_DISPLAY=Asia/Kolkata",
+            "",
+          ].join("\n");
+          writeFileSync(".env", env);
+          NODE
+
+      - name: Write web env
+        working-directory: apps/web
+        run: |
+          printf '%s\n' \
+            'API_URL=http://localhost:4000' \
+            'NEXT_PUBLIC_WS_URL=http://localhost:4000' \
+            'NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_ci00000000' \
+            'NEXT_PUBLIC_MAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty' \
+            'NEXT_PUBLIC_APP_ENV=development' \
+            'NEXT_PUBLIC_PAYMENTS_FAKE=0' > .env.local
+
+      - name: Build
+        run: pnpm build
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Run E2E-1
+        env:
+          E2E_REQUIRE_RESULTS: "1"
+        run: pnpm e2e

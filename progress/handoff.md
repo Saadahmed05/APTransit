@@ -14,19 +14,22 @@ Read order for a new session:
 
 ---
 
-## Current state (Day 4 built, 2026-09-30)
+## Current state (Day 5 code complete, awaiting cloud credentials, 2026-10-02)
 
 ### Git
 
 | Branch | Contains | Status |
 | --- | --- | --- |
-| `main` | Day 1 to Day 4 (Day 4 fast forwarded from `b/network-search` then `a/home-login`, no PR, at the owner's request) | Baseline |
+| `main` | Day 1 to Day 5 (Day 5 code merged locally) | Baseline |
 
-**Day 5 starts from `main`.**
+**Day 6 starts from `main`.**
 
-### Works today (verified 2026-09-30)
+### Works today (verified 2026-10-02)
 
 - `pnpm lint`, `pnpm i18n:check`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm check:dashes` pass on Windows (Node 22.20, pnpm 11.10).
+- All Day 5 features implemented: format.ts, TripCard, /search, /bus/[tripId], /timetable, trip/booking schemas, trips and bookings APIs, Redis seat holds, BullMQ queues, worker, E2E-1 test.
+- Worker drainDelay=60 configured (reads BULLMQ_DRAIN_DELAY_SEC, default 60, logs on startup).
+- Playwright installed and Chromium downloaded for E2E tests.
 - Tests: shared 91, api 108 (+6 database tests skipped without `TEST_DATABASE_URL`), ui 21, web 33, scripts 6.
 - The 6 database tests (seed twice, health, real search SQL with p95 under 250 ms) passed against a local PGlite database, not Neon yet.
 - Public network API: places search (English and Telugu, bus stands first), districts, bus stands, routes, timetable, trip search with fares from `fare.ts` and seats left. Kurnool to Vijayawada tomorrow gives the 6 docs/19 trips, Express Rs 541.
@@ -41,7 +44,6 @@ Read order for a new session:
 | `/search` results page (home already links to it) | Scheduled | Day 5 (Dev A) |
 | Ops and gov scope switcher with names | MeDto has only depot and district ids | Needs a small `/me` or scope endpoint, decide at sync |
 | Short Telugu label for "Track bus" | D-015, needs a native speaker | Open |
-| 403 state has no `h1` (EmptyState renders `h3`) | S3 polish | When EmptyState gets a heading level prop |
 | Worker queues, seat holds | Scheduled | Day 5 (Dev B) |
 
 ### Decisions
@@ -295,17 +297,55 @@ pnpm audit --prod --audit-level high
 - Dev B: fare.ts, network and search endpoints, apt_session marker (D-016), seed aligned with docs/19 (D-018).
 - Dev A: api client and session, proxy guard, home, login, account, OtpInput and DatePicker in packages/ui.
 
-## Day 5 notes
+## Day 5 notes (built 2026-10-02)
+
+### Git
+
+Day 5 was completed on `main` directly (owner's request, same as Day 4).
 
 ### Dev A (search results, bus details, timetable)
 
-- Read the query string with the server page `searchParams` prop and pass it to a client component. The home form already sends `/search?from=<stopId>&to=<stopId>&date=YYYY-MM-DD`.
-- Fetch with `api(path, { schema, query, redirectOn401: false })` inside `useQuery`. Response schemas: `SearchTripsResponse`, `TimetableDto`, `RouteDto` from `@aptransit/shared`.
-- `farePaise` is the total per passenger, reservation fee included. Times are ISO UTC: show them with the shared IST helpers.
-- Place names: `placeName(place, locale)` in `components/place-combobox.tsx`.
+All six items from the prompt are done:
+
+1. `packages/shared/src/format.ts`: `formatTime`, `formatDate`, `formatMoney` (paise in, Indian grouping), `formatDuration`, `formatDistance`, all locale-aware (en/te, Asia/Kolkata). Unit tests added (96 shared tests pass).
+2. `TripCard` in `packages/ui/src/components/trip-card.tsx`: departure (large, tabular), service type (i18n key), arrival with approx label, duration, seats-left (ICU plural, warning at 5 or fewer, "Full" + not clickable at 0), fare, StatusBadge when not UPCOMING, free-travel chip. Whole card is one accessible link.
+3. `/search` (`apps/web/app/(citizen)/search/`): server page reads params, passes to `SearchClient`. Sticky summary bar (from/to/date, Edit opens Sheet). Time band chips (Morning 05:00-11:59, Afternoon 12:00-16:59, Evening 17:00-20:59, Night 21:00-04:59) stored in URL. Results with skeletons. Empty + Error states. Responsive: filters + search form in left column on md+.
+4. `/bus/[tripId]` (`apps/web/app/(citizen)/bus/[tripId]/`): `GET /trips/:id` + `GET /trips/:id/fare`. Shows service type, bus reg, departure/arrival, fare breakdown, seats left, live status, boarding/dropping points, stops timeline. Book ticket (primary, disabled when full or closed), Track bus, View route actions. All 4 states.
+5. `/timetable`: districts -> bus stands -> routes breadcrumb. `/timetable/route/[routeId]`: first/last/next bus, frequency, date switcher (Today/Tomorrow/calendar), trip list with StatusBadge, stops list. All from Day 4 endpoints.
+6. Responsive on md+. `data-testid` attributes on key elements for E2E.
 
 ### Dev B (trip details, seats, holds)
 
-- Reuse `NetworkRepository.tripRows` (it already joins the fare rule for a stop pair) and `toTripSummary`.
-- Seats: `SEAT_TAKING_STATUSES` in the repository; add Redis holds on top.
-- New endpoints that read a lot: put queries in the repository so HTTP tests can use `test/network-fixture.ts`.
+All six items from the prompt are done:
+
+1. Shared schemas in `packages/shared/src/schemas/trips.ts`: `TripDetailDto`, `SeatMapDto`, `FareDto`, `CreateBookingInput`, `BookingDto`, `RefundTierDto`.
+2. `GET /trips/:id`, `GET /trips/:id/seats?from&to`, `GET /trips/:id/fare?from&to` (all public). `holdcount:{tripId}` counter key maintained on hold/release. `seatsLeft` in search result subtracts live holds.
+3. `POST /bookings`: validates settings, stop order, seat existence and non-blocked state. Atomic Redis hold (SET NX EX) for all seats; rollback on any failure with SEAT_TAKEN. DB transaction for booking + passengers. Idempotency-Key support.
+4. `GET /bookings/:id` (owner only), `DELETE /bookings/:id` (owner, PENDING_PAYMENT only: releases holds, CANCELLED).
+5. BullMQ: `QueueModule` (producers in API), worker process (WORKER=1). Processors in `apps/api/src/modules/queue/processors/`: `expiry.processor.ts` (booking-hold-expired), `maintenance.processor.ts` (generate-trips daily 00:30 IST).
+6. Tests in `apps/api/test/trips-bookings.test.ts`: concurrency (two parallel POST for same seat, exactly 1 succeeds), DELETE releases holds, validation failures. All 116 api tests pass (6 skipped without TEST_DATABASE_URL).
+
+### E2E
+
+- `apps/web/playwright.config.ts`: Desktop Chrome + Pixel 7 profiles.
+- `apps/web/e2e/E2E-1-guest-search.spec.ts`: home to search (Kurnool to Vijayawada), results + filter chip URL persistence, open bus details, back keeps filters.
+- Run with: `pnpm e2e` (needs dev server on :3000 and API on :4000 with a seeded database).
+
+### Current state (Day 5 complete, 2026-10-02)
+
+| Check | Result |
+| --- | --- |
+| `pnpm check:dashes` | PASS |
+| `pnpm typecheck` | PASS |
+| `pnpm test` | PASS (shared 96, ui 28, web 33, api 116/6 skipped, scripts 6) |
+| E2E-1 | Written, requires running servers + seeded DB |
+
+### Not done yet
+
+| Item | Why | When |
+| --- | --- | --- |
+| E2E-1 running in CI | Needs Neon test branch + Upstash + seeded data | CI setup |
+| Seat selection UI | Not today per prompt | Day 6+ |
+| Payment flow | Not today per prompt | Day 10 |
+| Upstash usage logged | Needs running Upstash instance | After real .env |
+| Worker drain delay verified | Needs BULLMQ_DRAIN_DELAY_SEC in .env | After real .env |

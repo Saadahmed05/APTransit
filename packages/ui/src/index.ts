@@ -11,6 +11,7 @@ export * from "./components/radio-group";
 export * from "./components/switch";
 export * from "./components/card";
 export * from "./components/status-badge";
+export * from "./components/trip-card";
 export * from "./components/skeleton";
 export * from "./components/empty-state";
 export * from "./components/error-state";

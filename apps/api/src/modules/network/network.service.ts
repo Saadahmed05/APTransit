@@ -16,6 +16,7 @@ import {
 import { Injectable, Logger } from "@nestjs/common";
 import { AppError } from "../../common/errors/app-error";
 import { TtlCache } from "../../common/services/ttl-cache";
+import { RedisService } from "../../redis/redis.service";
 import { NetworkRepository, type StopSearchRow } from "./network.repository";
 import { boardingDepartureMs, hasFare, medianGapMinutes, toTripSummary } from "./trip-summary";
 
@@ -32,7 +33,10 @@ export class NetworkService {
   private readonly districtsCache = new TtlCache<DistrictDto[]>(CACHE_TTL_MS, 1);
   private readonly settingsCache = new TtlCache<number>(CACHE_TTL_MS, 50);
 
-  constructor(private readonly repo: NetworkRepository) {}
+  constructor(
+    private readonly repo: NetworkRepository,
+    private readonly redis?: RedisService,
+  ) {}
 
   /** Prefix and contains match on English and Telugu names. Bus stands first, then prefix matches, then by name. */
   async searchPlaces({ q, limit }: PlacesSearchQuery): Promise<PlaceDto[]> {
@@ -130,14 +134,40 @@ export class NetworkService {
     if (missingFare > 0) this.logger.warn(`search: ${missingFare} trips skipped, no fare rule on ${query.date}`);
     const priced = kept.filter(hasFare);
 
-    const taken = await this.repo.seatsTaken(priced.map((r) => r.tripId));
+    const tripIds = priced.map((r) => r.tripId);
+    const taken = await this.repo.seatsTaken(tripIds);
+    const holdCounts = await this.getHoldCounts(tripIds);
     const result = priced
-      .map((r) => toTripSummary(r, taken.get(r.tripId) ?? 0))
+      .map((r) => {
+        const totalTaken = (taken.get(r.tripId) ?? 0) + (holdCounts.get(r.tripId) ?? 0);
+        return toTripSummary(r, totalTaken);
+      })
       .sort((a, b) => a.departureAt.localeCompare(b.departureAt) || a.tripId.localeCompare(b.tripId));
 
     const ms = Math.round(performance.now() - started);
     this.logger.log(`search: ${result.length} trips in ${ms} ms`);
     return result;
+  }
+
+  private async getHoldCounts(tripIds: string[]): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (!this.redis || tripIds.length === 0) return map;
+    try {
+      const keys = tripIds.map((id) => `holdcount:${id}`);
+      const values = await this.redis.client.mget(keys);
+      for (let i = 0; i < tripIds.length; i++) {
+        const val = values[i];
+        if (val) {
+          const num = parseInt(val, 10);
+            if (tripIds[i]) {
+              map.set(tripIds[i]!, num);
+            }
+        }
+      }
+    } catch {
+      // Redis fail open: return empty map
+    }
+    return map;
   }
 
   private async settingNumber(key: string, fallback: number): Promise<number> {
