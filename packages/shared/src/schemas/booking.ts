@@ -3,6 +3,9 @@ import { BookingStatus } from "../enums";
 import { Paise } from "../money";
 import { PublicId } from "./search";
 
+/** docs/07 booking.maxPassengers default. The API reads the live setting; forms use this cap. */
+export const BOOKING_MAX_PASSENGERS = 6;
+
 export const CreateBookingPassengerInput = z.object({
   name: z.string().trim().min(1, "Name is required").max(100, "Name too long"),
   age: z.coerce.number().int().min(1, "Age must be at least 1").max(120, "Age must be at most 120"),
@@ -18,7 +21,7 @@ export const CreateBookingInput = z.object({
   passengers: z
     .array(CreateBookingPassengerInput)
     .min(1, "At least 1 passenger is required")
-    .max(6, "Maximum 6 passengers per booking"),
+    .max(BOOKING_MAX_PASSENGERS, `Maximum ${BOOKING_MAX_PASSENGERS} passengers per booking`),
   useFreeTravel: z.boolean().optional().default(false),
 });
 export type CreateBookingInput = z.infer<typeof CreateBookingInput>;

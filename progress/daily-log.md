@@ -4,6 +4,29 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## Day 06 · 2026-10-03 · Dev A and Dev B
+
+**Done**
+- Dev B: `payments/` module. `PaymentProvider` interface, `RazorpayProvider` (SDK plus Node crypto HMAC SHA 256 with `timingSafeEqual`), `FakePaymentProvider`. POST /payments/orders (reuses the open order, amount from the booking), POST /payments/verify (signature, provider record, order id, amount, capture when authorized, Idempotency-Key), POST /payments/webhook (raw body signature, payment.captured, payment.failed). `confirmBooking` is the only place tickets are made: one transaction, tickets SINGLE BOOKED with APT codes, `expiresAt` from `ticket-rules.ts`, qrSecret sealed with AES 256 GCM. Holds released, `booking.confirmed` on the new `DomainEventsService`, audit `payment.verify`, `payment.webhook`, `refund.create`. Late payment refund path (D-020). Raw payloads redacted (card, VPA, contact, email, bank).
+- Shared: `schemas/payments.ts`, `BOOKING_MAX_PASSENGERS`. Common: `common/crypto/secret-box.ts`, `common/services/idempotency.ts` (bookings now use it too), `test/fake-redis.ts`.
+- Dev A: `Stepper` and `SeatMap` in packages/ui (buttons named "Seat 18, available", aria-pressed, icons plus border style per state, roving focus with arrow keys, driver cabin and aisle, legend). `/book/[tripId]` (points, seat map polled every 15 s, sticky fare bar, Continue with a reason), `/details` (react-hook-form with the shared schema, "Use my details", Idempotency-Key per attempt, SEAT_TAKEN back to step 1 with names kept), `/review?booking=` (hold timer with 5, 2 and 1 minute announcements, summary, fare, refund tiers, Pay toast in development, Cancel). `api()` takes `headers`.
+
+**Verified**
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (shared 96, ui 35, web 33, api 149 + 6 database), `pnpm build`, `pnpm check:dashes`, `pnpm i18n:check`.
+- Payments tests with the fake provider: happy path, wrong signature, amount mismatch, authorized then captured, double verify (with and without key), other user's payment, late payment refund (once only), late payment with free seats, webhook first then verify, verify then webhook, bad webhook signature 400, payment.failed.
+- Browser on local PGlite: guest on /book goes to /login?next=, keyboard only booking of 2 seats on the 06:30 Express (Rs 1,082), validation focuses the first error, refresh on step 2 and 3 keeps data, SEAT_TAKEN (seat taken with curl) returns to step 1 with the message and moves the typed details to the new seat, browser Back from step 3 reuses the same booking, Cancel frees the seats, a closed booking shows HOLD_EXPIRED. Telugu at 360 px: no horizontal scroll.
+
+**Carry over**
+- No real Razorpay test keys locally (`.env` has placeholders): the live checkout with `success@razorpay` is not done. Needs a human to create the test keys (docs/15).
+- Screen reader pass with NVDA or TalkBack not done (names and live regions checked in the DOM).
+- Hold expiry by the timer itself not watched end to end (10 min); the expired view was checked through a cancelled booking.
+
+**Contract changes (packages/shared)**
+- New `schemas/payments.ts`, `BOOKING_MAX_PASSENGERS`.
+
+**Decisions needed**
+- D-020.
+
 ## Day 05 review · 2026-10-03 · Dev B
 
 **Done**

@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import {
   type BookingDto,
   calculateFare,
@@ -9,8 +9,8 @@ import {
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import type { Queue } from "bullmq";
-import { z } from "zod";
 import { AppError } from "../../common/errors/app-error";
+import { idempotencySlot, readIdempotent, writeIdempotent } from "../../common/services/idempotency";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { SEAT_TAKING_STATUSES } from "../network/network.repository";
@@ -21,7 +21,6 @@ const DEFAULT_MAX_PASSENGERS = 6;
 const DEFAULT_DAYS_AHEAD = 30;
 const DEFAULT_CLOSE_MINUTES_BEFORE = 10;
 const DEFAULT_HOLD_MINUTES = 10;
-const IDEMPOTENCY_TTL_SEC = 86_400;
 /** Queue calls must never hold up a booking response. Holds still expire by TTL. */
 const QUEUE_ADD_TIMEOUT_MS = 3_000;
 const SETTING_KEYS = [
@@ -30,9 +29,6 @@ const SETTING_KEYS = [
   "booking.closeMinutesBefore",
   "booking.holdMinutes",
 ] as const;
-
-/** docs/06: the Idempotency-Key header is a uuid. */
-const IdempotencyKey = z.string().uuid();
 
 /** BullMQ custom job ids cannot contain ":". */
 export function expiryJobId(bookingId: string): string {
@@ -111,21 +107,9 @@ export class BookingsService {
     now = new Date(),
   ): Promise<BookingDto> {
     // 1. Idempotency: same key and body returns the first result (docs/06)
-    let idempotencyCacheKey: string | null = null;
-    const bodyHash = createHash("sha256").update(JSON.stringify(input)).digest("hex");
-    if (idempotencyKey !== undefined) {
-      if (!IdempotencyKey.safeParse(idempotencyKey).success) {
-        throw new AppError("VALIDATION_FAILED", "Idempotency-Key must be a uuid");
-      }
-      idempotencyCacheKey = `idemp:booking:${userId}:${idempotencyKey}`;
-      const cached = await this.readIdempotent(idempotencyCacheKey);
-      if (cached) {
-        if (cached.bodyHash !== bodyHash) {
-          throw new AppError("VALIDATION_FAILED", "Idempotency-Key was already used with a different body");
-        }
-        return cached.booking;
-      }
-    }
+    const slot = idempotencySlot("booking", userId, idempotencyKey, input);
+    const cached = await readIdempotent<BookingDto>(this.redis.client, slot);
+    if (cached) return cached;
 
     // Free travel needs an active FREE_TRAVEL pass checked on the server (docs/06, Day 8).
     // Never take the client's word for eligibility.
@@ -318,20 +302,7 @@ export class BookingsService {
     }
 
     const bookingDto = toBookingDto(booking);
-
-    if (idempotencyCacheKey) {
-      try {
-        await this.redis.client.set(
-          idempotencyCacheKey,
-          JSON.stringify({ bodyHash, booking: bookingDto }),
-          "EX",
-          IDEMPOTENCY_TTL_SEC,
-        );
-      } catch {
-        // Non-critical cache
-      }
-    }
-
+    await writeIdempotent(this.redis.client, slot, bookingDto);
     return bookingDto;
   }
 
@@ -415,15 +386,6 @@ export class BookingsService {
       await withTimeout(this.expiryQueue.remove(expiryJobId(bookingId)));
     } catch {
       // The job is a no-op for a cancelled booking anyway
-    }
-  }
-
-  private async readIdempotent(key: string): Promise<{ bodyHash: string; booking: BookingDto } | null> {
-    try {
-      const cached = await this.redis.client.get(key);
-      return cached ? (JSON.parse(cached) as { bodyHash: string; booking: BookingDto }) : null;
-    } catch {
-      return null;
     }
   }
 

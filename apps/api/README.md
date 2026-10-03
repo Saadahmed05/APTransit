@@ -118,6 +118,8 @@ Rate limits fail open when Redis is down (a cache outage never blocks traffic). 
 
 Seat holds: only through `modules/bookings/seat-holds.ts` (`holdSeats`, `releaseSeats`). Each is one Lua script, so a hold is all or nothing and a release never frees another booking's seat (D-019). Queue job ids must not contain ":" (BullMQ rejects them).
 
+Payments: provider behind `PAYMENT_PROVIDER` (`RazorpayProvider`; tests override it with `FakePaymentProvider`). Tickets are created only in `BookingConfirmationService.confirmBooking`, which is idempotent (D-020). Domain events: inject `DomainEventsService` and `on("booking.confirmed", ...)`. Idempotency-Key: `common/services/idempotency.ts`. Secrets at rest: `common/crypto/secret-box.ts` (AES 256 GCM, `QR_SECRET_KEY`). HTTP tests: `test/fake-redis.ts` knows the Lua scripts.
+
 ## Tests
 
 - Vitest with SWC (decorators and metadata). `pnpm --filter api test`.

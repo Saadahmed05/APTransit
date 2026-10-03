@@ -19,6 +19,7 @@ import { configureHttpApp } from "../src/http-app";
 import { QUEUES } from "../src/modules/queue/queue.constants";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { RedisService } from "../src/redis/redis.service";
+import { createFakeRedis } from "./fake-redis";
 
 describe("Trips and Bookings endpoints (Day 5)", () => {
   let app: NestExpressApplication;
@@ -249,74 +250,7 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
       onModuleDestroy: async () => undefined,
     };
 
-    const mockRedis = {
-      client: {
-        status: "ready",
-        ping: async () => "PONG",
-        get: async (key: string) => redisStore.get(key) ?? null,
-        set: async (key: string, value: string, ...args: any[]) => {
-          if (args.includes("NX") && redisStore.has(key)) {
-            return null;
-          }
-          redisStore.set(key, value);
-          return "OK";
-        },
-        mget: async (keys: string[]) => keys.map((k) => redisStore.get(k) ?? null),
-        del: async (...keys: string[]) => {
-          let count = 0;
-          for (const k of keys) {
-            if (redisStore.delete(k)) count++;
-          }
-          return count;
-        },
-        incrby: async (key: string, amount: number) => {
-          const curr = parseInt(redisStore.get(key) ?? "0", 10);
-          const next = curr + amount;
-          redisStore.set(key, String(next));
-          return next;
-        },
-        decrby: async (key: string, amount: number) => {
-          const curr = parseInt(redisStore.get(key) ?? "0", 10);
-          const next = Math.max(0, curr - amount);
-          redisStore.set(key, String(next));
-          return next;
-        },
-        expire: async () => 1,
-        eval: async (script: string, numKeys: number, ...rest: string[]) => {
-          const keys = rest.slice(0, numKeys);
-          const argv = rest.slice(numKeys);
-          if (script.includes("-- seat-hold")) {
-            const seatKeys = keys.slice(0, -1);
-            const taken = seatKeys.findIndex((k) => redisStore.has(k));
-            if (taken !== -1) return taken + 1;
-            for (const k of seatKeys) redisStore.set(k, argv[0]!);
-            const countKey = keys[keys.length - 1]!;
-            redisStore.set(countKey, String(Number(redisStore.get(countKey) ?? 0) + seatKeys.length));
-            return 0;
-          }
-          if (script.includes("-- seat-release")) {
-            let released = 0;
-            for (const k of keys.slice(0, -1)) {
-              if (redisStore.get(k) === argv[0]) {
-                redisStore.delete(k);
-                released++;
-              }
-            }
-            const countKey = keys[keys.length - 1]!;
-            const left = Number(redisStore.get(countKey) ?? 0) - released;
-            if (left <= 0) redisStore.delete(countKey);
-            else redisStore.set(countKey, String(left));
-            return released;
-          }
-          // Rate limit window script
-          const key = keys[0]!;
-          const val = Number(redisStore.get(key) ?? 0) + 1;
-          redisStore.set(key, String(val));
-          return [val, Number(argv[0])];
-        },
-      },
-      onModuleDestroy: async () => undefined,
-    };
+    const mockRedis = createFakeRedis(redisStore);
 
     const mockQueue = {
       add: async (name: string, data: unknown, opts: any) => {

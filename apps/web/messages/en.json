@@ -377,5 +377,81 @@
     "TRANSPORT_OFFICER": "Transport officer",
     "STATE_ADMIN": "State admin",
     "SUPER_ADMIN": "Super admin"
+  },
+  "book": {
+    "title": "Book ticket",
+    "steps": {
+      "label": "Booking steps",
+      "seat": "Seat",
+      "details": "Details",
+      "pay": "Pay",
+      "announce": "Step {step} of {total}: {name}",
+      "completed": "completed"
+    },
+    "seat": {
+      "heading": "Pick your seats",
+      "boarding": "Boarding point",
+      "dropping": "Destination",
+      "map": "Seats",
+      "driver": "Driver",
+      "legend": "Seat legend",
+      "states": {
+        "FREE": "available",
+        "SELECTED": "selected",
+        "TAKEN": "taken",
+        "HELD": "on hold",
+        "BLOCKED": "not available"
+      },
+      "seatLabel": "Seat {seat}, {state}",
+      "selected": "{count, plural, =0 {No seats selected} one {Seat {seats}} other {Seats {seats}}}",
+      "total": "Total",
+      "continue": "Continue",
+      "pickSeatReason": "Pick at least one seat to continue.",
+      "maxReached": "You can book up to {max} seats at a time.",
+      "lostSeat": "Seat {seat} is no longer free and was removed from your selection.",
+      "errorTitle": "Seats could not load"
+    },
+    "details": {
+      "heading": "Passenger details",
+      "passenger": "Passenger {number}, seat {seat}",
+      "name": "Full name",
+      "age": "Age",
+      "gender": "Gender",
+      "genderHint": "Used only for seat rules and free travel. Never shown to other travellers.",
+      "genders": {
+        "F": "Female",
+        "M": "Male",
+        "X": "Other"
+      },
+      "useMine": "Use my details",
+      "continue": "Continue",
+      "backToSeats": "Change seats",
+      "noSeats": "Pick your seats first.",
+      "errors": {
+        "name": "Enter the passenger's name.",
+        "age": "Enter an age from 1 to 120.",
+        "gender": "Choose a gender."
+      }
+    },
+    "review": {
+      "heading": "Review and pay",
+      "holdLabel": "Seats held for",
+      "holdLeft": "{minutes, plural, one {# minute} other {# minutes}} left to pay",
+      "holdExpiredTitle": "Seat hold ended",
+      "pickAgain": "Pick seats again",
+      "trip": "Trip",
+      "passengers": "Passengers",
+      "seat": "Seat {seat}",
+      "passengerLine": "{name}, {age}",
+      "perPassenger": "{count, plural, one {# passenger} other {# passengers}} x {fare}",
+      "pay": "Pay {amount}",
+      "payComing": "Payment comes on Day 7",
+      "cancel": "Cancel booking",
+      "cancelFailed": "The booking could not be cancelled. Try again.",
+      "errorTitle": "Booking could not load",
+      "paidTitle": "This booking is paid",
+      "paidHint": "Your tickets are ready.",
+      "closedTitle": "This booking is no longer open"
+    }
   }
 }

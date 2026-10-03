@@ -105,3 +105,8 @@ Day 4 additions:
 - `OtpInput`: one box per digit, paste and SMS autofill spread over the boxes, `autocomplete="one-time-code"` on the first box, `onComplete` for auto submit. Labels come in as `groupLabel` and `digitLabel(position, total)`.
 - `DatePicker`: Today and Tomorrow chips plus a `Calendar` in a Dialog (ARIA grid keys: arrows, Home, End, Page Up, Page Down). Dates are `YYYY-MM-DD` strings; the caller passes `today` (IST) and `locale`, so the component never reads the device clock. `addDays` and `monthGrid` are exported.
 - Dialog close button is now a 44 px target.
+
+## Booking components (Day 6)
+
+- `Stepper`: steps, current index, `announcement` ("Step 2 of 3: Details") read politely on change.
+- `SeatMap`: renders a `SeatLayout` with seat states from `GET /trips/:id/seats`. Pass translated `labels` (including `seat(seatNo, state)`), `selected`, `onToggle`, `maxSelectable`. One tab stop, arrow keys move, Enter or Space toggles.

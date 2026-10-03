@@ -53,6 +53,8 @@ export interface ApiOptions<T> {
   /** Query string values; undefined ones are skipped. */
   query?: Record<string, string | number | undefined>;
   signal?: AbortSignal;
+  /** Extra request headers, for example Idempotency-Key. */
+  headers?: Record<string, string>;
   /**
    * Send the user to /login when the session cannot be refreshed. True for pages that need login.
    * Public data (places, search) sets false so an expired session never blocks it.
@@ -96,7 +98,7 @@ async function toApiError(res: Response): Promise<ApiError> {
 }
 
 async function send(path: string, options: ApiOptions<unknown>, token: string | null): Promise<Response> {
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: "application/json", ...options.headers };
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
   try {

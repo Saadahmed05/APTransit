@@ -66,3 +66,7 @@ lib/             api client, auth, query keys, socket client, formatters
 messages/        en.json, te.json (Day 3)
 public/          manifest icons, static files
 ```
+
+## Booking flow (Day 6)
+
+`/book/[tripId]` (seats), `/details` (passengers), `/review?booking=` (hold timer, Pay). State shared across the steps lives in `lib/booking-draft.ts` (session storage per trip). Forms use react-hook-form with the shared zod schema. Send `Idempotency-Key` with `api(path, { headers })`.

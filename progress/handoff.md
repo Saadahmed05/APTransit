@@ -14,15 +14,15 @@ Read order for a new session:
 
 ---
 
-## Current state (Day 5 built and reviewed, 2026-10-03)
+## Current state (Day 6 built, 2026-10-03)
 
 ### Git
 
 | Branch | Contains | Status |
 | --- | --- | --- |
-| `main` | Day 1 to Day 5 (PR #3) plus the Day 5 review fixes | Baseline |
+| `main` | Day 1 to Day 6 (Day 6 merged directly at the owner's request, no PR) | Baseline |
 
-**Day 6 starts from `main`.**
+**Day 7 starts from `main`.**
 
 ### Works today (verified 2026-10-03)
 
@@ -31,7 +31,8 @@ Read order for a new session:
 - Checked live on local PGlite plus `scripts/dev-redis.mjs`: parallel bookings for one seat give 201 and 409, HELD seat, seatsLeft drops, DELETE frees, useFreeTravel 422. Browser: search, Morning filter, 06:30 Express Rs 541, Back keeps the filter, Telugu at 360 px.
 - Worker drainDelay=60 configured (reads BULLMQ_DRAIN_DELAY_SEC, default 60, logs on startup). Not yet measured on Upstash.
 - Playwright is a dev dependency, but Chromium is NOT installed on the Windows machine: run `pnpm --filter web exec playwright install chromium` before `pnpm e2e`.
-- Tests: shared 96, api 128 (+6 database tests skipped without `TEST_DATABASE_URL`), ui 29, web 33, scripts 6.
+- Day 6: payments module (orders, verify, webhook, `confirmBooking`, late payment refund, D-020), Stepper and SeatMap, `/book/[tripId]` three steps up to Pay. Checked in the browser on local PGlite (see the Day 06 daily log).
+- Tests: shared 96, api 149 (+6 database tests skipped without `TEST_DATABASE_URL`), ui 35, web 33, scripts 6.
 - The 6 database tests (seed twice, health, real search SQL with p95 under 250 ms) passed against a local PGlite database, not Neon yet.
 - Public network API: places search (English and Telugu, bus stands first), districts, bus stands, routes, timetable, trip search with fares from `fare.ts` and seats left. Kurnool to Vijayawada tomorrow gives the 6 docs/19 trips, Express Rs 541.
 - Web, checked in the browser against the real API: home (combobox, swap, date chips and calendar, validation, form kept after Back), login (email OTP, paste, wrong code, resend timer), session kept after a full reload with one refresh call, `next` redirect, account (name, language saved to the account, theme, logout), 403 for a citizen on `/ops`, manager allowed. 360, 768, 1280 px, English and Telugu.
@@ -46,6 +47,8 @@ Read order for a new session:
 | Short Telugu label for "Track bus" | D-015, needs a native speaker | Open |
 | E2E-1 run (locally and in CI) | Chromium not installed locally; CI needs `TEST_DATABASE_URL` and `TEST_REDIS_URL` secrets, E2E skips without them | Day 6 |
 | Upstash command count with an idle worker | Needs a real Upstash instance | After real `.env` |
+| Live Razorpay test checkout (`success@razorpay`) | Local `.env` has placeholder Razorpay keys | When a human creates test keys |
+| Opening checkout from the review page, `/book/done`, `POST /payments/test/complete` | Scheduled | Day 7 |
 
 ### Decisions
 
@@ -247,6 +250,9 @@ The Next lint config includes the React Compiler rules. `setState` directly insi
 | BullMQ `add` fails with "Custom Id cannot contain :" | BullMQ job ids cannot hold a colon | Use a dash (`expiry-<bookingId>`, see `expiryJobId`). Never swallow queue errors silently in tests: the mock queue records `opts` |
 | New Lua script works on Upstash but not locally | `scripts/dev-redis.mjs` fakes Lua by matching a marker comment | Start the script with `-- <name>` and add the same behaviour to `runEval` and to the test mock `eval` |
 | Local booking takes 3 s | dev-redis cannot run BullMQ, the expiry job add times out | Expected locally. With Upstash the job is scheduled |
+| Payment test needs a webhook body | `FakePaymentProvider.webhook(event, paymentId)` signs it like Razorpay | Send it as a raw JSON string with the `X-Razorpay-Signature` header; the app needs `rawBody: true` |
+| New code makes tickets | Only `BookingConfirmationService.confirmBooking` may (docs/06) | Call it; never `ticket.create` elsewhere |
+| Booking page loses typed names | The draft lives in `lib/booking-draft.ts` (session storage per trip) | Write every change there; read it through `useBookingDraft` (null until hydrated) |
 | `/search` shows From and To instead of place names | The URL has stop ids only; names come from `lib/saved-search.ts` (session storage) | Opening a shared link shows the generic labels. A by id places endpoint would fix it (Dev B) |
 | `PlaceCombobox` hydration error on an SSR page | Recent places came from localStorage on the first render | Fixed: read after mount. Do the same for any browser storage read |
 

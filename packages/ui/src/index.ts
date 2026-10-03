@@ -23,3 +23,5 @@ export * from "./components/tooltip";
 export * from "./components/dropdown-menu";
 export * from "./components/otp-input";
 export * from "./components/date-picker";
+export * from "./components/stepper";
+export * from "./components/seat-map";

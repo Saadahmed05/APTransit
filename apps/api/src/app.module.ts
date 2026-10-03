@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
+import { DomainEventsModule } from "./common/events/domain-events.service";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { AppThrottlerGuard } from "./common/guards/app-throttler.guard";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
@@ -15,6 +16,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { BookingsModule } from "./modules/bookings/bookings.module";
 import { HealthModule } from "./modules/health/health.module";
 import { NetworkModule } from "./modules/network/network.module";
+import { PaymentsModule } from "./modules/payments/payments.module";
 import { QueueModule } from "./modules/queue/queue.module";
 import { TripsModule } from "./modules/trips/trips.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -44,11 +46,13 @@ import { RedisService } from "./redis/redis.service";
       }),
     }),
     AuditModule,
+    DomainEventsModule,
     AuthModule,
     HealthModule,
     NetworkModule,
     TripsModule,
     BookingsModule,
+    PaymentsModule,
     QueueModule,
   ],
   providers: [

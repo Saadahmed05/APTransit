@@ -8,7 +8,11 @@ import type { Env } from "./config/env";
 import { API_PREFIX, configureHttpApp } from "./http-app";
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+    // POST /payments/webhook checks the Razorpay signature over the exact raw body
+    rawBody: true,
+  });
   configureHttpApp(app);
 
   const port = app.get<ConfigService<Env, true>>(ConfigService).get("PORT", { infer: true });
