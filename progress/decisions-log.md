@@ -184,6 +184,14 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
 - **Decision:** (1) A late payment is honoured when the booking is not cancelled, the trip is not cancelled or completed, and no ticket or other hold has the seats. Otherwise the full amount is refunded at once (refunds row with reason `LATE_PAYMENT_SEATS_UNAVAILABLE`, audit `refund.create`) and verify returns 410 `HOLD_EXPIRED`. (2) A second captured payment for an already confirmed booking is refunded the same way (`DUPLICATE_PAYMENT`). (3) Moving the payments row out of CREATED or FAILED is the claim that makes `confirmBooking` idempotent between verify and webhook. (4) Webhook: bad signature is 400 `VALIDATION_FAILED`; every verified delivery answers 200, failures are kept in the `payment.webhook` audit row. (5) `/payments/orders` returns 200 (not 201) and reuses the open CREATED order. (6) The web booking flow keeps its draft (segment, seats, typed passengers, booking id) in session storage per trip (`lib/booking-draft.ts`).
 - **Status:** Proposed, review at the Day 6 sync
 
+### D-021 · Day 7 ticket engine details
+- **Date:** 2026-10-03
+- **Raised by:** Day 7
+- **Doc affected:** docs/07-ticket-and-pass-rules.md (section 4), docs/06-api-contract.md (Tickets, Payments test endpoint)
+- **Problem:** docs/07 says `HMAC_SHA256(rotSecret, step)` and "base32" without the exact bytes; docs/06 names TicketDto fields only loosely; the demo needs a ticket inside its activation window.
+- **Decision:** (1) The HMAC message is the step as 8 bytes big endian (as in TOTP); base32 is RFC 4648 (`A-Z2-7`); the token signature covers `APT1.<payload>`. Fixed vectors in `packages/shared/src/qr.test.ts`. (2) `TicketSummaryDto` and `TicketDto` as in `packages/shared/src/schemas/tickets.ts`; `displayStatus` is the live trip status, the ticket status is `status`. (3) Upcoming means BOOKED until `expiresAt`, or ACTIVE or SCANNED until `validUntil`; everything else is Past. (4) Every ticket status change publishes one domain event, `ticket.status` (from, to). (5) With `PAYMENTS_FAKE=1` the API uses `FakePaymentProvider` for every payment call, so dev and CI never reach Razorpay. (6) Demo trip in the window: `pnpm --filter api demo:window <ticket code> [minutes]` moves that ticket's trip (dev only). (7) "View ticket" on the confirmation goes to `/tickets` until the ticket page lands on Day 8.
+- **Status:** Proposed, review at the Day 7 sync
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |

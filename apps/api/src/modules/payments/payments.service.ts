@@ -1,6 +1,8 @@
+import { randomBytes } from "node:crypto";
 import type { CreatePaymentOrderInput, PaymentOrderDto, VerifyPaymentInput, VerifyPaymentResult } from "@aptransit/shared";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { AppError } from "../../common/errors/app-error";
+import { DomainEventsService } from "../../common/events/domain-events.service";
 import { idempotencySlot, readIdempotent, writeIdempotent } from "../../common/services/idempotency";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -10,6 +12,13 @@ import { BookingConfirmationService } from "./booking-confirmation.service";
 import { PAYMENT_PROVIDER, type PaymentProvider, type ProviderPayment, redactPaymentPayload } from "./payment-provider";
 
 type AuditActor = Pick<LogAuditParams, "actorUserId" | "actorRole" | "ip" | "userAgent">;
+
+interface WebhookRefundEntity {
+  id?: string;
+  payment_id?: string;
+  amount?: number;
+  status?: string;
+}
 
 interface WebhookPaymentEntity {
   id?: string;
@@ -28,6 +37,7 @@ export class PaymentsService {
     private readonly redis: RedisService,
     private readonly audit: AuditService,
     private readonly confirmation: BookingConfirmationService,
+    private readonly events: DomainEventsService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
   ) {}
 
@@ -139,19 +149,26 @@ export class PaymentsService {
 
     let event: string | undefined;
     let entity: WebhookPaymentEntity | undefined;
+    let refundEntity: WebhookRefundEntity | undefined;
     try {
       const body = JSON.parse(rawBody.toString("utf8")) as {
         event?: string;
-        payload?: { payment?: { entity?: WebhookPaymentEntity } };
+        payload?: { payment?: { entity?: WebhookPaymentEntity }; refund?: { entity?: WebhookRefundEntity } };
       };
       event = body.event;
       entity = body.payload?.payment?.entity;
+      refundEntity = body.payload?.refund?.entity;
     } catch {
       throw new AppError("VALIDATION_FAILED", "Webhook body is not JSON");
     }
 
+    if (event === "refund.processed") {
+      await this.refundProcessed(refundEntity);
+      return;
+    }
+
     if ((event !== "payment.captured" && event !== "payment.failed") || !entity?.order_id || !entity.id) {
-      return; // refund.processed arrives on Day 7; everything else is not ours
+      return; // everything else is not ours
     }
 
     const payment = await this.prisma.payment.findUnique({
@@ -191,6 +208,70 @@ export class PaymentsService {
       entityId: payment.id,
       after: { event, result: outcome },
     });
+  }
+
+  /**
+   * POST /payments/test/complete (dev and CI only): a captured payment for the caller's open order,
+   * through the same confirmBooking as a real one. Never touches Razorpay.
+   */
+  async completeTestPayment(userId: string, orderId: string, actor: AuditActor): Promise<VerifyPaymentResult> {
+    const payment = await this.prisma.payment.findUnique({
+      where: { providerOrderId: orderId },
+      include: { booking: { select: { userId: true } } },
+    });
+    if (!payment?.booking || payment.booking.userId !== userId) {
+      throw new AppError("NOT_FOUND", "Payment not found");
+    }
+    const fakeId = `pay_test_${randomBytes(7).toString("hex")}`;
+    const outcome = await this.confirmation.confirmBooking(payment.id, {
+      id: fakeId,
+      orderId,
+      amountPaise: payment.amountPaise,
+      currency: "INR",
+      status: "captured",
+      raw: { id: fakeId, order_id: orderId, amount: payment.amountPaise, method: "test" },
+    });
+    await this.audit.log({ action: "payment.verify", entityType: "payment", entityId: payment.id, after: { result: outcome.outcome, fake: true }, ...actor });
+    if (outcome.outcome === "REFUNDED") {
+      throw new AppError("HOLD_EXPIRED", "The seat hold expired before the payment arrived. The full amount is refunded");
+    }
+    return { kind: "BOOKING", bookingId: outcome.bookingId, ticketIds: outcome.ticketIds };
+  }
+
+  /**
+   * refund.processed: refund PROCESSED, its ticket CANCELLED to REFUNDED, and the payment REFUNDED
+   * or PARTIALLY_REFUNDED by what has gone back so far. Safe to receive twice.
+   */
+  private async refundProcessed(entity: WebhookRefundEntity | undefined): Promise<void> {
+    if (!entity?.id) return;
+    const refund = await this.prisma.refund.findUnique({ where: { providerRefundId: entity.id } });
+    if (!refund) return;
+
+    const changed = await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.refund.updateMany({
+        where: { id: refund.id, status: { not: "PROCESSED" } },
+        data: { status: "PROCESSED", processedAt: new Date() },
+      });
+      if (count === 0) return null;
+      const payment = await tx.payment.findUnique({ where: { id: refund.paymentId }, include: { refunds: { select: { amountPaise: true, status: true } } } });
+      if (payment) {
+        const back = payment.refunds.filter((r) => r.status === "PROCESSED").reduce((sum, r) => sum + r.amountPaise, 0);
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: { status: back >= payment.amountPaise ? "REFUNDED" : "PARTIALLY_REFUNDED" },
+        });
+      }
+      if (!refund.ticketId) return { ticket: null };
+      const ticket = await tx.ticket.findUnique({ where: { id: refund.ticketId }, select: { id: true, holderUserId: true, status: true } });
+      if (ticket?.status !== "CANCELLED") return { ticket: null };
+      await tx.ticket.update({ where: { id: ticket.id }, data: { status: "REFUNDED", version: { increment: 1 } } });
+      return { ticket };
+    });
+
+    if (changed?.ticket) {
+      this.events.publish("ticket.status", { ticketId: changed.ticket.id, holderUserId: changed.ticket.holderUserId, from: "CANCELLED", to: "REFUNDED" });
+    }
+    await this.audit.log({ action: "payment.webhook", entityType: "refund", entityId: refund.id, after: { event: "refund.processed", result: changed ? "PROCESSED" : "IGNORED" } });
   }
 
   /** The provider's record must match our order and amount, and the money must be captured. */

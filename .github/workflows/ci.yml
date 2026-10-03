@@ -142,7 +142,7 @@ jobs:
             "RAZORPAY_WEBHOOK_SECRET=ci-webhook-000",
             "RESEND_API_KEY=re_ci",
             'EMAIL_FROM="AP TransitOS <onboarding@resend.dev>"',
-            "PAYMENTS_FAKE=0",
+            "PAYMENTS_FAKE=1",
             "WORKER=0",
             "BULLMQ_DRAIN_DELAY_SEC=60",
             "TZ_DISPLAY=Asia/Kolkata",
@@ -161,7 +161,7 @@ jobs:
             'NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_ci00000000' \
             'NEXT_PUBLIC_MAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty' \
             'NEXT_PUBLIC_APP_ENV=development' \
-            'NEXT_PUBLIC_PAYMENTS_FAKE=0' > .env.local
+            'NEXT_PUBLIC_PAYMENTS_FAKE=1' > .env.local
 
       - name: Build
         if: steps.secrets.outputs.ok == 'true'
@@ -175,4 +175,5 @@ jobs:
         if: steps.secrets.outputs.ok == 'true'
         env:
           E2E_REQUIRE_RESULTS: "1"
+          E2E_PAYMENTS_FAKE: "1"
         run: pnpm e2e

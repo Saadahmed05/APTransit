@@ -87,14 +87,14 @@ export function busDisplayStatus(status: BusStatus): DisplayStatus {
 }
 
 /** Citizen facing ticket labels and tones (docs/07 section 3). */
-export const TICKET_STATUS_MAP: Record<TicketStatus, { tone: StatusTone; i18nKey: string }> = {
-  BOOKED: { tone: "neutral", i18nKey: "ticketStatus.BOOKED" },
-  ACTIVE: { tone: "info", i18nKey: "ticketStatus.ACTIVE" },
-  SCANNED: { tone: "success", i18nKey: "ticketStatus.SCANNED" },
-  USED: { tone: "neutral", i18nKey: "ticketStatus.USED" },
-  CANCELLED: { tone: "danger", i18nKey: "ticketStatus.CANCELLED" },
-  REFUNDED: { tone: "neutral", i18nKey: "ticketStatus.REFUNDED" },
-  EXPIRED: { tone: "neutral", i18nKey: "ticketStatus.EXPIRED" },
+export const TICKET_STATUS_MAP: Record<TicketStatus, { tone: StatusTone; i18nKey: string; icon: string }> = {
+  BOOKED: { tone: "neutral", i18nKey: "ticketStatus.BOOKED", icon: "circle-dashed" },
+  ACTIVE: { tone: "info", i18nKey: "ticketStatus.ACTIVE", icon: "timer" },
+  SCANNED: { tone: "success", i18nKey: "ticketStatus.SCANNED", icon: "circle-check" },
+  USED: { tone: "neutral", i18nKey: "ticketStatus.USED", icon: "circle-check" },
+  CANCELLED: { tone: "danger", i18nKey: "ticketStatus.CANCELLED", icon: "circle-x" },
+  REFUNDED: { tone: "neutral", i18nKey: "ticketStatus.REFUNDED", icon: "circle-x" },
+  EXPIRED: { tone: "neutral", i18nKey: "ticketStatus.EXPIRED", icon: "clock" },
 };
 
 export const ColourOfDay = z.enum(["RED", "BLUE", "GREEN", "VIOLET", "AMBER", "TEAL", "PINK"]);

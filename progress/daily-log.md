@@ -4,6 +4,34 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## Day 07 · 2026-10-03 · Dev A and Dev B
+
+**Done**
+- Dev B: `tickets/ticket-rules.ts` (activationWindow, computeValidUntil, canActivate, canCancel, canGift, nextStatusOnJob, isUpcoming), `packages/shared/src/qr.ts` (qrStep, formatCode, rotatingCode with injected HMAC, buildQrContent, parseQrContent, QrPayload), `tickets/qr.service.ts` (Ed25519 tokens with keyId, sealed rotSecret, code check for steps minus 1 to plus 1). Endpoints GET /tickets, GET /tickets/:id, /qr, /refund-quote, POST /activate (Idempotency-Key, optimistic lock, audit, event), POST /cancel (refundQuote from fare.ts, provider refund, refunds row PENDING, audit ticket.cancel and refund.create). Webhook refund.processed. POST /payments/test/complete through `ConditionalModule` (PAYMENTS_FAKE=1 and APP_ENV not production) with the fake provider. `demo:window` script (D-021).
+- Dev A: `lib/payments.ts` (`usePayment`: one checkout.js load, no double press, dismiss keeps the hold, failure retry, verify with Idempotency-Key, poll the booking for 30 s when the answer is lost, fake flag path). Review page wired. `/book/done/[bookingId]` (calm confirmation, ticket preview, activation hint, View ticket, Book return journey). `/tickets` (tabs in the URL, TicketSummaryCard, skeletons, empty and error states, refetch on focus). `TicketStatusBadge` in packages/ui (icons now in `TICKET_STATUS_MAP`). E2E-2 spec; CI e2e job runs with the fake payment flags.
+
+**Verified**
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (shared 102, ui 35, web 33, api 201 + 6 database), `pnpm build`, `pnpm check:dashes`, `pnpm i18n:check`.
+- Unit: every docs/07 section 2 row, activation edges (before open, at open, inside, at close, after close, delay), QR fixed vectors (Node and Web Crypto agree), tampered token, wrong key id, stale code, next step. Integration: activate inside the window, twice 409, outside 422 with the opening time, QR hides rotSecret before activation, cancel refunds 90, 75 and 50 percent of the fare part, double cancel refunds once, refund.processed gives REFUNDED and PARTIALLY_REFUNDED once, another user gets 404 on every ticket route, test/complete registered only with the flag.
+- Playwright (Chromium installed): E2E-1 and E2E-2 pass on Desktop Chrome and Pixel 7 (6 of 6) against a production build of the web app, one worker, as in CI.
+- 360 px, Telugu: /tickets and /book/done have no horizontal scroll, tabs and buttons are at least 44 px, headings are h1, status badges show icon and label.
+- Live on local PGlite with the fake flags, in Telugu: seat, details, review, Pay, `/book/done` ("టికెట్ బుక్ అయింది", seat 5, activation hint), `/tickets` shows the ticket. Engine: activate before the window gives ACTIVATION_WINDOW_CLOSED with the times, `demo:window` moves the trip, activate gives ACTIVE with validUntil, second call 409, QR payload verifies, the code computed with the shared helper passes `QrService.verifyCode`, a code two steps old fails, a tampered token is rejected.
+
+**Bugs found**
+- Fixed today: the test endpoint did not register locally (ConfigModule loads `.env` asynchronously and writes the flag back as "true"); orders called real Razorpay under the fake flag; the E2E-2 email locator; Telugu route phrases used "to" as a separate word (now `common.routeFromTo`).
+
+**Carry over**
+- Real Razorpay test checkout (UPI `success@razorpay`, card 4111 1111 1111 1111) at 360 px and closing the popup mid way: needs real test keys (placeholders locally).
+- Web security headers (docs/12, CSP allowing checkout.razorpay.com) are scheduled for Day 17 (prompts/day-17.md item 3), not today.
+
+- Local only, not a code bug: with two parallel E2E workers PGlite returned a null required relation once (POST /bookings 500). Neon will not do that; locally run E2E with one worker.
+
+**Contract changes (packages/shared)**
+- New `qr.ts`, `schemas/tickets.ts`, `CompleteTestPaymentInput`; `TICKET_STATUS_MAP` gains `icon`.
+
+**Decisions needed**
+- D-021.
+
 ## Day 06 · 2026-10-03 · Dev A and Dev B
 
 **Done**

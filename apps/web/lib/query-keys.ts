@@ -18,6 +18,7 @@ export const queryKeys = {
     ["network", "routes", busStandId ?? ""] as const,
   route: (id: string) => ["network", "route", id] as const,
   booking: (id: string) => ["booking", id] as const,
+  tickets: (scope: "upcoming" | "past") => ["tickets", scope] as const,
   timetable: (routeId: string, date: string) =>
     ["network", "timetable", routeId, date] as const,
 };

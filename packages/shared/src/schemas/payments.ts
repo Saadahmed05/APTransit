@@ -29,6 +29,12 @@ export const VerifyPaymentInput = z.object({
 });
 export type VerifyPaymentInput = z.infer<typeof VerifyPaymentInput>;
 
+/** POST /payments/test/complete (dev and CI only). */
+export const CompleteTestPaymentInput = z.object({
+  orderId: z.string().trim().min(1).max(64),
+});
+export type CompleteTestPaymentInput = z.infer<typeof CompleteTestPaymentInput>;
+
 export const PaymentKind = z.enum(["BOOKING", "PASS"]);
 export type PaymentKind = z.infer<typeof PaymentKind>;
 

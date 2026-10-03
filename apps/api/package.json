@@ -16,7 +16,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "tsx prisma/reset.ts"
+    "db:reset": "tsx prisma/reset.ts",
+    "demo:window": "tsx prisma/demo-window.ts"
   },
   "dependencies": {
     "@aptransit/shared": "workspace:*",

@@ -3,7 +3,7 @@ import { getQueueToken } from "@nestjs/bullmq";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppModule } from "../src/app.module";
 import { openSecret } from "../src/common/crypto/secret-box";
 import { DomainEventsService } from "../src/common/events/domain-events.service";
@@ -11,10 +11,17 @@ import { configureHttpApp } from "../src/http-app";
 import { AuthService } from "../src/modules/auth/auth.service";
 import { FakePaymentProvider } from "../src/modules/payments/fake-payment.provider";
 import { hmacSha256Hex, PAYMENT_PROVIDER } from "../src/modules/payments/payment-provider";
+import { paymentsFakeEnabled } from "../src/modules/payments/payments.module";
 import { QUEUES } from "../src/modules/queue/queue.constants";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { RedisService } from "../src/redis/redis.service";
 import { createFakeRedis } from "./fake-redis";
+
+// This file also covers POST /payments/test/complete, which only exists with PAYMENTS_FAKE=1.
+// Set before AppModule is evaluated; restored in afterAll.
+vi.hoisted(() => {
+  process.env.PAYMENTS_FAKE = "1";
+});
 
 // In memory tables. $transaction restores them when the callback throws, like a real rollback.
 type Db = Record<"bookings" | "passengers" | "payments" | "tickets" | "refunds" | "audit", any[]>;
@@ -202,6 +209,7 @@ describe("Payments (Day 6)", () => {
 
   afterAll(async () => {
     await app.close();
+    process.env.PAYMENTS_FAKE = "0";
   });
 
   describe("POST /payments/orders", () => {
@@ -335,6 +343,27 @@ describe("Payments (Day 6)", () => {
       await post("/payments/verify", paid).expect(200);
       expect(db.bookings[0].status).toBe("CONFIRMED");
       expect(provider.refunds).toHaveLength(0);
+    });
+  });
+
+  describe("POST /payments/test/complete (dev and CI only)", () => {
+    it("is registered only with PAYMENTS_FAKE=1 outside production", () => {
+      expect(paymentsFakeEnabled({ APP_ENV: "development", PAYMENTS_FAKE: "1" })).toBe(true);
+      expect(paymentsFakeEnabled({ APP_ENV: "development", PAYMENTS_FAKE: "0" })).toBe(false);
+      expect(paymentsFakeEnabled({ APP_ENV: "development", PAYMENTS_FAKE: "true" })).toBe(true);
+      expect(paymentsFakeEnabled({ APP_ENV: "production", PAYMENTS_FAKE: "1" })).toBe(false);
+    });
+
+    it("confirms the caller's order through confirmBooking, once", async () => {
+      const bookingId = seedBooking();
+      const orderId = await orderFor(bookingId);
+      const first = await post("/payments/test/complete", { orderId }).expect(200);
+      expect(first.body).toEqual({ kind: "BOOKING", bookingId, ticketIds: expect.any(Array) });
+      expect(db.tickets).toHaveLength(2);
+      const again = await post("/payments/test/complete", { orderId }).expect(200);
+      expect(again.body.ticketIds).toEqual(first.body.ticketIds);
+      expect(db.tickets).toHaveLength(2);
+      await post("/payments/test/complete", { orderId }, otherToken).expect(404);
     });
   });
 

@@ -33,7 +33,8 @@
     "close": "Close",
     "back": "Back",
     "breadcrumb": "Breadcrumb",
-    "notAvailable": "Not available"
+    "notAvailable": "Not available",
+    "routeFromTo": "{from} to {to}"
   },
   "home": {
     "question": "Where do you want to go?",
@@ -445,13 +446,48 @@
       "passengerLine": "{name}, {age}",
       "perPassenger": "{count, plural, one {# passenger} other {# passengers}} x {fare}",
       "pay": "Pay {amount}",
-      "payComing": "Payment comes on Day 7",
       "cancel": "Cancel booking",
       "cancelFailed": "The booking could not be cancelled. Try again.",
       "errorTitle": "Booking could not load",
       "paidTitle": "This booking is paid",
       "paidHint": "Your tickets are ready.",
-      "closedTitle": "This booking is no longer open"
+      "closedTitle": "This booking is no longer open",
+      "payNotCompleted": "Payment not completed. Your seats are still held.",
+      "payFailed": "Payment failed. You were not charged. Try again.",
+      "payBlocked": "The payment window could not open. Check your connection and try again.",
+      "checkingTitle": "We are checking your payment",
+      "checkingHint": "If money left your account, your ticket appears in My tickets in a few minutes. If not, it is refunded on its own. Quote booking {code} if you contact support.",
+      "paymentDescription": "{route}, {date}"
+    },
+    "done": {
+      "title": "Ticket booked",
+      "summary": "{route}, {date} at {time}.",
+      "ticketCount": "{count, plural, one {# ticket} other {# tickets}}",
+      "seat": "Seat {seat}",
+      "activateHint": "You can activate from {time}.",
+      "viewTicket": "View ticket",
+      "returnJourney": "Book return journey",
+      "waitingTitle": "Confirming your booking",
+      "waitingHint": "This takes a few seconds.",
+      "notConfirmedTitle": "We are still confirming this booking",
+      "errorTitle": "Booking could not load"
     }
+  },
+  "tickets": {
+    "title": "My tickets",
+    "tabs": {
+      "upcoming": "Upcoming",
+      "past": "Past"
+    },
+    "emptyTitle": "No tickets yet.",
+    "emptyHint": "Search buses to book your first trip.",
+    "emptyPastTitle": "No past tickets.",
+    "search": "Search buses",
+    "code": "Ticket {code}",
+    "seat": "Seat {seat}",
+    "refundPending": "Refund in progress",
+    "refundDone": "Refunded {amount}",
+    "cardLabel": "{route}, {date} at {time}, seat {seat}, {status}",
+    "errorTitle": "Tickets could not load"
   }
 }

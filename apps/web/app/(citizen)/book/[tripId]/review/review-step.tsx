@@ -8,15 +8,16 @@ import {
   formatTime,
   TripDetailDto,
 } from "@aptransit/shared";
-import { Button, Card, cn, EmptyState, ErrorState, Skeleton, toast } from "@aptransit/ui";
+import { Button, Card, cn, EmptyState, ErrorState, Skeleton } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
-import { CircleCheck, Clock, Ticket, TriangleAlert } from "lucide-react";
+import { CircleCheck, Clock, Info, Ticket, TriangleAlert } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, errorKey } from "../../../../../lib/api";
 import { clearDraft, writeDraft } from "../../../../../lib/booking-draft";
+import { usePayment } from "../../../../../lib/payments";
 import { queryKeys } from "../../../../../lib/query-keys";
 import { BookingStepper } from "../booking-stepper";
 
@@ -40,6 +41,7 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
   const router = useRouter();
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState(false);
+  const payment = usePayment();
 
   const bookingQuery = useQuery({
     queryKey: queryKeys.booking(bookingId ?? ""),
@@ -130,10 +132,20 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
   const fare = fareQuery.data;
   const total = formatMoney(booking.totalPaise, locale);
 
-  const onPay = () => {
-    // Razorpay checkout is wired on Day 7
-    if (process.env.NEXT_PUBLIC_APP_ENV === "development") toast(t("book.review.payComing"));
-  };
+  const onPay = () =>
+    payment.pay({
+      bookingId: booking.id,
+      name: t("common.appName"),
+      description: t("book.review.paymentDescription", {
+        route: t("common.routeFromTo", { from: name(boarding), to: name(dropping) }),
+        date: formatDate(new Date(`${trip.serviceDate}T00:00:00.000Z`), locale),
+      }),
+      onConfirmed: (id) => {
+        clearDraft(tripId);
+        router.push(`/book/done/${id}`);
+      },
+    });
+  const paying = payment.state.phase === "working" || payment.state.phase === "checking";
 
   const onCancel = async () => {
     setCancelling(true);
@@ -265,6 +277,27 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
         </Card>
       )}
 
+      {payment.state.phase === "dismissed" && (
+        <p role="status" className="flex items-start gap-2 rounded-md border border-default bg-surface p-3 text-small text-muted">
+          <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          {t("book.review.payNotCompleted")}
+        </p>
+      )}
+      {(payment.state.phase === "failed" || payment.state.phase === "blocked") && (
+        <p role="alert" className="flex items-start gap-2 rounded-md border border-status-danger-soft bg-status-danger-soft p-3 text-small text-status-danger">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          {payment.state.phase === "blocked"
+            ? t("book.review.payBlocked")
+            : t(payment.state.errorKey && t.has(payment.state.errorKey) ? payment.state.errorKey : "book.review.payFailed")}
+        </p>
+      )}
+      {payment.state.phase === "checking" && (
+        <div role="status" className="flex flex-col gap-1 rounded-md border border-status-info-soft bg-status-info-soft p-3 text-small text-status-info">
+          <p className="font-semibold">{t("book.review.checkingTitle")}</p>
+          <p>{t("book.review.checkingHint", { code: booking.code })}</p>
+        </div>
+      )}
+
       {cancelError && (
         <p role="alert" className="text-small text-status-danger">
           {t("book.review.cancelFailed")}
@@ -275,7 +308,7 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
         {expired ? (
           <span />
         ) : (
-          <Button variant="ghost" onClick={onCancel} loading={cancelling}>
+          <Button variant="ghost" onClick={onCancel} loading={cancelling} disabled={paying}>
             {t("book.review.cancel")}
           </Button>
         )}
@@ -283,6 +316,7 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
           size="lg"
           onClick={onPay}
           disabled={expired}
+          loading={paying}
           leftIcon={<Ticket className="size-5" aria-hidden="true" />}
         >
           {t("book.review.pay", { amount: total })}

@@ -70,3 +70,7 @@ public/          manifest icons, static files
 ## Booking flow (Day 6)
 
 `/book/[tripId]` (seats), `/details` (passengers), `/review?booking=` (hold timer, Pay). State shared across the steps lives in `lib/booking-draft.ts` (session storage per trip). Forms use react-hook-form with the shared zod schema. Send `Idempotency-Key` with `api(path, { headers })`.
+
+## Payments and tickets (Day 7)
+
+`lib/payments.ts` `usePayment().pay(...)` opens Razorpay checkout (or, with `NEXT_PUBLIC_PAYMENTS_FAKE=1`, calls `/payments/test/complete`). `/book/done/[bookingId]` and `/tickets` use `components/ticket-summary-card.tsx`. Route phrases use `common.routeFromTo` so Telugu word order is right. E2E-2 needs `E2E_PAYMENTS_FAKE=1`.

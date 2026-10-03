@@ -1,10 +1,12 @@
 import * as React from "react";
 import {
   STATUS_MAP,
+  TICKET_STATUS_MAP,
 } from "@aptransit/shared";
 import type {
   DisplayStatus,
   StatusTone,
+  TicketStatus,
 } from "@aptransit/shared";
 import {
   Bus,
@@ -145,3 +147,19 @@ export const StatusBadge = React.forwardRef<HTMLSpanElement, StatusBadgeProps>(
   }
 );
 StatusBadge.displayName = "StatusBadge";
+
+export interface TicketStatusBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
+  status: TicketStatus;
+  /** Translated label from TICKET_STATUS_MAP[status].i18nKey (docs/07 section 3). */
+  label: string;
+  size?: "sm" | "md";
+}
+
+/** Ticket status (Not active, Active, Checked...) with tone and icon from packages/shared. */
+export const TicketStatusBadge = React.forwardRef<HTMLSpanElement, TicketStatusBadgeProps>(
+  ({ status, label, size = "md", ...props }, ref) => {
+    const meta = TICKET_STATUS_MAP[status];
+    return <ToneChip ref={ref} tone={meta.tone} label={label} icon={ICON_MAP[meta.icon] ?? Clock} size={size} {...props} />;
+  }
+);
+TicketStatusBadge.displayName = "TicketStatusBadge";

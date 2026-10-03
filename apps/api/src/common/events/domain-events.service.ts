@@ -1,9 +1,12 @@
 import { EventEmitter } from "node:events";
+import type { TicketStatus } from "@aptransit/shared";
 import { Global, Injectable, Logger, Module } from "@nestjs/common";
 
 /** In process domain events. Listeners (notifications, sockets) subscribe from their modules. */
 export interface DomainEvents {
   "booking.confirmed": { bookingId: string; userId: string; tripId: string; ticketIds: string[] };
+  /** Every ticket status change (docs/07 section 2). Sockets emit ticket:status from this on Day 12. */
+  "ticket.status": { ticketId: string; holderUserId: string; from: TicketStatus; to: TicketStatus };
 }
 
 export type DomainEventName = keyof DomainEvents;

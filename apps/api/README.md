@@ -118,7 +118,7 @@ Rate limits fail open when Redis is down (a cache outage never blocks traffic). 
 
 Seat holds: only through `modules/bookings/seat-holds.ts` (`holdSeats`, `releaseSeats`). Each is one Lua script, so a hold is all or nothing and a release never frees another booking's seat (D-019). Queue job ids must not contain ":" (BullMQ rejects them).
 
-Payments: provider behind `PAYMENT_PROVIDER` (`RazorpayProvider`; tests override it with `FakePaymentProvider`). Tickets are created only in `BookingConfirmationService.confirmBooking`, which is idempotent (D-020). Domain events: inject `DomainEventsService` and `on("booking.confirmed", ...)`. Idempotency-Key: `common/services/idempotency.ts`. Secrets at rest: `common/crypto/secret-box.ts` (AES 256 GCM, `QR_SECRET_KEY`). HTTP tests: `test/fake-redis.ts` knows the Lua scripts.
+Payments: provider behind `PAYMENT_PROVIDER` (`RazorpayProvider`, or `FakePaymentProvider` when `PAYMENTS_FAKE=1`; tests override it). `POST /payments/test/complete` exists only with `PAYMENTS_FAKE=1` outside production. Tickets are created only in `BookingConfirmationService.confirmBooking`, which is idempotent (D-020). Domain events: inject `DomainEventsService` and `on("booking.confirmed", ...)`. Idempotency-Key: `common/services/idempotency.ts`. Secrets at rest: `common/crypto/secret-box.ts` (AES 256 GCM, `QR_SECRET_KEY`). HTTP tests: `test/fake-redis.ts` knows the Lua scripts.
 
 ## Tests
 
@@ -134,3 +134,5 @@ Payments: provider behind `PAYMENT_PROVIDER` (`RazorpayProvider`; tests override
 - Response shape: `{ error: { code, message, details?, requestId } }`. The web shows `t("errors." + code)`, never `message`.
 - Every response carries `x-request-id`. Quote it when reporting a bug.
 - Never log OTPs, tokens, cookies, signatures or full phone numbers. Add new sensitive field names to `REDACT_PATHS` in `src/common/logger.ts`.
+
+Tickets: every rule is in `modules/tickets/ticket-rules.ts` (and `refundQuote` in shared `fare.ts`); services call them, controllers never decide. QR: `QrService` signs `APT1` tokens (Ed25519, `QR_SIGNING_KEY_ID`) and checks rotating codes from `packages/shared/src/qr.ts`. Status changes publish `ticket.status`. Demo: `pnpm --filter api demo:window <ticket code> [minutes]`.

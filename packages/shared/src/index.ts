@@ -16,3 +16,5 @@ export * from "./schemas/network";
 export * from "./schemas/trips";
 export * from "./schemas/booking";
 export * from "./schemas/payments";
+export * from "./qr";
+export * from "./schemas/tickets";

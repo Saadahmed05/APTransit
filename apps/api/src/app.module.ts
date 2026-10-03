@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
+import { ConditionalModule, ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
@@ -16,8 +16,9 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { BookingsModule } from "./modules/bookings/bookings.module";
 import { HealthModule } from "./modules/health/health.module";
 import { NetworkModule } from "./modules/network/network.module";
-import { PaymentsModule } from "./modules/payments/payments.module";
+import { PaymentsModule, PaymentsTestModule, paymentsFakeEnabled } from "./modules/payments/payments.module";
 import { QueueModule } from "./modules/queue/queue.module";
+import { TicketsModule } from "./modules/tickets/tickets.module";
 import { TripsModule } from "./modules/trips/trips.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
@@ -53,6 +54,8 @@ import { RedisService } from "./redis/redis.service";
     TripsModule,
     BookingsModule,
     PaymentsModule,
+    ConditionalModule.registerWhen(PaymentsTestModule, paymentsFakeEnabled),
+    TicketsModule,
     QueueModule,
   ],
   providers: [
