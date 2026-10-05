@@ -14,8 +14,10 @@ import { validateEnv } from "./config/env";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BookingsModule } from "./modules/bookings/bookings.module";
+import { EligibilityModule } from "./modules/eligibility/eligibility.module";
 import { HealthModule } from "./modules/health/health.module";
 import { NetworkModule } from "./modules/network/network.module";
+import { PassesModule } from "./modules/passes/passes.module";
 import { PaymentsModule, PaymentsTestModule, paymentsFakeEnabled } from "./modules/payments/payments.module";
 import { QueueModule } from "./modules/queue/queue.module";
 import { TicketsModule } from "./modules/tickets/tickets.module";
@@ -56,6 +58,8 @@ import { RedisService } from "./redis/redis.service";
     PaymentsModule,
     ConditionalModule.registerWhen(PaymentsTestModule, paymentsFakeEnabled),
     TicketsModule,
+    EligibilityModule,
+    PassesModule,
     QueueModule,
   ],
   providers: [

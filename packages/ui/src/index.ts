@@ -25,3 +25,5 @@ export * from "./components/otp-input";
 export * from "./components/date-picker";
 export * from "./components/stepper";
 export * from "./components/seat-map";
+export * from "./components/ticket-card";
+export * from "./components/offline-banner";

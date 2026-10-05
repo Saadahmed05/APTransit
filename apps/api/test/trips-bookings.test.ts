@@ -168,6 +168,8 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
       refundPolicy: {
         findFirst: async () => mockRefundPolicy,
       },
+      // No passes: free travel is always refused here (passes.test.ts covers the happy path)
+      pass: { findMany: async () => [] },
       setting: {
         findUnique: async ({ where }: any) => {
           if (settings.has(where.key)) return { value: settings.get(where.key) };
@@ -509,7 +511,7 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
 
     it("never trusts useFreeTravel from the client", async () => {
       const res = await post({ ...bookingPayload, useFreeTravel: true }).expect(422);
-      expect(res.body.error.code).toBe("ELIGIBILITY_REQUIRED");
+      expect(res.body.error.code).toBe("PASS_NOT_ELIGIBLE");
       expect(bookings).toHaveLength(0);
     });
 

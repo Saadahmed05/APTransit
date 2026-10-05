@@ -158,6 +158,78 @@ export class BookingConfirmationService {
   }
 
   /**
+   * Free travel (docs/07 section 9): a held, zero fare booking becomes CONFIRMED with one
+   * FREE_TRAVEL ticket (farePaise 0, never giftable) without any payment. The caller has already
+   * checked the active FREE_TRAVEL pass and the service type. Null when the seat went elsewhere.
+   */
+  async confirmFreeTravel(bookingId: string): Promise<{ bookingId: string; ticketIds: string[] } | null> {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        passengers: { orderBy: { seatNo: "asc" } },
+        trip: { include: { route: { include: { routeStops: { select: { stopId: true, minutesFromOrigin: true } } } } } },
+      },
+    });
+    if (!booking || booking.totalPaise !== 0 || booking.passengers.length !== 1) {
+      throw new Error(`confirmFreeTravel: booking ${bookingId} is not a free travel booking`);
+    }
+    const passenger = booking.passengers[0]!;
+    const closesMinutes = await this.settingNumber("activation.closesMinutesAfter");
+    const boarding = booking.trip.route.routeStops.find((rs) => rs.stopId === booking.boardingStopId);
+    const expiresAt = activationClosesAt(
+      {
+        boardingDepartureAt: new Date(booking.trip.scheduledDepartureAt.getTime() + (boarding?.minutesFromOrigin ?? 0) * 60_000),
+        delayMinutes: booking.trip.delayMinutes,
+      },
+      closesMinutes,
+    );
+
+    let ticketId: string;
+    try {
+      ticketId = await this.prisma.$transaction(async (tx) => {
+        const confirmed = await tx.booking.updateMany({ where: { id: booking.id, status: "PENDING_PAYMENT" }, data: { status: "CONFIRMED" } });
+        const clash = await tx.ticket.count({
+          where: { tripId: booking.tripId, seatNo: passenger.seatNo, status: { in: [...SEAT_TAKING_STATUSES] } },
+        });
+        if (confirmed.count !== 1 || clash > 0) throw new SeatsGone();
+        const ticket = await tx.ticket.create({
+          data: {
+            code: generateTicketCode(),
+            bookingId: booking.id,
+            passengerId: passenger.id,
+            type: "FREE_TRAVEL",
+            status: "BOOKED",
+            holderUserId: booking.userId,
+            originalUserId: booking.userId,
+            tripId: booking.tripId,
+            routeId: booking.trip.routeId,
+            boardingStopId: booking.boardingStopId,
+            droppingStopId: booking.droppingStopId,
+            seatNo: passenger.seatNo,
+            farePaise: 0,
+            expiresAt,
+            qrSecret: sealSecret(randomBytes(32), this.qrSecretKey),
+            giftable: false,
+          },
+          select: { id: true },
+        });
+        return ticket.id;
+      });
+    } catch (err) {
+      if (err instanceof SeatsGone) {
+        await this.prisma.booking.updateMany({ where: { id: booking.id, status: "PENDING_PAYMENT" }, data: { status: "CANCELLED" } });
+        await this.releaseHolds(booking.tripId, [passenger.seatNo], booking.id);
+        return null;
+      }
+      throw err;
+    }
+
+    await this.releaseHolds(booking.tripId, [passenger.seatNo], booking.id);
+    this.events.publish("booking.confirmed", { bookingId: booking.id, userId: booking.userId, tripId: booking.tripId, ticketIds: [ticketId] });
+    return { bookingId: booking.id, ticketIds: [ticketId] };
+  }
+
+  /**
    * Money arrived but the seats cannot be given: the hold expired and the seats went to someone
    * else, the booking was cancelled, or the booking was already paid. Full refund, no tickets.
    */

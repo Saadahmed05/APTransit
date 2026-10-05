@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatDistance, formatDuration, formatMoney, formatTime } from "./format";
+import { formatClock, formatDate, formatDistance, formatDuration, formatMoney, formatTime } from "./format";
 
 describe("format helpers", () => {
   it("formatTime formats in Asia/Kolkata timezone", () => {
@@ -44,5 +44,11 @@ describe("format helpers", () => {
     expect(formatDistance(412, "en")).toBe("412 km");
     expect(formatDistance(412.4, "en")).toBe("412 km");
     expect(formatDistance(412, "te")).toBe("412 కి.మీ");
+  });
+});
+
+describe("formatClock", () => {
+  it("shows seconds in IST", () => {
+    expect(formatClock("2026-09-23T01:00:09.000Z", "en")).toMatch(/^06:30:09\s*am$/i);
   });
 });

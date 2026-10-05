@@ -12,6 +12,10 @@ import {
   type TicketScope,
   type TicketStatus,
   type TicketSummaryDto,
+  type TransferTicketResult,
+  maskEmail,
+  maskPhone,
+  type NormalizedRecipient,
   QR_PERIOD_SEC,
 } from "@aptransit/shared";
 import { Inject, Injectable, Logger } from "@nestjs/common";
@@ -71,6 +75,7 @@ interface LoadedTicket {
   giftable: boolean;
   transferCount: number;
   version: number;
+  passengerId: string | null;
   boardingStopId: string;
   droppingStopId: string;
   passenger: { name: string } | null;
@@ -253,6 +258,78 @@ export class TicketsService {
     return { ticket: await this.get(userId, ticketId, now), refund: { amountPaise: refund.amountPaise, status: refund.status } };
   }
 
+  /**
+   * POST /tickets/:id/transfer (docs/07 section 7). Every denial is audited as ticket.transfer_denied
+   * with its code. On success, in one transaction: new holder, passenger name from the recipient
+   * profile, transferCount plus 1, a new rotSecret and a ticket_transfers row.
+   */
+  async transfer(
+    userId: string,
+    ticketId: string,
+    recipient: NormalizedRecipient,
+    idempotencyKey: string | undefined,
+    actor: AuditActor,
+    now = new Date(),
+  ): Promise<TransferTicketResult> {
+    const slot = idempotencySlot("ticket-transfer", userId, idempotencyKey, { ticketId, recipient });
+    const cached = await readIdempotent<TransferTicketResult>(this.redis.client, slot);
+    if (cached) return cached;
+
+    const ticket = await this.load(userId, ticketId);
+    const deny = async (code: "TICKET_NOT_GIFTABLE" | "RECIPIENT_NOT_FOUND" | "GIFT_TO_SELF", message: string): Promise<never> => {
+      await this.audit.log({ action: "ticket.transfer_denied", entityType: "ticket", entityId: ticket.id, after: { reason: code }, ...actor });
+      throw new AppError(code, message);
+    };
+
+    const settings = await this.settings();
+    const rule = canGift(ticket, this.times(ticket).boarding.boardingDepartureAt, now, settings);
+    if (!ticket.giftable || !rule.ok) await deny("TICKET_NOT_GIFTABLE", "This ticket cannot be gifted");
+
+    const target = await this.prisma.user.findFirst({
+      where: { ...(recipient.channel === "EMAIL" ? { email: recipient.value } : { phone: recipient.value }), deletedAt: null },
+      select: { id: true, name: true, email: true, phone: true },
+    });
+    if (!target) await deny("RECIPIENT_NOT_FOUND", "No registered user has this phone or email");
+    const to = target!;
+    if (to.id === userId) await deny("GIFT_TO_SELF", "You cannot gift a ticket to yourself");
+
+    const recipientMasked = recipient.channel === "EMAIL" ? maskEmail(recipient.value) : maskPhone(recipient.value);
+    const passengerName = to.name?.trim() || (to.phone ? maskPhone(to.phone) : to.email ? maskEmail(to.email) : recipientMasked);
+
+    const moved = await this.prisma.$transaction(async (tx) => {
+      // Optimistic lock: a parallel gift, activate or cancel moves the version on first
+      const { count } = await tx.ticket.updateMany({
+        where: { id: ticket.id, holderUserId: userId, status: "BOOKED", version: ticket.version, transferCount: ticket.transferCount },
+        data: {
+          holderUserId: to.id,
+          transferCount: { increment: 1 },
+          qrSecret: this.qr.newRotSecret(),
+          version: { increment: 1 },
+        },
+      });
+      if (count !== 1) return false;
+      // The passenger row belongs to this one ticket (one row per seat), so it carries the new name
+      if (ticket.passengerId) await tx.bookingPassenger.update({ where: { id: ticket.passengerId }, data: { name: passengerName } });
+      await tx.ticketTransfer.create({ data: { ticketId: ticket.id, fromUserId: userId, toUserId: to.id } });
+      return true;
+    });
+    if (!moved) await deny("TICKET_NOT_GIFTABLE", "This ticket cannot be gifted");
+
+    await this.audit.log({
+      action: "ticket.transfer",
+      entityType: "ticket",
+      entityId: ticket.id,
+      before: { holderUserId: userId, transferCount: ticket.transferCount },
+      after: { holderUserId: to.id, transferCount: ticket.transferCount + 1 },
+      ...actor,
+    });
+    this.events.publish("ticket.transferred", { ticketId: ticket.id, fromUserId: userId, toUserId: to.id, seatNo: ticket.seatNo });
+
+    const result: TransferTicketResult = { ticketId: ticket.id, recipientMasked };
+    await writeIdempotent(this.redis.client, slot, result);
+    return result;
+  }
+
   /** Holder only. Another user's ticket is NOT_FOUND, never FORBIDDEN (no existence leak). */
   private async load(userId: string, ticketId: string): Promise<LoadedTicket> {
     const ticket = (await this.prisma.ticket.findFirst({
@@ -305,6 +382,7 @@ export class TicketsService {
       id: ticket.id,
       code: ticket.code,
       bookingId: ticket.bookingId,
+      tripId: ticket.tripId,
       type: ticket.type,
       status: ticket.status,
       seatNo: ticket.seatNo,
@@ -342,6 +420,9 @@ export class TicketsService {
       activationClosesAt: window.closesAt.toISOString(),
       giftable: ticket.giftable,
       transferCount: ticket.transferCount,
+      activationValidUntil: (
+        ticket.validUntil ?? computeValidUntil(times.droppingArrivalAt, ticket.trip.delayMinutes, settings["ticket.graceMinutesAfterArrival"])
+      ).toISOString(),
       canActivate: canActivate(ticket, window, ticket.trip.status, now).ok,
       canCancel: canCancel(ticket, quoted.quote.cancellable).ok,
       canGift: ticket.giftable && canGift(ticket, times.boarding.boardingDepartureAt, now, settings).ok,

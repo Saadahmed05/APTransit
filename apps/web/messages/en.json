@@ -488,6 +488,96 @@
     "refundPending": "Refund in progress",
     "refundDone": "Refunded {amount}",
     "cardLabel": "{route}, {date} at {time}, seat {seat}, {status}",
-    "errorTitle": "Tickets could not load"
+    "errorTitle": "Tickets could not load",
+    "open": "Open ticket"
+  },
+  "colourOfDay": {
+    "RED": "Red",
+    "BLUE": "Blue",
+    "GREEN": "Green",
+    "VIOLET": "Violet",
+    "AMBER": "Amber",
+    "TEAL": "Teal",
+    "PINK": "Pink"
+  },
+  "ticketDetail": {
+    "title": "Ticket",
+    "errorTitle": "Ticket could not load",
+    "when": "{date}, {time}",
+    "details": {
+      "bus": "Bus number",
+      "busPending": "Assigned soon",
+      "seat": "Seat",
+      "boarding": "Boarding point",
+      "destination": "Destination",
+      "passenger": "Passenger",
+      "fare": "Fare",
+      "free": "Free"
+    },
+    "codeLabel": "Ticket code",
+    "copy": "Copy code",
+    "copied": "Copied",
+    "freeTicket": "Free travel ticket",
+    "delay": "Running {minutes} min late",
+    "locked": {
+      "title": "Activate to show your QR code",
+      "opensAt": "You can activate from {time}.",
+      "openNow": "Activate now. You can activate until {time}.",
+      "closed": "Activation closed at {time}."
+    },
+    "activateSheet": {
+      "title": "Activate this ticket?",
+      "body": "Valid until {time}. After activating you cannot cancel or gift this ticket.",
+      "confirm": "Confirm activate",
+      "keep": "Not now"
+    },
+    "activated": "Ticket activated",
+    "more": "More actions",
+    "validUntil": "Valid until {time}",
+    "trackBus": "Track bus",
+    "qr": {
+      "label": "Ticket QR code for {route}",
+      "colourOfDay": "Colour of the day: {colour}",
+      "brightness": "Raise screen brightness for faster scanning."
+    },
+    "scanned": {
+      "title": "Checked by the conductor",
+      "hint": "Have a good journey."
+    },
+    "used": {
+      "title": "This ticket was used",
+      "hint": "Thank you for travelling with us.",
+      "feedback": "Give feedback"
+    },
+    "expired": {
+      "title": "This ticket has expired",
+      "notActivated": "It was not activated before {time}.",
+      "ended": "It was valid until {time}."
+    },
+    "cancelled": {
+      "title": "This ticket is cancelled",
+      "refundPending": "Refund in progress: {amount}. It reaches you in 5 to 7 working days.",
+      "refundFailed": "We could not start your refund. Our team will contact you.",
+      "refundDone": "{amount} refunded to your original payment method."
+    },
+    "refunded": {
+      "title": "This ticket is refunded"
+    },
+    "offline": "You are offline. Showing your saved ticket. The QR code still works.",
+    "offlineNoCopy": "You are offline and this ticket is not saved on this phone. Connect to the internet and try again."
+  },
+  "ticketCancel": {
+    "title": "Cancel ticket",
+    "youGet": "You get {amount} back",
+    "policy": "{percent} percent of the fare under the {policy}. The reservation fee of {fee} is not refunded.",
+    "notCancellableTitle": "This ticket cannot be cancelled",
+    "notCancellableHint": "Only tickets that are not active can be cancelled, at least 1 hour before departure.",
+    "confirmTitle": "Cancel this ticket?",
+    "confirmBody": "You get {amount} back in 5 to 7 working days.",
+    "confirm": "Cancel ticket",
+    "keep": "Keep ticket",
+    "done": "Ticket cancelled. Refund in progress.",
+    "errorTitle": "Refund details could not load",
+    "back": "Back to ticket"
   }
 }

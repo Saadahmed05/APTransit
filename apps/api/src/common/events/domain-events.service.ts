@@ -7,6 +7,8 @@ export interface DomainEvents {
   "booking.confirmed": { bookingId: string; userId: string; tripId: string; ticketIds: string[] };
   /** Every ticket status change (docs/07 section 2). Sockets emit ticket:status from this on Day 12. */
   "ticket.status": { ticketId: string; holderUserId: string; from: TicketStatus; to: TicketStatus };
+  /** A gift moved the ticket to another holder (docs/07 section 7). */
+  "ticket.transferred": { ticketId: string; fromUserId: string; toUserId: string; seatNo: string | null };
 }
 
 export type DomainEventName = keyof DomainEvents;

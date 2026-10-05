@@ -2,10 +2,11 @@ import { z } from "zod";
 import { Paise } from "../money";
 import { PublicId } from "./search";
 
-/** POST /payments/orders. `passId` arrives with passes on Day 8. */
-export const CreatePaymentOrderInput = z.object({
-  bookingId: PublicId,
-});
+/** POST /payments/orders: exactly one of a booking or a pass. */
+export const CreatePaymentOrderInput = z.union([
+  z.object({ bookingId: PublicId }).strict(),
+  z.object({ passId: PublicId }).strict(),
+]);
 export type CreatePaymentOrderInput = z.infer<typeof CreatePaymentOrderInput>;
 
 export const PaymentOrderDto = z.object({

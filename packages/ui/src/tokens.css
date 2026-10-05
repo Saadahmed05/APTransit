@@ -144,6 +144,12 @@
   --day-sat: #be185d;
   --day-sun: #b91c1c;
 
+  /* Ticket QR: always black modules on white, in both themes, so every scanner reads it */
+  --qr-ink: #000000;
+  --qr-paper: #ffffff;
+  /* The slow moving band on a live ticket */
+  --dur-band: 6s;
+
   /* Page gutter: 16 mobile, 24 tablet, 32 desktop */
   --gutter: 1rem;
 
@@ -265,6 +271,8 @@
   --color-day-fri: var(--day-fri);
   --color-day-sat: var(--day-sat);
   --color-day-sun: var(--day-sun);
+  --color-qr-ink: var(--qr-ink);
+  --color-qr-paper: var(--qr-paper);
 
   --shadow-sm: var(--elevation-sm);
   --shadow-md: var(--elevation-md);
@@ -300,6 +308,31 @@
 }
 @utility duration-slow {
   transition-duration: var(--dur-slow);
+}
+
+/* Live ticket band: a soft light sweeps across the colour of the day. Transform only (docs/09,
+   Motion); the reduced motion block below stops it and keeps the colour. */
+@keyframes ticket-band {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@utility animate-ticket-band {
+  animation: ticket-band var(--dur-band) linear infinite;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@utility animate-fade-in {
+  animation: fade-in var(--dur-slow) var(--ease-out) both;
 }
 
 /* ---------- Base layer ---------- */

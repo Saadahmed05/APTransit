@@ -8,7 +8,9 @@ import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService, type LogAuditParams } from "../audit/audit.service";
+import { PASS_PAYMENT_ABANDON_MINUTES } from "../passes/pass-rules";
 import { BookingConfirmationService } from "./booking-confirmation.service";
+import { PassConfirmationService } from "./pass-confirmation.service";
 import { PAYMENT_PROVIDER, type PaymentProvider, type ProviderPayment, redactPaymentPayload } from "./payment-provider";
 
 type AuditActor = Pick<LogAuditParams, "actorUserId" | "actorRole" | "ip" | "userAgent">;
@@ -37,12 +39,14 @@ export class PaymentsService {
     private readonly redis: RedisService,
     private readonly audit: AuditService,
     private readonly confirmation: BookingConfirmationService,
+    private readonly passConfirmation: PassConfirmationService,
     private readonly events: DomainEventsService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
   ) {}
 
-  /** POST /payments/orders. The amount is always the booking total from our database. */
+  /** POST /payments/orders. The amount is always the booking total or pass price from our database. */
   async createOrder(userId: string, input: CreatePaymentOrderInput, now = new Date()): Promise<PaymentOrderDto> {
+    if ("passId" in input) return this.createPassOrder(userId, input.passId, now);
     const booking = await this.prisma.booking.findUnique({
       where: { id: input.bookingId },
       include: { user: { select: { name: true, email: true, phone: true } } },
@@ -88,7 +92,63 @@ export class PaymentsService {
     };
   }
 
-  /** POST /payments/verify: signature, then the provider's own record, then confirmBooking. */
+  /** Order for a PENDING_PAYMENT pass. The price comes from pass_types, never from the client. */
+  private async createPassOrder(userId: string, passId: string, now: Date): Promise<PaymentOrderDto> {
+    const pass = await this.prisma.pass.findUnique({
+      where: { id: passId },
+      include: { passType: { select: { pricePaise: true } }, user: { select: { name: true, email: true, phone: true } } },
+    });
+    if (!pass || pass.userId !== userId) throw new AppError("NOT_FOUND", "Pass not found");
+    const abandoned = now.getTime() - pass.createdAt.getTime() > PASS_PAYMENT_ABANDON_MINUTES * 60_000;
+    if (pass.status !== "PENDING_PAYMENT" || abandoned || pass.passType.pricePaise <= 0) {
+      throw new AppError("BOOKING_NOT_PAYABLE", "This pass cannot be paid");
+    }
+
+    const amountPaise = pass.passType.pricePaise;
+    let payment = await this.prisma.payment.findFirst({
+      where: { passId: pass.id, status: "CREATED", amountPaise },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!payment) {
+      const order = await this.provider.createOrder({ amountPaise, receipt: pass.code, notes: { passId: pass.id } });
+      payment = await this.prisma.payment.create({
+        data: { passId: pass.id, provider: "RAZORPAY", providerOrderId: order.id, amountPaise, status: "CREATED" },
+      });
+    }
+    return {
+      orderId: payment.providerOrderId,
+      amountPaise: payment.amountPaise,
+      currency: "INR",
+      keyId: this.provider.keyId,
+      prefill: { name: pass.user.name, email: pass.user.email, contact: pass.user.phone },
+    };
+  }
+
+  /** The user who owns the booking or the pass behind a payment row. */
+  private async paymentOwner(payment: { passId: string | null; booking?: { userId: string } | null }): Promise<string | null> {
+    if (payment.booking) return payment.booking.userId;
+    if (!payment.passId) return null;
+    const pass = await this.prisma.pass.findUnique({ where: { id: payment.passId }, select: { userId: true } });
+    return pass?.userId ?? null;
+  }
+
+  /** Booking payments make tickets, pass payments make the pass READY. Never both. */
+  private async confirmPayment(payment: { id: string; passId: string | null }, providerPayment: ProviderPayment): Promise<VerifyPaymentResult> {
+    if (payment.passId) {
+      const outcome = await this.passConfirmation.confirmPass(payment.id, providerPayment);
+      if (outcome.outcome === "REFUNDED") {
+        throw new AppError("BOOKING_NOT_PAYABLE", "This pass can no longer be paid. The full amount is refunded");
+      }
+      return { kind: "PASS", passId: outcome.passId };
+    }
+    const outcome = await this.confirmation.confirmBooking(payment.id, providerPayment);
+    if (outcome.outcome === "REFUNDED") {
+      throw new AppError("HOLD_EXPIRED", "The seat hold expired before the payment arrived. The full amount is refunded");
+    }
+    return { kind: "BOOKING", bookingId: outcome.bookingId, ticketIds: outcome.ticketIds };
+  }
+
+  /** POST /payments/verify: signature, then the provider's own record, then confirmBooking or confirmPass. */
   async verify(
     userId: string,
     input: VerifyPaymentInput,
@@ -103,7 +163,7 @@ export class PaymentsService {
       where: { providerOrderId: input.razorpayOrderId },
       include: { booking: { select: { userId: true } } },
     });
-    if (!payment?.booking || payment.booking.userId !== userId) {
+    if (!payment || (await this.paymentOwner(payment)) !== userId) {
       throw new AppError("NOT_FOUND", "Payment not found");
     }
 
@@ -121,17 +181,13 @@ export class PaymentsService {
     let result: VerifyPaymentResult;
     try {
       const providerPayment = await this.checkedProviderPayment(payment, await this.provider.fetchPayment(input.razorpayPaymentId));
-      const outcome = await this.confirmation.confirmBooking(payment.id, providerPayment);
-      if (outcome.outcome === "REFUNDED") {
-        throw new AppError("HOLD_EXPIRED", "The seat hold expired before the payment arrived. The full amount is refunded");
-      }
-      result = { kind: "BOOKING", bookingId: outcome.bookingId, ticketIds: outcome.ticketIds };
+      result = await this.confirmPayment(payment, providerPayment);
     } catch (err) {
       await this.audit.log({ ...auditBase, after: { result: err instanceof AppError ? err.code : "INTERNAL" } });
       throw err;
     }
 
-    await this.audit.log({ ...auditBase, after: { result: "CONFIRMED", ticketIds: result.ticketIds } });
+    await this.audit.log({ ...auditBase, after: { result: "CONFIRMED", kind: result.kind, ticketIds: result.ticketIds, passId: result.passId } });
     await writeIdempotent(this.redis.client, slot, result);
     return result;
   }
@@ -194,7 +250,9 @@ export class PaymentsService {
           status: "captured",
           raw: entity as Record<string, unknown>,
         });
-        outcome = (await this.confirmation.confirmBooking(payment.id, providerPayment)).outcome;
+        outcome = payment.passId
+          ? (await this.passConfirmation.confirmPass(payment.id, providerPayment)).outcome
+          : (await this.confirmation.confirmBooking(payment.id, providerPayment)).outcome;
       }
     } catch (err) {
       // Still 200: a retry would hit the same check. The audit row keeps the reason.
@@ -219,23 +277,25 @@ export class PaymentsService {
       where: { providerOrderId: orderId },
       include: { booking: { select: { userId: true } } },
     });
-    if (!payment?.booking || payment.booking.userId !== userId) {
+    if (!payment || (await this.paymentOwner(payment)) !== userId) {
       throw new AppError("NOT_FOUND", "Payment not found");
     }
     const fakeId = `pay_test_${randomBytes(7).toString("hex")}`;
-    const outcome = await this.confirmation.confirmBooking(payment.id, {
-      id: fakeId,
-      orderId,
-      amountPaise: payment.amountPaise,
-      currency: "INR",
-      status: "captured",
-      raw: { id: fakeId, order_id: orderId, amount: payment.amountPaise, method: "test" },
-    });
-    await this.audit.log({ action: "payment.verify", entityType: "payment", entityId: payment.id, after: { result: outcome.outcome, fake: true }, ...actor });
-    if (outcome.outcome === "REFUNDED") {
-      throw new AppError("HOLD_EXPIRED", "The seat hold expired before the payment arrived. The full amount is refunded");
+    try {
+      const result = await this.confirmPayment(payment, {
+        id: fakeId,
+        orderId,
+        amountPaise: payment.amountPaise,
+        currency: "INR",
+        status: "captured",
+        raw: { id: fakeId, order_id: orderId, amount: payment.amountPaise, method: "test" },
+      });
+      await this.audit.log({ action: "payment.verify", entityType: "payment", entityId: payment.id, after: { result: "CONFIRMED", kind: result.kind, fake: true }, ...actor });
+      return result;
+    } catch (err) {
+      await this.audit.log({ action: "payment.verify", entityType: "payment", entityId: payment.id, after: { result: err instanceof AppError ? err.code : "INTERNAL", fake: true }, ...actor });
+      throw err;
     }
-    return { kind: "BOOKING", bookingId: outcome.bookingId, ticketIds: outcome.ticketIds };
   }
 
   /**

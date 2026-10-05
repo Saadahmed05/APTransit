@@ -18,3 +18,5 @@ export * from "./schemas/booking";
 export * from "./schemas/payments";
 export * from "./qr";
 export * from "./schemas/tickets";
+export * from "./schemas/passes";
+export * from "./countdown";

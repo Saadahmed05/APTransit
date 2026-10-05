@@ -4,6 +4,27 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## Day 08 · 2026-10-05 · Dev A and Dev B
+
+**Done**
+- Dev B: `POST /tickets/:id/transfer` (Idempotency-Key, every docs/07 section 7 rule, optimistic lock, new rotSecret, passenger name from the recipient profile or masked contact, `ticket_transfers` row, audit `ticket.transfer` and `ticket.transfer_denied`, event `ticket.transferred`). `passes/pass-rules.ts` (activateBy, validity, one active pass per kind, job transitions for Day 9) and `countdownParts` in shared. Passes: `GET /pass-types`, `GET /passes`, `POST /passes`, `POST /passes/:id/activate`, `GET /passes/:id/qr` ("t": "P"). Payments take `{ passId }` (orders, verify, webhook, test/complete) through the new `PassConfirmationService`. Eligibility: `EligibilityProvider`, `MockEligibilityProvider`, `POST /eligibility/stree-shakti` (strict schema, stores only scheme, result, reason, provider, reference, times), `GET /eligibility`, audit `eligibility.check`. Free travel booking with `useFreeTravel` makes a CONFIRMED booking and one FREE_TRAVEL ticket (farePaise 0, not giftable) through `BookingConfirmationService.confirmFreeTravel`.
+- Dev A: `TicketCard` and `OfflineBanner` in packages/ui, QR tokens (`qr-ink`, `qr-paper`) and the `animate-ticket-band` and `animate-fade-in` utilities. `QrSvg` (qrcode, error correction M, quiet zone 4, black on white in both themes) and `LiveQr` (Web Crypto code per 30 s step, server offset, live clock with seconds, colour of the day band with its name, band stops under reduced motion, brightness hint). `/tickets/[id]` for every status (locked BOOKED state with the window in words, activation Sheet that names the consequence, QR with a fade, checked, used, expired, cancelled with refund status, refunded), overflow menu for Gift and Cancel, refetch every 30 s and on focus. IndexedDB copy of an ACTIVE ticket until validUntil, cleared on logout, shown with the OfflineBanner when the network is down. `/tickets/[id]/cancel` (quote, policy line, danger button, confirm Dialog). My tickets rows now open the ticket.
+
+**Verified**
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm check:dashes`, `pnpm i18n:check` all pass.
+- New API tests (`test/gift-passes.test.ts`, 21): gift by phone and by email, nameless recipient masked, every denial (free, active, second gift, inside 120 min, unknown recipient, self) with its audit row, idempotent retry; weekly pass bought through test/complete, activated (7 days), second weekly pass 409, READY pass has no rotSecret, owner only; strict eligibility schema refuses an ID number, the stored row has only the allowed columns, each NOT_ELIGIBLE reason; free pass then a zero fare FREE_TRAVEL ticket on an Express without a payment row, Super Luxury 422, free ticket not giftable. `pass-rules.test.ts` covers every docs/07 section 8 row.
+- Web: the Web Crypto code matches the shared fixed vectors (`lib/qr-code.test.ts`); TicketCard test (route heading, copy code).
+
+**Carry over**
+- Live browser walk of the ticket page (QR changing every 30 s, airplane mode, screen reader order) and the curl run of the free travel path: moved to the Day 9 walk on local PGlite (see the Day 09 entry).
+- Real Razorpay test checkout still needs real test keys.
+
+**Contract changes (packages/shared)**
+- New `schemas/passes.ts`, `countdown.ts`, `TransferTicketInput`, `normalizeRecipient`, `formatClock`; `CreatePaymentOrderInput` is `{ bookingId }` or `{ passId }`; `TicketSummaryDto.tripId`, `TicketDto.activationValidUntil`.
+
+**Decisions needed**
+- D-022.
+
 ## Day 07 · 2026-10-03 · Dev A and Dev B
 
 **Done**
