@@ -423,6 +423,7 @@ export class TicketsService {
       activationValidUntil: (
         ticket.validUntil ?? computeValidUntil(times.droppingArrivalAt, ticket.trip.delayMinutes, settings["ticket.graceMinutesAfterArrival"])
       ).toISOString(),
+      giftCutoffAt: new Date(times.boarding.boardingDepartureAt.getTime() - settings["gift.cutoffMinutesBefore"] * MS_PER_MIN).toISOString(),
       canActivate: canActivate(ticket, window, ticket.trip.status, now).ok,
       canCancel: canCancel(ticket, quoted.quote.cancellable).ok,
       canGift: ticket.giftable && canGift(ticket, times.boarding.boardingDepartureAt, now, settings).ok,

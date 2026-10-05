@@ -20,6 +20,8 @@
     "db:migrate": "pnpm --filter api db:migrate",
     "db:seed": "pnpm --filter api db:seed",
     "db:reset": "pnpm --filter api db:reset",
+    "simulate": "pnpm --filter api exec tsx ../../scripts/simulate-trip.ts",
+    "watch:live": "pnpm --filter api exec tsx scripts/watch-live.ts",
     "e2e": "pnpm --filter web e2e"
   },
   "devDependencies": {

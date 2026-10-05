@@ -196,6 +196,21 @@ function dispatch(parts) {
       store.set(key, { value, expireAt: ttl });
       return simple("OK");
     }
+    // Sets (depot:live:{depotId}, Day 11), stored as a JSON array value
+    case "SADD":
+    case "SREM": {
+      const [key, ...members] = args;
+      const set = new Set(JSON.parse(getEntry(key)?.value ?? "[]"));
+      const before = set.size;
+      for (const member of members) {
+        if (cmd === "SADD") set.add(member);
+        else set.delete(member);
+      }
+      store.set(key, { value: JSON.stringify([...set]), expireAt: null });
+      return `:${Math.abs(set.size - before)}\r\n`;
+    }
+    case "SMEMBERS":
+      return encode(JSON.parse(getEntry(args[0])?.value ?? "[]"));
     case "EVAL": {
       const script = args[0];
       const keyCount = Number.parseInt(args[1] ?? "0", 10);
@@ -212,20 +227,24 @@ function dispatch(parts) {
   }
 }
 
+/**
+ * RESP arrays of bulk strings. Works on bytes: `$<n>` is a byte length, so multi byte text (Telugu
+ * in cached responses) must not be measured in characters, or a command waits forever.
+ */
 function parseBuffer(buffer) {
   const commands = [];
   let offset = 0;
-  const text = buffer.toString("utf8");
+  const CRLF = Buffer.from([13, 10]);
 
   function readLine() {
-    const at = text.indexOf("\r\n", offset);
+    const at = buffer.indexOf(CRLF, offset);
     if (at === -1) return null;
-    const line = text.slice(offset, at);
+    const line = buffer.toString("utf8", offset, at);
     offset = at + 2;
     return line;
   }
 
-  while (offset < text.length) {
+  while (offset < buffer.length) {
     const start = offset;
     const first = readLine();
     if (first === null) {
@@ -241,17 +260,15 @@ function parseBuffer(buffer) {
       const header = readLine();
       if (header === null || !header.startsWith("$")) {
         ok = false;
-        offset = start;
         break;
       }
       const size = Number.parseInt(header.slice(1), 10);
       const end = offset + size;
-      if (text.length < end + 2) {
+      if (buffer.length < end + 2) {
         ok = false;
-        offset = start;
         break;
       }
-      parts.push(text.slice(offset, end));
+      parts.push(buffer.toString("utf8", offset, end));
       offset = end + 2;
     }
     if (!ok) {

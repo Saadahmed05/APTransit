@@ -62,6 +62,8 @@ export const TicketDto = TicketSummaryDto.extend({
   transferCount: z.number().int().nonnegative(),
   /** validUntil the ticket would get if activated now (for the confirmation: "Valid until 01:10 PM"). */
   activationValidUntil: z.string().datetime(),
+  /** Last moment a gift is allowed (departure minus gift.cutoffMinutesBefore). */
+  giftCutoffAt: z.string().datetime(),
   canActivate: z.boolean(),
   canCancel: z.boolean(),
   canGift: z.boolean(),

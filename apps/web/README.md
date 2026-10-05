@@ -74,3 +74,12 @@ public/          manifest icons, static files
 ## Payments and tickets (Day 7)
 
 `lib/payments.ts` `usePayment().pay(...)` opens Razorpay checkout (or, with `NEXT_PUBLIC_PAYMENTS_FAKE=1`, calls `/payments/test/complete`). `/book/done/[bookingId]` and `/tickets` use `components/ticket-summary-card.tsx`. Route phrases use `common.routeFromTo` so Telugu word order is right. E2E-2 needs `E2E_PAYMENTS_FAKE=1`.
+
+## Days 8 to 11
+
+- Ticket page `/tickets/[id]`: `components/live-qr.tsx` (Web Crypto code from `lib/qr-code.ts`, `components/qr-svg.tsx` from `qrcode`), offline copy in `lib/offline-tickets.ts` (IndexedDB, cleared on logout).
+- Browser state hooks: `lib/use-browser-state.ts` (`useNow`, `useOnline`). Keep `useSyncExternalStore` subscribe functions stable.
+- Passes, free travel and updates: `usePayment().pay({ passId })`, `Countdown` from packages/ui, `components/notification-bell.tsx`.
+- PWA: `app/manifest.ts`, `public/sw.js` (read its header before changing caching), `components/service-worker.tsx`, `/offline`, `lib/install-prompt.ts`.
+- E2E: use `e2e/fixtures.ts` (`citizen`, `citizen2`) and `e2e/helpers.ts` (`bookAndPay`, `pickTrip`); run with `E2E_PAYMENTS_FAKE=1` and `--workers=1` locally.
+- Driver app: `lib/use-gps-sender.ts`, `lib/gps-buffer.ts`, `lib/use-wake-lock.ts`, `lib/driver-device.ts` (device key in localStorage), `lib/driver-today.ts`.

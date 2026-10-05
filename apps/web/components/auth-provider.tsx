@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { api, refreshAccessToken, setUnauthenticatedHandler } from "../lib/api";
 import { clearOfflineTickets } from "../lib/offline-tickets";
+import { clearServiceWorkerUserData } from "./service-worker";
 import { queryKeys } from "../lib/query-keys";
 import { getServerSessionState, sessionStore } from "../lib/session";
 
@@ -66,6 +67,7 @@ export function AuthProvider({ hasSession, children }: AuthProviderProps) {
       if (event.data === "logout") {
         sessionStore.clear();
         void clearOfflineTickets();
+        clearServiceWorkerUserData();
         queryClient.removeQueries({ queryKey: queryKeys.me });
         router.refresh();
       }
@@ -103,6 +105,7 @@ export function AuthProvider({ hasSession, children }: AuthProviderProps) {
     queryClient.clear();
     // Saved offline tickets belong to this session only
     await clearOfflineTickets();
+    clearServiceWorkerUserData();
     if (typeof BroadcastChannel !== "undefined") {
       const channel = new BroadcastChannel(CHANNEL);
       channel.postMessage("logout");

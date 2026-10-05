@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { isApiError } from "../lib/api";
 import { AuthProvider } from "./auth-provider";
+import { ServiceWorkerRegistration } from "./service-worker";
 
 /** One retry for server and network errors, none for 4xx: those will not fix themselves. */
 export function shouldRetry(failureCount: number, error: unknown): boolean {
@@ -33,6 +34,7 @@ export function Providers({ hasSession, children }: { hasSession: boolean; child
       <AuthProvider hasSession={hasSession}>
         {children}
         <Toaster />
+        <ServiceWorkerRegistration />
       </AuthProvider>
     </QueryClientProvider>
   );

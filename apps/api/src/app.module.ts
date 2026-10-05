@@ -14,13 +14,16 @@ import { validateEnv } from "./config/env";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BookingsModule } from "./modules/bookings/bookings.module";
+import { DriverModule } from "./modules/driver/driver.module";
 import { EligibilityModule } from "./modules/eligibility/eligibility.module";
 import { HealthModule } from "./modules/health/health.module";
 import { NetworkModule } from "./modules/network/network.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { PassesModule } from "./modules/passes/passes.module";
 import { PaymentsModule, PaymentsTestModule, paymentsFakeEnabled } from "./modules/payments/payments.module";
 import { QueueModule } from "./modules/queue/queue.module";
 import { TicketsModule } from "./modules/tickets/tickets.module";
+import { TrackingModule } from "./modules/tracking/tracking.module";
 import { TripsModule } from "./modules/trips/trips.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
@@ -60,6 +63,9 @@ import { RedisService } from "./redis/redis.service";
     TicketsModule,
     EligibilityModule,
     PassesModule,
+    NotificationsModule,
+    TrackingModule,
+    DriverModule,
     QueueModule,
   ],
   providers: [

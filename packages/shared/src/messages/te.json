@@ -53,6 +53,10 @@
     "booking": {
       "subject": "మీ AP TransitOS టికెట్: {code}",
       "body": "{date} న {time} కి {route} కోసం మీ టికెట్ నిర్ధారించబడింది. సీటు: {seat}."
+    },
+    "layout": {
+      "open": "AP TransitOSలో తెరవండి",
+      "footer": "మీకు AP TransitOS ఖాతా ఉన్నందున ఈ ఈమెయిల్ వచ్చింది. అప్‌డేట్‌లను యాప్‌లో నిర్వహించండి."
     }
   }
 }

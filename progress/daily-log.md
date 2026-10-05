@@ -4,6 +4,79 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## Day 11 · 2026-10-05 · Dev A and Dev B
+
+**Done**
+- Dev B: `POST /driver/devices` (32 byte key shown once, SHA 256 stored, audit `device.register`), `GET /driver/today`, `GET /driver/trips`, `POST /driver/trips/:id/start` and `/end` (assignment, approved device, 60 min window, bus status, `depot:live` set, audit, `trip.status`), `POST /tracking/ping` (docs/12 checks, `bus:live` TTL 120, one `gps_locations` row per 30 s, `bus.position`), `GET /tracking/trips/:id/live` (public) and `GET /tracking/live` (ops roles, depot and district scope), `tracking/progress.ts` (snap to the route with road km anchored to stops, progress, current and next stop, delay at the last reached stop, ETA with pace 1), Socket.IO gateway `/live` (JWT in middleware, `user:{id}`, room rules, `bus:position` throttled 2 s per trip and 10 s for `state`, `trip:status`, `incident:new`, `ticket:status`), `POST /driver/incidents` (server filled trip, bus and location, INC code, open incident flag, BREAKDOWN bus status, audit), `pnpm simulate` (`scripts/simulate-trip.ts`) and `pnpm watch:live` (`apps/api/scripts/watch-live.ts`).
+- Dev A: `/driver` (greeting by IST time, bus, route, departure, Ready chip, this phone's state, Start trip xl with the reason when disabled), `/driver/setup` (register this phone, key kept in localStorage, polls every 30 s), location explanation before the browser asks and Chrome instructions when denied, `useGpsSender` (watchPosition high accuracy, 5 s moving and 20 s stationary, 20 points per request, IndexedDB buffer of 500 flushed 20 at a time, stops when the API refuses), `useWakeLock` with a tip when unsupported, `/driver/trip/[id]` (Trip active, GPS Active, Weak or Off with icon and word, next stop and ETA polled every 15 s, Report issue, End trip with a confirmation), `/driver/report` (seven big tiles, optional note). All copy in en and te, 56 px buttons, body-lg.
+
+**Verified**
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (shared 119, ui 40, web 42, api 281 plus 6 database tests skipped, scripts 6), `pnpm build`, `pnpm check:dashes`, `pnpm i18n:check`.
+- `test/tracking.test.ts` (18, with a real socket.io client): device registration, today, start and end rules, ping refused for an unapproved device, a missing key, the wrong driver, a trip not running, out of bounds, too fast, stale, more than 20 points; accepted ping writes Redis, one sample per 30 s, emits to the trip room; throttle; room permissions for anonymous, citizen, depot manager (own and other depot), district officer, transport officer; trip:status to the depot room; live views; incidents (server filled fields, no client ids, fallback location). `progress.test.ts` on the seeded KNL to VJA polyline.
+- Live on the local stack: `pnpm simulate --trip <KNL to NDL trip> --speed 60` drove the trip to COMPLETED while `pnpm watch:live trip:<id>` printed 41 `bus:position` events 2 s apart (progress 1.9 to 100 percent) and `trip:status COMPLETED`. Playwright driver smoke (Pixel 7, mocked GPS, seeded approved key): continue trip, ping 202, GPS Active, report sent with an INC code, trip ended.
+
+**Bugs found**
+- Fixed (S2): a socket that subscribed right after connecting could be treated as anonymous (the JWT check ran in the connection handler), so a depot manager was sometimes refused their depot room. The token is now checked in Socket.IO middleware.
+- Fixed (S3, tooling): `pnpm simulate --all` drives every due trip with one driver and one device and hit the 30 per minute ping limit; it now shares 25 pings a minute across trips.
+
+**Carry over**
+- Real Android phone over HTTPS (walk a trip, airplane mode for a minute): needs a phone and staging.
+- Day 12: pace factor, delay updates on the trip row, stop notifications, `--delay-at` and `--breakdown-at`.
+
+**Contract changes (packages/shared)**
+- New `schemas/tracking.ts`.
+
+**Decisions needed**
+- D-025.
+
+## Day 10 · 2026-10-05 · Dev A and Dev B
+
+**Done**
+- Dev A: `app/manifest.ts` (name, short name, standalone, colours from tokens), icons 192, 512 and maskable 512 (`scripts/make-icons.mjs`), hand written `public/sw.js` (D-024), registration in production only with an "Update available" toast and Reload, `/offline` page listing the tickets saved on the phone, "Install app" on the account page from `beforeinstallprompt` only. Playwright: shared fixtures (one login per worker), E2E-3 (activate in the window, QR rotates, using a fake clock), E2E-4 (refund matches the quote), axe checks on `/`, `/search`, `/bus/[id]`, `/tickets/[id]`, `/passes`.
+- Dev B: CI e2e job resets and seeds the test branch, runs all specs, uploads the Playwright report on failure.
+
+**Verified**
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm check:dashes`, `pnpm i18n:check`.
+- Local stack (PGlite, `scripts/dev-redis.mjs`, production builds, fake payments): 18 of 18 Playwright tests pass with one worker on Desktop Chrome and Pixel 7 (E2E-1 to E2E-6, axe with zero serious or critical violations). `/manifest.webmanifest` serves the token colours, `/sw.js` has no-cache headers, `/offline` answers 200.
+
+**Bugs found**
+- Fixed (S2): `/manifest.webmanifest` gave 500 (`import.meta.url` is undefined in the server bundle); tokens are now read from the app folder.
+- Fixed (S3, tooling): `scripts/dev-redis.mjs` measured RESP lengths in characters, so any value with Telugu text (cached ticket responses) hung the connection and every later command. It parses bytes now.
+- Fixed (S3, tests): E2E-3 moves a trip into today, and later tests booked that trip (too close to departure to gift or cancel). Tests now pick a trip at least 3 h away.
+
+**Carry over (needs a human)**
+- Staging: Render api and worker, Vercel, Neon main migrate and seed, Razorpay test webhook, a real test payment with the tab closed, the docs/17 smoke test on a phone, Lighthouse PWA on staging, install on Android, the manual QA script, and the `v0.1.0` tag. None of these accounts exist on this machine.
+- `TEST_DATABASE_URL` and `TEST_REDIS_URL` secrets so the CI e2e job runs instead of skipping.
+
+**Decisions needed**
+- D-024.
+
+## Day 09 · 2026-10-05 · Dev A and Dev B
+
+**Done**
+- Dev B: `NotificationsService.notify` (row, then an `email-<id>` job on the notifications queue when the user has an email), `NotificationEmailService` in the worker (subject and body from packages/shared messages in the user's language, plain accessible HTML with one link button plus a text version, sets `emailedAt`, skips rows already emailed), `NotificationsProcessor`. Subscribers: booking.confirmed to BOOKING_CONFIRMED (one per booking), ticket ACTIVE to TICKET_ACTIVATED, ticket.transferred to TICKET_RECEIVED. Endpoints `GET /notifications` (cursor), `GET /notifications/unread-count`, `POST /notifications/:id/read`, `POST /notifications/read-all`. `StatusExpiryService` (rules a to f, batches of 500, old status as the lock, counts logged) on the repeatable `expire-statuses` job every 5 min. Worker heartbeat `worker:heartbeat` every 60 s (TTL 180) and `GET /health` reports `worker: ok | stale`. Shared: `messages.ts` (messages built into dist), `notificationParams`, notification schemas, `email.layout.*` keys.
+- Dev A: `Countdown` in packages/ui (one timer on the next visible change, paused when the tab is hidden, hidden summary that changes once a minute). `/tickets/[id]/gift` (one field with phone or email detection, rules line, confirm Dialog, every denial mapped), `/passes` (active pass with countdown and LiveQr, ready passes with an activation Sheet, unpaid passes with Pay, history, empty state), `/passes/buy` (cards with price, validity, services; `usePayment` now takes `{ passId }`), `/free-travel` (explainer, consent, category, domicile, ID type with the "do not enter any ID number" note, error summary, ELIGIBLE and NOT_ELIGIBLE states that always offer a next step), `/book/[tripId]/free` with "Book free seat" on the bus page for a citizen with an active free pass on an eligible bus, notification bell with unread count (60 s poll), `/updates` (grouped by day, icon per type, relative time, unread dot, tap marks read and follows the link, Mark all read, Show older). E2E-5 and E2E-6, shared e2e helpers.
+
+**Verified**
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm check:dashes`, `pnpm i18n:check`.
+- New API tests (`test/notifications.test.ts`, 15): notify writes the row and queues one email job; the worker renders in Telugu for a te user, sends once, sets emailedAt; every notification type renders in en and te without a missing placeholder; HTML escaped; each subscriber; cursor pagination, unread count, read one (owner only), read all; each expiry rule a to f with frozen time; PASS_EXPIRING only once; health worker ok and stale. Countdown component tests (3).
+- Live on local PGlite plus `scripts/dev-redis.mjs` (API and web production builds, fake payments, dev OTP echo), as citizen@ and citizen2@: eligibility ELIGIBLE, the same request with an ID number 400, free pass READY then ACTIVE until the eligibility expiry, free seat on the Express CONFIRMED at Rs 0, Super Luxury 422 PASS_NOT_ELIGIBLE, the free ticket not giftable; paid ticket gifted to citizen2 (sender 404, recipient sees it with "Citizen Lakshmi", second gift 422); weekly pass Rs 450 paid with test/complete, activated for 7 days, QR with rotSecret; notifications BOOKING_CONFIRMED twice for citizen, TICKET_RECEIVED for citizen2, read-all clears the count. The `eligibility_checks` row holds only scheme, result, reason, provider, reference and times.
+- Playwright on that stack, one worker: E2E-1, E2E-2, E2E-5, E2E-6 pass on Desktop Chrome (5 of 5); on Pixel 7, 4 of 5 pass, E2E-6 hit the OTP limit of 10 per IP per hour (docs/12) after the many local logins, not a code fault.
+
+**Bugs found**
+- Fixed (S1): `useNow` passed a new subscribe function on every render, so React resubscribed each render and the bus page hit "Maximum update depth exceeded" (React error 185). Subscribe and read are now stable per interval, and the clock resets to 0 when it stops.
+- Open (S2, tests): all e2e logins come from one IP, so a full run on both projects passes the 10 OTP requests per IP per hour limit. Day 10 adds a login fixture that reuses sessions.
+
+**Carry over**
+- The worker was not run for an hour and Upstash usage was not recorded: there is no Upstash or real Redis on this machine (dev-redis cannot run BullMQ). Email sending and the expiry job are covered by the tests above.
+- Real Razorpay test checkout for passes needs test keys.
+
+**Contract changes (packages/shared)**
+- New `messages.ts`, `notification-params.ts`, `schemas/notifications.ts`; `HealthDto.worker`; `TicketDto.giftCutoffAt`; `PassDto.activationValidUntil`.
+
+**Decisions needed**
+- D-023.
+
 ## Day 08 · 2026-10-05 · Dev A and Dev B
 
 **Done**

@@ -20,6 +20,20 @@ export function createFakeRedis(store = new Map<string, string>()) {
       return next;
     },
     expire: async () => 1,
+    sadd: async (key: string, ...members: string[]) => {
+      const set = new Set(JSON.parse(store.get(key) ?? "[]") as string[]);
+      const before = set.size;
+      members.forEach((m) => set.add(m));
+      store.set(key, JSON.stringify([...set]));
+      return set.size - before;
+    },
+    srem: async (key: string, ...members: string[]) => {
+      const set = new Set(JSON.parse(store.get(key) ?? "[]") as string[]);
+      const removed = members.filter((m) => set.delete(m)).length;
+      store.set(key, JSON.stringify([...set]));
+      return removed;
+    },
+    smembers: async (key: string) => JSON.parse(store.get(key) ?? "[]") as string[],
     eval: async (script: string, numKeys: number, ...rest: string[]) => {
       const keys = rest.slice(0, numKeys);
       const argv = rest.slice(numKeys);

@@ -34,7 +34,8 @@
     "back": "Back",
     "breadcrumb": "Breadcrumb",
     "notAvailable": "Not available",
-    "routeFromTo": "{from} to {to}"
+    "routeFromTo": "{from} to {to}",
+    "appShortName": "TransitOS"
   },
   "home": {
     "question": "Where do you want to go?",
@@ -119,7 +120,9 @@
     "notFoundTitle": "Bus not found",
     "notFoundHint": "We could not find this trip. It may have been completed or cancelled.",
     "errorTitle": "Could not load bus details",
-    "approx": "approx."
+    "approx": "approx.",
+    "bookFree": "Book free seat",
+    "bookFreeHint": "Free with your free travel pass."
   },
   "timetable": {
     "title": "Timetable",
@@ -579,5 +582,254 @@
     "done": "Ticket cancelled. Refund in progress.",
     "errorTitle": "Refund details could not load",
     "back": "Back to ticket"
+  },
+  "gift": {
+    "title": "Gift ticket",
+    "intro": "Send this ticket to someone who has an AP TransitOS account.",
+    "recipientLabel": "Phone or email",
+    "recipientHint": "A 10 digit mobile number or an email address.",
+    "detectedPhone": "Phone number",
+    "detectedEmail": "Email address",
+    "invalid": "Enter a 10 digit mobile number or an email address.",
+    "rules": "Gift once, before {time}. Free tickets cannot be gifted.",
+    "continue": "Continue",
+    "confirmTitle": "Gift seat {seat} to {recipient}?",
+    "confirmBody": "You will lose access to this ticket.",
+    "confirm": "Gift ticket",
+    "keep": "Keep ticket",
+    "done": "Ticket sent to {recipient}",
+    "notGiftableTitle": "This ticket cannot be gifted",
+    "notGiftableHint": "Only tickets that are not active can be gifted, once, until 2 hours before departure. Free tickets stay with you.",
+    "back": "Back to ticket"
+  },
+  "passes": {
+    "title": "My passes",
+    "activeHeading": "Active pass",
+    "readyHeading": "Ready to activate",
+    "historyHeading": "Past passes",
+    "validFrom": "Valid from {time}",
+    "validUntil": "Valid until {time}",
+    "countdownLong": "{days, plural, one {# day} other {# days}} {hours} hours {minutes} minutes",
+    "countdownShort": "{hours} hours {minutes} minutes {seconds} seconds",
+    "countdownSummary": "{days, plural, one {# day} other {# days}}, {hours} hours and {minutes} minutes left",
+    "ended": "Ended",
+    "services": "Valid on {services}",
+    "activateBy": "Activate before {time}",
+    "activate": "Activate pass",
+    "activateTitle": "Activate this pass?",
+    "activateBody": "Valid from now until {time}. Passes cannot be gifted.",
+    "activateConfirm": "Activate pass",
+    "activateKeep": "Not now",
+    "activateBlocked": "You already have an active pass of this kind. Activate this one after it ends.",
+    "activated": "Pass activated",
+    "pendingHint": "Payment not finished.",
+    "payNow": "Pay {amount}",
+    "qrLabel": "Pass QR code for {name}",
+    "showOnBoard": "Show this QR code to the conductor on every trip.",
+    "emptyTitle": "No passes.",
+    "emptyHint": "A pass covers unlimited trips on eligible buses.",
+    "buy": "Buy pass",
+    "errorTitle": "Passes could not load",
+    "status": {
+      "PENDING_PAYMENT": "Payment pending",
+      "READY": "Ready",
+      "ACTIVE": "Active",
+      "EXPIRED": "Expired",
+      "CANCELLED": "Cancelled"
+    }
+  },
+  "passBuy": {
+    "title": "Buy pass",
+    "intro": "Pick a pass. It starts when you activate it, not when you buy it.",
+    "validity": "{days, plural, one {# day} other {# days}} from activation",
+    "services": "Valid on {services}",
+    "choose": "Choose pass",
+    "pay": "Pay {amount}",
+    "paymentName": "AP TransitOS",
+    "paymentDescription": "{name}",
+    "done": "Pass bought. Activate it when you start travelling.",
+    "freeTitle": "Free travel (Stree Shakti)",
+    "freeHint": "For women, girls and transgender persons who live in Andhra Pradesh.",
+    "freeCta": "Check eligibility",
+    "errorTitle": "Passes could not load"
+  },
+  "freeTravelPage": {
+    "intro": "Women, girls and transgender persons who live in Andhra Pradesh travel free on these buses: {services}.",
+    "idTitle": "On the bus",
+    "idText": "Carry a photo ID. The conductor checks it when scanning your pass.",
+    "formTitle": "Check your eligibility",
+    "consent": "I agree that AP TransitOS checks my eligibility for the Stree Shakti scheme. Only the result is stored.",
+    "categoryLabel": "I am a",
+    "categories": {
+      "WOMAN": "Woman",
+      "GIRL": "Girl",
+      "TRANSGENDER": "Transgender person"
+    },
+    "domicile": "I live in Andhra Pradesh",
+    "idTypeLabel": "Photo ID I will carry",
+    "idTypes": {
+      "AADHAAR": "Aadhaar",
+      "VOTER_ID": "Voter ID",
+      "RATION_CARD": "Ration card",
+      "OTHER_PHOTO_ID": "Other photo ID"
+    },
+    "idNote": "Do not enter any ID number. The conductor checks your ID on the bus.",
+    "submit": "Check eligibility",
+    "errorSummary": "Check the highlighted answers.",
+    "errors": {
+      "consent": "Give your consent to continue.",
+      "category": "Choose one.",
+      "idType": "Choose the ID you will carry."
+    },
+    "eligibleTitle": "You can travel free",
+    "eligibleHint": "Your eligibility is valid until {date}.",
+    "getPass": "Get free travel pass",
+    "passReady": "Your free travel pass is ready. Activate it in My passes.",
+    "alreadyHave": "You already have a free travel pass.",
+    "goToPasses": "Go to my passes",
+    "notEligibleTitle": "You are not eligible right now",
+    "reasons": {
+      "CONSENT_REQUIRED": "We need your consent to check eligibility. Tick the consent box and try again.",
+      "CATEGORY_NOT_COVERED": "Free travel covers women, girls and transgender persons. You can still buy a weekly or monthly pass.",
+      "DOMICILE_REQUIRED": "Free travel is for people who live in Andhra Pradesh. You can still buy a weekly or monthly pass.",
+      "OTHER": "We could not confirm your eligibility. Check your answers and try again."
+    },
+    "checkAgain": "Check again",
+    "otherPasses": "See other passes",
+    "errorTitle": "Free travel could not load"
+  },
+  "freeSeat": {
+    "title": "Book free seat",
+    "intro": "One seat at zero fare with your free travel pass. No payment needed.",
+    "segment": "{from} to {to}",
+    "seatHeading": "Pick your seat",
+    "passengerHeading": "Passenger",
+    "pickSeat": "Pick a seat to continue.",
+    "book": "Book free seat",
+    "needPassTitle": "You need an active free travel pass",
+    "needPassHint": "Check your eligibility, then activate your free travel pass.",
+    "getPass": "Get free travel",
+    "notOnThisBus": "Free travel is not available on this bus.",
+    "freeFare": "Fare: Free",
+    "errorTitle": "This bus could not load"
+  },
+  "updates": {
+    "title": "Updates",
+    "markAll": "Mark all read",
+    "emptyTitle": "You are all caught up.",
+    "emptyHint": "Updates about your tickets and passes show up here.",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "unread": "Unread",
+    "loadMore": "Show older",
+    "errorTitle": "Updates could not load",
+    "bell": "{count, plural, =0 {Notifications} one {Notifications, # unread} other {Notifications, # unread}}"
+  },
+  "pwa": {
+    "updateAvailable": "Update available",
+    "reload": "Reload",
+    "installTitle": "Install app",
+    "installHint": "Add AP TransitOS to your home screen. Your active tickets open even without internet.",
+    "install": "Install app"
+  },
+  "offlinePage": {
+    "title": "You are offline",
+    "hint": "Check your connection and try again. Tickets saved on this phone still open.",
+    "savedTickets": "Saved tickets",
+    "noTickets": "No active tickets are saved on this phone."
+  },
+  "driverApp": {
+    "greeting": {
+      "morning": "Good morning, {name}",
+      "afternoon": "Good afternoon, {name}",
+      "evening": "Good evening, {name}"
+    },
+    "greetingNoName": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    },
+    "bus": "Bus {regNo}",
+    "busPending": "Bus not assigned yet",
+    "departs": "Departs {time}",
+    "ready": "Ready",
+    "running": "Trip running",
+    "startFrom": "You can start from {time}.",
+    "continueTrip": "Continue trip",
+    "noTripTitle": "No trip assigned right now",
+    "noTripHint": "Check with your depot for your next duty.",
+    "errorTitle": "Your trip could not load",
+    "device": {
+      "approved": "This phone is approved",
+      "pendingTitle": "Waiting for depot approval",
+      "pendingHint": "Start trip unlocks when the depot approves this phone.",
+      "notRegisteredTitle": "Register this phone",
+      "notRegisteredHint": "Register this phone once before your first trip.",
+      "otherPhoneHint": "Your account has an approved phone, but not this one. Register this phone to drive with it.",
+      "setup": "Set up this phone"
+    },
+    "location": {
+      "explainTitle": "Allow location",
+      "explainBody": "Passengers and the depot see where the bus is. Location is shared only while a trip runs.",
+      "allow": "Allow location",
+      "deniedTitle": "Location is blocked",
+      "deniedSteps": "In Chrome, tap the icon next to the address, open Permissions, set Location to Allow, then reload this page.",
+      "reload": "Reload"
+    },
+    "setup": {
+      "title": "Set up this phone",
+      "intro": "Give this phone a name so the depot knows which one to approve.",
+      "labelField": "Phone name",
+      "labelHint": "For example Samsung A14",
+      "labelError": "Enter a name up to 60 letters.",
+      "register": "Register this phone",
+      "pending": "Registered. Waiting for depot approval.",
+      "approved": "This phone is approved. You can start trips.",
+      "back": "Back to today"
+    },
+    "trip": {
+      "active": "Trip active",
+      "gps": "GPS",
+      "gpsStates": {
+        "ACTIVE": "Active",
+        "WEAK": "Weak",
+        "OFF": "Off"
+      },
+      "nextStop": "Next stop",
+      "eta": "In about {minutes} min",
+      "arriving": "Arriving now",
+      "lastStop": "Last stop reached",
+      "report": "Report issue",
+      "end": "End trip",
+      "endTitle": "End trip at {stop}?",
+      "endBody": "Passengers will see the trip as completed.",
+      "keepGoing": "Keep driving",
+      "ended": "Trip ended",
+      "wakeTip": "Keep the screen on during the trip.",
+      "buffered": "{count, plural, one {# location} other {# locations}} waiting to send",
+      "stopped": "Location sending stopped. Contact your depot.",
+      "notRunning": "This trip is not running.",
+      "noDevice": "This phone is not registered, so its location cannot be sent."
+    },
+    "report": {
+      "title": "Report issue",
+      "pickType": "What happened?",
+      "types": {
+        "DELAY": "Delay",
+        "TRAFFIC": "Traffic",
+        "BREAKDOWN": "Breakdown",
+        "ACCIDENT": "Accident",
+        "ROAD_BLOCK": "Road block",
+        "MEDICAL": "Medical",
+        "OTHER": "Other"
+      },
+      "noteLabel": "Note (optional)",
+      "noteHint": "A few words for the depot.",
+      "send": "Send report",
+      "pickFirst": "Pick what happened first.",
+      "sentTitle": "Depot alerted",
+      "sentHint": "Report {code} was sent with your location.",
+      "backToTrip": "Back to trip"
+    }
   }
 }

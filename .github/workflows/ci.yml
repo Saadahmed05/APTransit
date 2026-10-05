@@ -69,7 +69,7 @@ jobs:
         run: pnpm audit --prod --audit-level high
 
   e2e:
-    name: Playwright E2E-1
+    name: Playwright E2E
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -103,14 +103,15 @@ jobs:
         if: steps.secrets.outputs.ok == 'true'
         run: pnpm --filter api generate
 
-      - name: Migrate and seed
+      - name: Reset and seed the test data
         if: steps.secrets.outputs.ok == 'true'
         working-directory: apps/api
+        # A clean test branch every run: e2e bookings, passes and gifts never pile up.
+        # prisma/reset.ts refuses a main or production database.
         run: |
           export DATABASE_URL="$TEST_DATABASE_URL"
           export DIRECT_URL="$TEST_DATABASE_URL"
-          pnpm exec prisma migrate deploy
-          pnpm exec tsx prisma/seed.ts
+          pnpm exec tsx prisma/reset.ts
 
       - name: Write API env
         if: steps.secrets.outputs.ok == 'true'
@@ -171,9 +172,17 @@ jobs:
         if: steps.secrets.outputs.ok == 'true'
         run: pnpm --filter web exec playwright install --with-deps chromium
 
-      - name: Run E2E-1
+      - name: Run E2E-1 to E2E-6 and axe checks
         if: steps.secrets.outputs.ok == 'true'
         env:
           E2E_REQUIRE_RESULTS: "1"
           E2E_PAYMENTS_FAKE: "1"
         run: pnpm e2e
+
+      - name: Upload the Playwright report
+        if: failure() && steps.secrets.outputs.ok == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7

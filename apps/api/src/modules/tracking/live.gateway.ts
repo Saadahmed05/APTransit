@@ -1,0 +1,162 @@
+import { type BusPositionEvent, type Role, SubscribeInput } from "@aptransit/shared";
+import { Logger, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import {
+  ConnectedSocket,
+  MessageBody,
+  type OnGatewayConnection,
+  type OnGatewayInit,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+} from "@nestjs/websockets";
+import * as jose from "jose";
+import type { Namespace, Socket } from "socket.io";
+import type { AuthenticatedUser } from "../../common/auth/auth.types";
+import { DomainEventsService, type LiveRooms } from "../../common/events/domain-events.service";
+import type { Env } from "../../config/env";
+import { TrackingService } from "./tracking.service";
+
+/** docs/06 WebSocket: at most one bus:position per trip per 2 s, the state room one per 10 s. */
+export const POSITION_THROTTLE_MS = 2_000;
+export const STATE_THROTTLE_MS = 10_000;
+
+const STATE_ROLES: ReadonlySet<Role> = new Set(["TRANSPORT_OFFICER", "STATE_ADMIN", "SUPER_ADMIN"]);
+const DISTRICT_ROLES: ReadonlySet<Role> = new Set(["DISTRICT_OFFICER", ...STATE_ROLES]);
+const OPS_ROLES: ReadonlySet<Role> = new Set(["DEPOT_STAFF", "DEPOT_MANAGER", ...DISTRICT_ROLES]);
+
+type SocketData = { user: AuthenticatedUser | null };
+type Ack = { ok: true } | { ok: false; error: "FORBIDDEN" | "VALIDATION_FAILED" };
+
+const roomList = (rooms: LiveRooms) => [`trip:${rooms.tripId}`, `route:${rooms.routeId}`, `depot:${rooms.depotId}`, `district:${rooms.districtId}`];
+
+/**
+ * Socket.IO namespace /live (docs/06, docs/13). The JWT in handshake auth is optional: anonymous
+ * sockets may follow trips and routes; authenticated ones also join user:{id}. Depot, district and
+ * state rooms need a scoped role. Emits come from domain events, so services never hold sockets.
+ */
+@WebSocketGateway({ namespace: "/live", cors: { origin: process.env.WEB_ORIGIN ?? "http://localhost:3000", credentials: true } })
+export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModuleInit, OnModuleDestroy {
+  @WebSocketServer() server?: Namespace;
+  private readonly logger = new Logger(LiveGateway.name);
+  private readonly jwtSecret: Uint8Array;
+  private readonly lastPosition = new Map<string, number>();
+  private readonly lastStatePosition = new Map<string, number>();
+  private readonly off: (() => void)[] = [];
+
+  constructor(
+    config: ConfigService<Env, true>,
+    private readonly events: DomainEventsService,
+    private readonly tracking: TrackingService,
+  ) {
+    this.jwtSecret = new TextEncoder().encode(config.get("JWT_SECRET", { infer: true }));
+  }
+
+  onModuleInit(): void {
+    this.off.push(
+      this.events.on("bus.position", (event) => this.emitPosition(event)),
+      this.events.on("trip.status", ({ rooms, ...payload }) => this.emitTo([...roomList(rooms).filter((r) => !r.startsWith("route:")), "state"], "trip:status", payload)),
+      this.events.on("incident.created", ({ rooms, ...payload }) =>
+        this.emitTo([`trip:${rooms.tripId}`, `depot:${rooms.depotId}`, `district:${rooms.districtId}`, "state"], "incident:new", payload),
+      ),
+      this.events.on("ticket.status", (e) => this.emitTo([`user:${e.holderUserId}`], "ticket:status", { ticketId: e.ticketId, status: e.to })),
+    );
+  }
+
+  onModuleDestroy(): void {
+    this.off.forEach((unsubscribe) => unsubscribe());
+  }
+
+  /**
+   * The token is checked in middleware, before the connection is accepted, so a `subscribe` sent
+   * right after connect never runs before the user is known (that race refused scoped rooms).
+   */
+  afterInit(server: Namespace): void {
+    server.use((socket, next) => {
+      void this.authenticate(socket).then(() => next());
+    });
+  }
+
+  async handleConnection(socket: Socket): Promise<void> {
+    const data = socket.data as SocketData & { authFailed?: boolean };
+    if (data.user) await socket.join(`user:${data.user.id}`);
+    // A bad or expired token is an anonymous socket, not an error: public rooms still work
+    if (data.authFailed) socket.emit("auth:error", { code: "UNAUTHENTICATED" });
+  }
+
+  private async authenticate(socket: Socket): Promise<void> {
+    const data = socket.data as SocketData & { authFailed?: boolean };
+    data.user = null;
+    const token = (socket.handshake.auth as { token?: unknown } | undefined)?.token;
+    if (typeof token !== "string" || token.length === 0) return;
+    try {
+      const { payload } = await jose.jwtVerify(token, this.jwtSecret);
+      if (!payload.sub) throw new Error("no subject");
+      data.user = { id: payload.sub, roles: (payload as { roles?: AuthenticatedUser["roles"] }).roles ?? [] };
+    } catch {
+      data.authFailed = true;
+    }
+  }
+
+  @SubscribeMessage("subscribe")
+  async subscribe(@ConnectedSocket() socket: Socket, @MessageBody() body: unknown): Promise<Ack> {
+    const parsed = SubscribeInput.safeParse(body);
+    if (!parsed.success) return { ok: false, error: "VALIDATION_FAILED" };
+    const { room } = parsed.data;
+    if (!(await this.mayJoin((socket.data as SocketData).user, room))) return { ok: false, error: "FORBIDDEN" };
+    await socket.join(room);
+    return { ok: true };
+  }
+
+  @SubscribeMessage("unsubscribe")
+  async unsubscribe(@ConnectedSocket() socket: Socket, @MessageBody() body: unknown): Promise<Ack> {
+    const parsed = SubscribeInput.safeParse(body);
+    if (!parsed.success) return { ok: false, error: "VALIDATION_FAILED" };
+    await socket.leave(parsed.data.room);
+    return { ok: true };
+  }
+
+  /** Room rules from docs/06 and docs/13. */
+  async mayJoin(user: AuthenticatedUser | null, room: string): Promise<boolean> {
+    if (room.startsWith("trip:") || room.startsWith("route:")) return true;
+    if (!user) return false;
+    const roles = user.roles;
+    if (room === "state") return roles.some((r) => STATE_ROLES.has(r.role));
+    const [kind, id] = room.split(":") as [string, string];
+    if (kind === "district") return roles.some((r) => STATE_ROLES.has(r.role) || (r.role === "DISTRICT_OFFICER" && r.districtId === id));
+    if (kind === "depot") {
+      if (!roles.some((r) => OPS_ROLES.has(r.role))) return false;
+      try {
+        await this.tracking.assertDepotScope({ ...user, roles: roles.filter((r) => OPS_ROLES.has(r.role)) }, id);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /** bus:position to trip, route, depot and district at most every 2 s per trip, state every 10 s. */
+  private emitPosition({ rooms, ...payload }: BusPositionEvent & { rooms: LiveRooms }): void {
+    const now = Date.now();
+    const tripId = rooms.tripId;
+    if (now - (this.lastPosition.get(tripId) ?? 0) >= POSITION_THROTTLE_MS) {
+      this.lastPosition.set(tripId, now);
+      this.emitTo(roomList(rooms), "bus:position", payload);
+    }
+    if (now - (this.lastStatePosition.get(tripId) ?? 0) >= STATE_THROTTLE_MS) {
+      this.lastStatePosition.set(tripId, now);
+      this.emitTo(["state"], "bus:position", payload);
+    }
+  }
+
+  private emitTo(rooms: string[], event: string, payload: unknown): void {
+    // The worker process has no socket server: events there are simply not broadcast
+    if (!this.server) return;
+    try {
+      this.server.to(rooms).emit(event, payload);
+    } catch (err) {
+      this.logger.warn(`Socket emit ${event} failed: ${(err as Error).message}`);
+    }
+  }
+}

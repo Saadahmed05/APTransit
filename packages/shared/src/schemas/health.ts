@@ -8,6 +8,8 @@ export const HealthDto = z.object({
   status: z.enum(["ok", "degraded"]),
   db: ProbeState,
   redis: ProbeState,
+  /** The background worker's heartbeat (Day 9). Does not change `status`: the API serves without it. */
+  worker: z.enum(["ok", "stale"]),
   version: z.string(),
   time: z.iso.datetime(),
 });

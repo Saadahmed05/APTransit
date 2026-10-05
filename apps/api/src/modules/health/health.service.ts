@@ -2,6 +2,7 @@ import type { HealthDto, ProbeState } from "@aptransit/shared";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { readWorkerState } from "../lifecycle/worker-heartbeat";
 
 export const PROBE_TIMEOUT_MS = 1_000;
 
@@ -34,14 +35,18 @@ export class HealthService {
   ) {}
 
   async check(): Promise<HealthDto> {
-    const [db, redis] = await Promise.all([
+    const [db, redis, worker] = await Promise.all([
       probe(() => this.prisma.$queryRaw`SELECT 1`),
       probe(() => this.redis.client.ping()),
+      probe(async () => {
+        if ((await readWorkerState(this.redis.client)) !== "ok") throw new Error("stale");
+      }),
     ]);
     return {
       status: db === "ok" && redis === "ok" ? "ok" : "degraded",
       db,
       redis,
+      worker: worker === "ok" ? "ok" : "stale",
       version: appVersion(),
       time: new Date().toISOString(),
     };

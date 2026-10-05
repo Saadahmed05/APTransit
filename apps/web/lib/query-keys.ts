@@ -22,6 +22,12 @@ export const queryKeys = {
   ticket: (id: string) => ["ticket", id] as const,
   ticketQr: (id: string) => ["ticket", id, "qr"] as const,
   refundQuote: (id: string) => ["ticket", id, "refund-quote"] as const,
+  passTypes: ["pass-types"] as const,
+  passes: ["passes"] as const,
+  passQr: (id: string) => ["passes", id, "qr"] as const,
+  eligibility: ["eligibility"] as const,
+  notifications: ["notifications"] as const,
+  unreadCount: ["notifications", "unread-count"] as const,
   timetable: (routeId: string, date: string) =>
     ["network", "timetable", routeId, date] as const,
 };

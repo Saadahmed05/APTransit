@@ -199,6 +199,7 @@ export class PassesService {
       activatedAt: pass.activatedAt?.toISOString() ?? null,
       validFrom: pass.validFrom?.toISOString() ?? null,
       validUntil: pass.validUntil?.toISOString() ?? null,
+      activationValidUntil: (pass.validUntil ?? passValidity(now, pass.passType.durationDays, pass.eligibilityCheck?.expiresAt).validUntil).toISOString(),
       canActivate: canActivatePass(pass, activateWithinDays, pass.status === "READY" && hasActiveOfKind, now).ok,
     };
   }

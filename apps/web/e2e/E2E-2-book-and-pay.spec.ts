@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { pickTrip } from "./helpers";
 
 /**
  * E2E-2 (docs/14): login with OTP (dev echo), book a seat, pay with the fake payment flag, see the
@@ -6,14 +7,6 @@ import { expect, test } from "@playwright/test";
  * Needs: API with OTP_DEV_ECHO=1 and PAYMENTS_FAKE=1, web built with NEXT_PUBLIC_PAYMENTS_FAKE=1,
  * a seeded database. Set E2E_PAYMENTS_FAKE=1 to run it (CI does).
  */
-
-/** Tomorrow as YYYY-MM-DD in Asia/Kolkata. */
-function tomorrowIst(): string {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    new Date(Date.now() + 24 * 3_600_000),
-  );
-  return parts;
-}
 
 test.describe("E2E-2: Citizen books and pays", () => {
   test.skip(process.env.E2E_PAYMENTS_FAKE !== "1", "needs the fake payment flag (E2E_PAYMENTS_FAKE=1)");
@@ -34,14 +27,9 @@ test.describe("E2E-2: Citizen books and pays", () => {
     await page.waitForURL((url) => url.pathname === "/", { timeout: 20_000 });
 
     // 2. Search Kurnool to Vijayawada for tomorrow (E2E-1 covers the home form itself)
-    const place = async (q: string) => {
-      const res = await page.request.get(`/api/v1/places/search?q=${encodeURIComponent(q)}&limit=1`);
-      return ((await res.json()) as { id: string }[])[0]!.id;
-    };
-    const from = await place("Kurnool");
-    const to = await place("Vijayawada");
-    await page.goto(`/search?from=${from}&to=${to}&date=${tomorrowIst()}`);
-    await page.locator("a[data-testid='trip-card']").first().click();
+    const { tripId, from, to, date } = await pickTrip(page);
+    await page.goto(`/search?from=${from}&to=${to}&date=${date}`);
+    await page.locator(`a[data-testid='trip-card'][href*='${tripId}']`).click();
     await page.waitForURL(/\/bus\//);
 
     // 3. Book: first free seat, passenger details, review
@@ -68,6 +56,6 @@ test.describe("E2E-2: Citizen books and pays", () => {
     // 5. My tickets shows it
     await page.getByRole("link", { name: /view ticket/i }).click();
     await page.waitForURL(/\/tickets/);
-    await expect(page.getByRole("group", { name: /not active/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /not active/i }).first()).toBeVisible();
   });
 });

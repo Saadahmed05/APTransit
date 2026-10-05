@@ -2,8 +2,9 @@ import { cn } from "@aptransit/ui";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Bell, User } from "lucide-react";
+import { User } from "lucide-react";
 import { LanguageSwitch } from "../../components/language-switch";
+import { NotificationBell } from "../../components/notification-bell";
 import { SkipLink } from "../../components/skip-link";
 import { ThemeSwitch } from "../../components/theme-switch";
 import { CitizenBottomNav, CitizenTopNav } from "./citizen-nav";
@@ -33,9 +34,7 @@ export default async function CitizenLayout({ children }: { children: ReactNode 
             <div className="hidden md:block">
               <ThemeSwitch />
             </div>
-            <Link href="/updates" aria-label={t("common.notifications")} className={iconLink}>
-              <Bell className="size-5" aria-hidden="true" />
-            </Link>
+            <NotificationBell className={iconLink} />
             <Link href="/account" aria-label={t("nav.account")} className={cn(iconLink, "hidden md:inline-flex")}>
               <User className="size-5" aria-hidden="true" />
             </Link>

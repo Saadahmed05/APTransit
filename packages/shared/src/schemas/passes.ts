@@ -35,6 +35,8 @@ export const PassDto = z.object({
   activatedAt: z.string().datetime().nullable(),
   validFrom: z.string().datetime().nullable(),
   validUntil: z.string().datetime().nullable(),
+  /** validUntil the pass would get if activated now (for the confirmation). */
+  activationValidUntil: z.string().datetime(),
   canActivate: z.boolean(),
 });
 export type PassDto = z.infer<typeof PassDto>;
