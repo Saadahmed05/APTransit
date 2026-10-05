@@ -14,78 +14,63 @@ Read order for a new session:
 
 ---
 
-## Current state (Day 7 built, 2026-10-03)
+## Current state (Day 11 built, 2026-10-05)
 
 ### Git
 
 | Branch | Contains | Status |
 | --- | --- | --- |
-| `main` | Day 1 to Day 7 (Days 6 and 7 merged directly at the owner's request, no PR) | Baseline |
+| `main` | Day 1 to Day 7 | Baseline |
+| `day-8` | Days 8 to 11 (this handoff) | Pull request to `main`, review by the other dev |
 
-**Day 8 starts from `main`.**
+**Day 12 starts from `main` once the Days 8 to 11 pull request is merged.**
 
-### Works today (verified 2026-10-03)
+### Works today (verified 2026-10-05)
 
-- `pnpm lint`, `pnpm i18n:check`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm check:dashes` pass on Windows (Node 22.20, pnpm 11.10). (On 2026-10-02 `pnpm lint` did not pass, see the Day 05 review in the daily log.)
-- Day 5: format.ts, TripCard, /search, /bus/[tripId], /timetable, trip and booking schemas, trips and bookings APIs, Redis seat holds (Lua, D-019), BullMQ queues, worker, E2E-1 spec.
-- Checked live on local PGlite plus `scripts/dev-redis.mjs`: parallel bookings for one seat give 201 and 409, HELD seat, seatsLeft drops, DELETE frees, useFreeTravel 422. Browser: search, Morning filter, 06:30 Express Rs 541, Back keeps the filter, Telugu at 360 px.
-- Worker drainDelay=60 configured (reads BULLMQ_DRAIN_DELAY_SEC, default 60, logs on startup). Not yet measured on Upstash.
-- Playwright Chromium is installed on the Windows machine. E2E-1 and E2E-2 pass (6 of 6) against `pnpm --filter web build` + `start` with one worker; E2E-2 needs `E2E_PAYMENTS_FAKE=1` and the fake flags in both `.env` files.
-- Day 6: payments module (orders, verify, webhook, `confirmBooking`, late payment refund, D-020), Stepper and SeatMap, `/book/[tripId]` three steps up to Pay. Checked in the browser on local PGlite (see the Day 06 daily log).
-- Day 7: ticket rules, QR signing and rotating codes, activate, cancel and refund, refund.processed, `/payments/test/complete`, pay from review, `/book/done`, `/tickets`, E2E-2 spec (D-021). Checked live with the fake flags (see the Day 07 daily log).
-- Tests: shared 102, api 201 (+6 database tests skipped without `TEST_DATABASE_URL`), ui 35, web 33, scripts 6.
-- The 6 database tests (seed twice, health, real search SQL with p95 under 250 ms) passed against a local PGlite database, not Neon yet.
-- Public network API: places search (English and Telugu, bus stands first), districts, bus stands, routes, timetable, trip search with fares from `fare.ts` and seats left. Kurnool to Vijayawada tomorrow gives the 6 docs/19 trips, Express Rs 541.
-- Web, checked in the browser against the real API: home (combobox, swap, date chips and calendar, validation, form kept after Back), login (email OTP, paste, wrong code, resend timer), session kept after a full reload with one refresh call, `next` redirect, account (name, language saved to the account, theme, logout), 403 for a citizen on `/ops`, manager allowed. 360, 768, 1280 px, English and Telugu.
+- `pnpm lint`, `pnpm i18n:check`, `pnpm typecheck`, `pnpm test` (shared 119, ui 40, web 42, api 281 plus 6 database tests skipped, scripts 6), `pnpm build`, `pnpm check:dashes` pass on Windows (Node 22, pnpm 11.10).
+- Day 8: gifting (`POST /tickets/:id/transfer`), passes with payments (`{ passId }`), Stree Shakti eligibility (mock provider, strict schema, no identifiers stored), zero fare free travel tickets; `/tickets/[id]` with the live rotating QR (Web Crypto), offline copy in IndexedDB, `/tickets/[id]/cancel`.
+- Day 9: notifications (rows, email jobs rendered in the user's language, subscribers, endpoints), expiry jobs every 5 min, worker heartbeat in `/health`; `/tickets/[id]/gift`, `/passes`, `/passes/buy`, `/free-travel`, `/book/[tripId]/free`, bell and `/updates`, `Countdown`.
+- Day 10: manifest, icons, `public/sw.js`, `/offline`, Install app; Playwright fixtures, E2E-1 to E2E-6 and axe checks: 18 of 18 pass locally on both projects with one worker.
+- Day 11: driver endpoints, trusted `/tracking/ping`, live state in Redis, Socket.IO `/live`, incidents, `pnpm simulate`, `pnpm watch:live`; driver app `/driver`, `/driver/setup`, `/driver/trip/[id]`, `/driver/report` with the GPS sender and wake lock. Simulator to socket verified live; driver smoke spec passes.
+- Everything above was checked on a local PGlite database with `scripts/dev-redis.mjs`, not on Neon or Upstash yet.
+
+### Run the whole stack locally (no cloud accounts)
+
+1. `npx -y @electric-sql/pglite-socket --db=.local/pgdata --port=5433 --max-connections=10` and `pnpm dev:redis` (port 6380, set `REDIS_LISTEN=127.0.0.1:6380`).
+2. `apps/api/.env` from `.env.example` with `DATABASE_URL` and `DIRECT_URL` `postgresql://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable`, `REDIS_URL=redis://127.0.0.1:6380`, `APP_ENV=development`, `OTP_DEV_ECHO=1`, `PAYMENTS_FAKE=1`, fresh QR keys (docs/15). `apps/web/.env.local` with `NEXT_PUBLIC_PAYMENTS_FAKE=1`.
+3. `pnpm --filter api exec prisma migrate deploy`, `pnpm db:seed`, then `pnpm --filter api build && node apps/api/dist/main.js` and `pnpm --filter web build && pnpm --filter web start`.
+4. `E2E_PAYMENTS_FAKE=1 pnpm --filter web exec playwright test --workers=1`.
+5. The worker (BullMQ) needs a real Redis: dev-redis cannot run it.
 
 ### Not done yet
 
 | Item | Why | When |
 | --- | --- | --- |
-| Neon, Upstash, Razorpay test, Resend accounts, real `.env` files | Must be created by a human (docs/15) | Before deployment and e2e in CI |
-| `TEST_DATABASE_URL` in CI | Needs the Neon test branch | CI setup |
-| Ops and gov scope switcher with names | MeDto has only depot and district ids | Needs a small `/me` or scope endpoint, decide at sync |
+| Staging (Render api and worker, Vercel, Neon main, Razorpay webhook), smoke test, Lighthouse PWA, `v0.1.0` tag | Needs the cloud accounts (docs/15, docs/17) | Before the Day 12 demo |
+| `TEST_DATABASE_URL`, `TEST_REDIS_URL` in CI | Needs the Neon test branch and Upstash | CI e2e job skips until then |
+| Worker run for an hour, Upstash command count | Needs a real Redis | After the real `.env` |
+| Real Razorpay test checkout | Placeholder keys locally | When test keys exist |
+| Device approval screen for the depot | Scheduled | Day 14 (ops) |
+| Pace factor, delay updates, stop notifications, simulator `--delay-at` and `--breakdown-at`, citizen tracking map | Scheduled | Day 12 |
+| Implied speed check between GPS points | The simulator compresses time (D-025) | Day 17 hardening |
 | Short Telugu label for "Track bus" | D-015, needs a native speaker | Open |
-| E2E-1 run (locally and in CI) | Chromium not installed locally; CI needs `TEST_DATABASE_URL` and `TEST_REDIS_URL` secrets, E2E skips without them | Day 6 |
-| Upstash command count with an idle worker | Needs a real Upstash instance | After real `.env` |
-| Live Razorpay test checkout (`success@razorpay`) | Local `.env` has placeholder Razorpay keys | When a human creates test keys |
-| Ticket page `/tickets/[id]` with the live QR, gifting, passes | Scheduled | Day 8 |
-| Web security headers (CSP allowing checkout.razorpay.com) | Scheduled | Day 17 |
 
 ### Decisions
 
-All in `progress/decisions-log.md`. D-012 and D-016 are built as proposed, D-013 and D-014 unchanged, D-015 open, D-017 (web deps) and D-018 (network contract details, seed alignment) new. Review all at the Day 4 sync.
+All in `progress/decisions-log.md`. D-022 (Day 8), D-023 (Day 9), D-024 (Day 10) and D-025 (Day 11) are new and proposed.
 
---- | --- | --- |
-| `main` | Day 1 to Day 3 (PR #1 day-2, PR #2 day-3) plus the Day 3 review fixes (`bf95d63`, pushed directly at the owner's request; see `progress/daily-log.md`, "Day 03 review") | Baseline |
+### New gotchas (Days 8 to 11)
 
-**Day 4 starts from `main`:** `a/home-login` (Dev A), `b/network-search` (Dev B). Agree D-016 first (the web route guard cannot see `apt_rt`).
-
-### Works today (verified 2026-09-27)
-
-- `pnpm install`, `pnpm lint` (includes `check:dashes`), `pnpm i18n:check`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm audit --prod --audit-level high` all pass on Windows with Node 22.20 and pnpm 11.10.
-- Tests: shared 47, api 56 (+2 Neon tests skipped without `TEST_DATABASE_URL`), ui 10, scripts 6.
-- `apps/api` auth: OTP request and verify (atomic consume and attempts, 5 attempts then 15 min lock, lock also enforced from the DB when Redis is down), refresh rotation with atomic claim and reuse detection, logout revokes the family, `/me` and `PATCH /me`, soft deleted users refused. Refresh cookie per docs/06 (Secure outside local development), cleared on a failed refresh.
-- `apps/api` platform: global `JwtAuthGuard` (`@Public`, `@Can`), global throttler (120 per user or IP per minute, Redis, `@Throttle` per route, fails open), `RateLimitService` for the OTP target limits, `@Audit(action)` through `AuditInterceptor`, `ScopeService`. OTP codes reach the log only when APP_ENV is development.
-- `apps/web`: six shells render in English and Telugu, light and dark, at 360, 768 and 1280 px with no horizontal scroll (checked in the browser). Skip link, header, nav and main landmarks, 44 px targets, visible focus. Theme and locale from cookies without a flash. `/design` gallery (development only), 404 and error pages. Landing pages of ops, gov, admin, driver and conductor are placeholders (`components/coming-soon.tsx`).
-- `packages/ui`: every class used in `apps/web` and `packages/ui` exists in the token theme (checked against the built CSS). New token `bg-scrim`.
-
-### Not done yet (blocked on accounts or scheduled later)
-
-| Item | Why | When |
+| Symptom | Cause | Fix |
 | --- | --- | --- |
-| Neon, Upstash, Razorpay test, Resend accounts | Must be created by a human (docs/15) | Needed for live deployment and e2e |
-| `apps/api/.env`, `apps/web/.env.local` | Need credentials from cloud accounts | Before live testing (Day 4 sync needs the real API) |
-| Apply `schema_v1` on Neon test branch | Needs `TEST_DATABASE_URL` in CI | CI setup with cloud secrets |
-| Scope switcher and account name in staff shells | Needs the Day 4 session (`useMe`) | Day 4 (Dev A) |
-| Real logout in the account menu | Link to `/` until `AuthProvider.logout()` exists | Day 4 (Dev A) |
-| Short Telugu label for "Track bus" in the bottom nav | Glossary question D-015 | Day 4 sync |
-| Session marker cookie for the web route guard | Question D-016 (`apt_rt` path hides it from pages) | Before Day 4 work |
-| Worker queues | Scheduled for Day 5 | Day 5 (Dev B) |
-
-### Decisions
-
-All in `progress/decisions-log.md`: D-001 to D-011 from Days 1 to 3, D-012 to D-016 proposed by the Day 3 review (D-016 blocks the Day 4 route guard).
+| "Maximum update depth exceeded" (React error 185) on a page using a browser store | `useSyncExternalStore` got a new subscribe function each render | Keep subscribe and getSnapshot stable (module level), see `lib/use-browser-state.ts` |
+| Local API hangs after a request with Telugu text | Old `dev-redis.mjs` counted characters, not bytes | Fixed; restart `pnpm dev:redis` and the API (the API does not reconnect to a restarted dev-redis by itself) |
+| E2E login fails with RATE_LIMITED | 10 OTP requests per IP per hour (docs/12) | Use the `citizen` and `citizen2` fixtures in `e2e/fixtures.ts`; locally, restarting dev-redis clears the counter |
+| A test's ticket cannot be gifted or cancelled | E2E-3 moved that trip to depart in 30 min | Book with `pickTrip` / `bookAndPay` (3 h or more ahead) |
+| `/driver/today` gives BAD_RESPONSE in the web | API dist older than the shared schema | Rebuild shared, then the API, after any contract change |
+| A new socket is refused a depot room it should get | Token checked after the client already subscribed | Authentication runs in Socket.IO middleware (`afterInit`), keep it there |
+| Manifest 500 in production | `import.meta.url` is undefined in the server bundle | Read files relative to `process.cwd()` (apps/web), see `lib/token-values.ts` |
+| Simulator pings refused 429 | One driver and one device drive every trip | `--all` shares 25 pings a minute; one trip at `--speed 60` takes under 2 min for a short route |
 
 ---
 

@@ -3,7 +3,10 @@ import { getQueueToken } from "@nestjs/bullmq";
 import { NestFactory } from "@nestjs/core";
 import type { Queue } from "bullmq";
 import { Logger } from "nestjs-pino";
+import { WORKER_HEARTBEAT_EVERY_MS, writeHeartbeat } from "./modules/lifecycle/worker-heartbeat";
+import { EXPIRE_STATUSES_JOB } from "./modules/queue/processors/expiry.processor";
 import { QUEUES } from "./modules/queue/queue.constants";
+import { RedisService } from "./redis/redis.service";
 import { bullmqDrainDelaySec } from "./modules/queue/worker-options";
 import { WorkerModule } from "./worker.module";
 
@@ -38,7 +41,24 @@ async function bootstrap(): Promise<void> {
     logger.warn(`Could not schedule repeatable job on maintenance queue: ${(err as Error).message}`, "Worker");
   }
 
+  // Ticket and pass expiry every 5 min (Day 9), upserted so restarts never stack schedules
+  try {
+    const expiryQueue = app.get<Queue>(getQueueToken(QUEUES.EXPIRY));
+    await expiryQueue.upsertJobScheduler(EXPIRE_STATUSES_JOB, { every: 5 * 60_000 }, { name: EXPIRE_STATUSES_JOB, opts: { removeOnComplete: true, removeOnFail: 50 } });
+    logger.log("Scheduled repeatable expire-statuses job every 5 min", "Worker");
+  } catch (err) {
+    logger.warn(`Could not schedule expire-statuses: ${(err as Error).message}`, "Worker");
+  }
+
+  // Heartbeat for GET /health (worker ok or stale)
+  const redis = app.get(RedisService);
+  const beat = () =>
+    writeHeartbeat(redis.client).catch((err: unknown) => logger.warn(`Heartbeat failed: ${(err as Error).message}`, "Worker"));
+  void beat();
+  const heartbeat = setInterval(() => void beat(), WORKER_HEARTBEAT_EVERY_MS);
+
   const stop = async (): Promise<void> => {
+    clearInterval(heartbeat);
     logger.log("Stopping worker...", "Worker");
     await app.close();
     process.exit(0);

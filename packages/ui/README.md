@@ -110,3 +110,8 @@ Day 4 additions:
 
 - `Stepper`: steps, current index, `announcement` ("Step 2 of 3: Details") read politely on change.
 - `SeatMap`: renders a `SeatLayout` with seat states from `GET /trips/:id/seats`. Pass translated `labels` (including `seat(seatNo, state)`), `selected`, `onToggle`, `maxSelectable`. One tab stop, arrow keys move, Enter or Space toggles.
+
+## Days 8 to 10
+
+- `TicketCard`: full ticket with a perforation; QR area as children. `OfflineBanner`. `Countdown` (uses `countdownParts` from shared, one timer, paused while hidden, hidden summary once a minute).
+- Tokens: `qr-ink` and `qr-paper` (the QR is black on white in both themes), `--dur-band`, utilities `animate-ticket-band` (stops under reduced motion) and `animate-fade-in`.

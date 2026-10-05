@@ -18,6 +18,22 @@ export function formatTime(input: Date | string | number, locale = "en"): string
   }).format(date);
 }
 
+/** Live clock with seconds for the ticket screen: "06:30:09 AM", Asia/Kolkata. */
+export function formatClock(input: Date | string | number, locale = "en"): string {
+  const date = typeof input === "string" || typeof input === "number" ? new Date(input) : input;
+  if (isNaN(date.getTime())) {
+    return "";
+  }
+  const intlLocale = locale === "te" ? "te-IN" : "en-IN";
+  return new Intl.DateTimeFormat(intlLocale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  }).format(date);
+}
+
 export function formatDate(input: Date | string | number, locale = "en"): string {
   const date = typeof input === "string" || typeof input === "number" ? new Date(input) : input;
   if (isNaN(date.getTime())) {

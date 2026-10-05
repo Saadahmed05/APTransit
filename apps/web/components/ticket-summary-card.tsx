@@ -4,8 +4,9 @@ import { formatDate, formatMoney, formatTime, TICKET_STATUS_MAP, type TicketSumm
 import { Card, TicketStatusBadge } from "@aptransit/ui";
 import { ArrowRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import Link from "next/link";
 
-/** My tickets row and confirmation preview: route, date and departure, seat, status, code. */
+/** My tickets row and confirmation preview: route, date and departure, seat, status, code. Opens the ticket. */
 export function TicketSummaryCard({ ticket }: { ticket: TicketSummaryDto }) {
   const t = useTranslations();
   const locale = useLocale();
@@ -16,18 +17,17 @@ export function TicketSummaryCard({ ticket }: { ticket: TicketSummaryDto }) {
   const serviceKey = `serviceType.${ticket.serviceType}`;
 
   return (
-    <Card
-      padding="md"
-      className="flex flex-col gap-3"
-      role="group"
-      aria-label={t("tickets.cardLabel", {
+    <Card asChild variant="interactive" padding="md" className="flex flex-col gap-3">
+      <Link
+        href={`/tickets/${ticket.id}`}
+        aria-label={t("tickets.cardLabel", {
         route: t("common.routeFromTo", { from: pick(ticket.boarding), to: pick(ticket.dropping) }),
         date,
         time,
         seat: ticket.seatNo ?? "",
         status: statusLabel,
       })}
-    >
+      >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-body font-semibold text-fg">
           <span className="break-words">{pick(ticket.boarding)}</span>
@@ -57,6 +57,7 @@ export function TicketSummaryCard({ ticket }: { ticket: TicketSummaryDto }) {
           </span>
         )}
       </div>
+      </Link>
     </Card>
   );
 }

@@ -11,6 +11,19 @@ const nextConfig: NextConfig = {
   // CLAUDE.md into apps/web (they break pnpm check:dashes).
   agentRules: false,
   transpilePackages: ["@aptransit/ui"],
+  // docs: next/dist/docs/01-app/02-guides/progressive-web-apps.md. The worker is never cached by HTTP.
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [{ source: "/api/v1/:path*", destination: `${apiUrl}/api/v1/:path*` }];
   },

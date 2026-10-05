@@ -5,7 +5,8 @@ import { AppError } from "../../common/errors/app-error";
 import type { Env } from "../../config/env";
 
 export interface EmailProvider {
-  sendEmail(to: string, subject: string, body: string): Promise<void>;
+  /** `body` is the plain text version; `html` (optional) the accessible HTML one. */
+  sendEmail(to: string, subject: string, body: string, html?: string): Promise<void>;
 }
 
 export const EMAIL_PROVIDER = "EMAIL_PROVIDER";
@@ -16,7 +17,7 @@ export class ResendEmailProvider implements EmailProvider {
 
   constructor(private readonly config: ConfigService<Env, true>) {}
 
-  async sendEmail(to: string, subject: string, body: string): Promise<void> {
+  async sendEmail(to: string, subject: string, body: string, html?: string): Promise<void> {
     const appEnv = this.config.get("APP_ENV", { infer: true });
     const nodeEnv = this.config.get("NODE_ENV", { infer: true });
 
@@ -46,6 +47,7 @@ export class ResendEmailProvider implements EmailProvider {
           to: [to],
           subject,
           text: body,
+          ...(html ? { html } : {}),
         }),
       });
     } catch (err) {

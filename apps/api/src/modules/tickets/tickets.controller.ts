@@ -6,8 +6,10 @@ import {
   type TicketQrDto,
   TicketsQuery,
   type TicketSummaryDto,
+  TransferTicketInput,
+  type TransferTicketResult,
 } from "@aptransit/shared";
-import { Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, Req } from "@nestjs/common";
 import type { Request } from "express";
 import type { AuthenticatedUser } from "../../common/auth/auth.types";
 import { Can } from "../../common/decorators/can.decorator";
@@ -64,5 +66,17 @@ export class TicketsController {
     @Req() req: Request & { user?: AuthenticatedUser },
   ): Promise<CancelTicketResult> {
     return this.tickets.cancel(user.id, id, auditActorFromRequest(req));
+  }
+
+  @Post(":id/transfer")
+  @HttpCode(HttpStatus.OK)
+  transfer(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", new ZodValidationPipe(PublicId)) id: string,
+    @Body(new ZodValidationPipe(TransferTicketInput)) body: TransferTicketInput,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Req() req: Request & { user?: AuthenticatedUser },
+  ): Promise<TransferTicketResult> {
+    return this.tickets.transfer(user.id, id, body.recipient, idempotencyKey, auditActorFromRequest(req));
   }
 }

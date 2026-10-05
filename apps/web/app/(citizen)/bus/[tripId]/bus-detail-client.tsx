@@ -3,6 +3,7 @@
 import {
   FareDto,
   formatDate,
+  PassDto,
   formatDistance,
   formatDuration,
   formatMoney,
@@ -22,6 +23,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Bus,
+  HeartHandshake,
   Clock,
   CreditCard,
   Info,
@@ -33,8 +35,11 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { z } from "zod";
+import { useAuth } from "../../../../components/auth-provider";
 import { api, errorKey, isApiError } from "../../../../lib/api";
 import { queryKeys } from "../../../../lib/query-keys";
+import { useNow } from "../../../../lib/use-browser-state";
 
 export function BusDetailClient({
   tripId,
@@ -77,6 +82,18 @@ export function BusDetailClient({
       }),
     enabled: Boolean(from && to),
   });
+
+  // 3. Logged in citizens with an active free travel pass get a "Book free seat" path (Day 9)
+  const { status: authStatus } = useAuth();
+  const now = useNow(60_000);
+  const passesQuery = useQuery({
+    queryKey: queryKeys.passes,
+    queryFn: ({ signal }) => api("/passes", { schema: z.array(PassDto), signal, redirectOn401: false }),
+    enabled: authStatus === "authenticated",
+  });
+  const hasFreePass = (passesQuery.data ?? []).some(
+    (p) => p.kind === "FREE_TRAVEL" && p.status === "ACTIVE" && p.validUntil !== null && now > 0 && Date.parse(p.validUntil) > now,
+  );
 
   if (tripQuery.isLoading) {
     return (
@@ -148,6 +165,8 @@ export function BusDetailClient({
 
   const bookUrl = `/book/${tripId}${from && to ? `?${new URLSearchParams({ from, to }).toString()}` : ""}`;
   const trackUrl = `/track/${tripId}`;
+  const freeUrl = `/book/${tripId}/free${from && to ? `?${new URLSearchParams({ from, to }).toString()}` : ""}`;
+  const canBookFree = canBook && trip.freeTravelEligible && hasFreePass;
   const routeUrl = `/timetable/route/${trip.route.id}`;
 
   return (
@@ -275,6 +294,18 @@ export function BusDetailClient({
                 : t("bus.bookingClosed")
               : t("bus.bookTicket")}
           </Button>
+
+          {canBookFree && (
+            <Button
+              variant="secondary"
+              size="xl"
+              className="flex-1"
+              onClick={() => router.push(freeUrl)}
+              leftIcon={<HeartHandshake className="size-5" aria-hidden="true" />}
+            >
+              {t("bus.bookFree")}
+            </Button>
+          )}
 
           <Button
             variant="secondary"

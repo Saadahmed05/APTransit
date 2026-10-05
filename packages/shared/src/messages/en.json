@@ -53,6 +53,10 @@
     "booking": {
       "subject": "Your AP TransitOS ticket: {code}",
       "body": "Your ticket for {route} on {date} at {time} is confirmed. Seat: {seat}."
+    },
+    "layout": {
+      "open": "Open in AP TransitOS",
+      "footer": "You get this email because you have an AP TransitOS account. Manage updates in the app."
     }
   }
 }

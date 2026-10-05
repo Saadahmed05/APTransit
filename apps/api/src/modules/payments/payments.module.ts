@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import type { Env } from "../../config/env";
 import { BookingConfirmationService } from "./booking-confirmation.service";
 import { FakePaymentProvider } from "./fake-payment.provider";
+import { PassConfirmationService } from "./pass-confirmation.service";
 import { PAYMENT_PROVIDER, type PaymentProvider } from "./payment-provider";
 import { PaymentsTestController } from "./payments-test.controller";
 import { PaymentsController } from "./payments.controller";
@@ -14,6 +15,7 @@ import { RazorpayProvider } from "./razorpay.provider";
   providers: [
     PaymentsService,
     BookingConfirmationService,
+    PassConfirmationService,
     {
       provide: PAYMENT_PROVIDER,
       inject: [ConfigService],

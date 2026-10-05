@@ -46,3 +46,5 @@ export type CreateBookingInput = z.infer<typeof CreateBookingInput>;
 Then `export * from "./schemas/booking";` in `src/index.ts`. The API validates with it, the web types its forms with it, so a change breaks both builds at once (that is the point).
 
 Naming: `<Thing>Input` for request bodies, `<Thing>Dto` for responses, `<Thing>Query` for query strings.
+
+Added on Days 8 to 11: `schemas/passes.ts`, `schemas/notifications.ts`, `schemas/tracking.ts`, `countdown.ts`, `messages.ts` (the notification and email strings, built into `dist`), `notification-params.ts`, `normalizeRecipient` and `TransferTicketInput` in `schemas/tickets.ts`, `formatClock`.

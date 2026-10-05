@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import type { TicketStatus } from "@aptransit/shared";
+import type { BusPositionEvent, IncidentDto, TicketStatus, TripStatusEvent } from "@aptransit/shared";
 import { Global, Injectable, Logger, Module } from "@nestjs/common";
 
 /** In process domain events. Listeners (notifications, sockets) subscribe from their modules. */
@@ -7,6 +7,22 @@ export interface DomainEvents {
   "booking.confirmed": { bookingId: string; userId: string; tripId: string; ticketIds: string[] };
   /** Every ticket status change (docs/07 section 2). Sockets emit ticket:status from this on Day 12. */
   "ticket.status": { ticketId: string; holderUserId: string; from: TicketStatus; to: TicketStatus };
+  /** A gift moved the ticket to another holder (docs/07 section 7). */
+  "ticket.transferred": { ticketId: string; fromUserId: string; toUserId: string; seatNo: string | null };
+  /** Day 11: a trip started or ended. `rooms` are the socket rooms that should hear it. */
+  "trip.status": TripStatusEvent & { rooms: LiveRooms };
+  /** Day 11: an accepted GPS ping produced a new live position. */
+  "bus.position": BusPositionEvent & { rooms: LiveRooms };
+  /** Day 11: a driver reported an incident. */
+  "incident.created": IncidentDto & { rooms: LiveRooms };
+}
+
+/** Where a trip's live events go (docs/13 Socket rooms). */
+export interface LiveRooms {
+  tripId: string;
+  routeId: string;
+  depotId: string;
+  districtId: string;
 }
 
 export type DomainEventName = keyof DomainEvents;

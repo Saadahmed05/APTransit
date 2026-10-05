@@ -15,6 +15,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { SEAT_TAKING_STATUSES } from "../network/network.repository";
 import { QUEUES } from "../queue/queue.constants";
+import { isPassLive, passCoversService } from "../passes/pass-rules";
+import { BookingConfirmationService } from "../payments/booking-confirmation.service";
 import { holdSeats, releaseSeats } from "./seat-holds";
 
 const DEFAULT_MAX_PASSENGERS = 6;
@@ -93,6 +95,7 @@ export class BookingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly confirmation: BookingConfirmationService,
     @Optional() @InjectQueue(QUEUES.EXPIRY) private readonly expiryQueue?: Queue,
   ) {}
 
@@ -111,11 +114,9 @@ export class BookingsService {
     const cached = await readIdempotent<BookingDto>(this.redis.client, slot);
     if (cached) return cached;
 
-    // Free travel needs an active FREE_TRAVEL pass checked on the server (docs/06, Day 8).
+    // Free travel needs an active FREE_TRAVEL pass checked on the server (docs/06, docs/07 section 9).
     // Never take the client's word for eligibility.
-    if (input.useFreeTravel) {
-      throw new AppError("ELIGIBILITY_REQUIRED", "Free travel needs an active free travel pass");
-    }
+    const freePass = input.useFreeTravel ? await this.activeFreeTravelPass(userId, input.passengers.length, now) : null;
 
     // 2. Validate settings
     const settings = await this.getSettingNumbers();
@@ -146,6 +147,9 @@ export class BookingsService {
 
     if (!trip || trip.status === "CANCELLED") {
       throw new AppError("NOT_FOUND", "Trip not found or cancelled");
+    }
+    if (freePass && (!trip.busType.freeTravelEligible || !passCoversService(freePass.eligibleServiceTypes, trip.busType.serviceType))) {
+      throw new AppError("PASS_NOT_ELIGIBLE", "Free travel is not available on this service");
     }
     if (trip.status === "COMPLETED") {
       throw new AppError("VALIDATION_FAILED", "Booking is closed for this trip");
@@ -232,7 +236,7 @@ export class BookingsService {
         reservationFeePaise: fareRule.reservationFeePaise,
       },
     });
-    const totalPaise = singleFare.totalPaise * input.passengers.length;
+    const totalPaise = freePass ? 0 : singleFare.totalPaise * input.passengers.length;
 
     // 7. Hold all seats in one atomic Redis command. A hold we cannot place is never assumed free.
     const bookingId = newBookingId();
@@ -279,6 +283,15 @@ export class BookingsService {
     } catch (err) {
       await this.release(trip.id, seatNos, bookingId);
       throw err;
+    }
+
+    // 9a. Free travel: no payment step, the seat becomes a FREE_TRAVEL ticket now
+    if (freePass) {
+      const confirmed = await this.confirmation.confirmFreeTravel(booking.id);
+      if (!confirmed) throw new AppError("SEAT_TAKEN", `Seat ${seatNos[0]} is no longer available`, { seatNo: seatNos[0] });
+      const bookingDto = toBookingDto({ ...booking, status: "CONFIRMED" });
+      await writeIdempotent(this.redis.client, slot, bookingDto);
+      return bookingDto;
     }
 
     // 9. Schedule BullMQ expiry job at holdExpiresAt
@@ -369,6 +382,18 @@ export class BookingsService {
     if (count === 0) return;
 
     await this.release(booking.tripId, booking.passengers.map((p) => p.seatNo), booking.id);
+  }
+
+  /** One passenger, and an ACTIVE, unexpired FREE_TRAVEL pass of this user. */
+  private async activeFreeTravelPass(userId: string, passengers: number, now: Date) {
+    if (passengers !== 1) throw new AppError("PASS_NOT_ELIGIBLE", "Free travel books one seat at a time");
+    const passes = await this.prisma.pass.findMany({
+      where: { userId, status: "ACTIVE", passType: { kind: "FREE_TRAVEL" } },
+      include: { passType: { select: { eligibleServiceTypes: true } } },
+    });
+    const live = passes.find((p) => isPassLive(p, now));
+    if (!live) throw new AppError("PASS_NOT_ELIGIBLE", "Free travel needs an active free travel pass");
+    return { id: live.id, eligibleServiceTypes: live.passType.eligibleServiceTypes };
   }
 
   private async release(tripId: string, seatNos: string[], bookingId: string): Promise<void> {

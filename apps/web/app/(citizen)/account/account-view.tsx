@@ -3,13 +3,14 @@
 import { MeDto, type Role, UpdateMeInput } from "@aptransit/shared";
 import { Button, Card, ErrorState, Field, Input, RadioGroup, RadioGroupItem, Skeleton, toast } from "@aptransit/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, LogOut } from "lucide-react";
+import { ArrowRight, Download, LogOut } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { type FormEvent, type ReactNode, useState, useSyncExternalStore } from "react";
 import { useAuth, useMe } from "../../../components/auth-provider";
 import { LanguageSwitch } from "../../../components/language-switch";
 import { api, errorKey } from "../../../lib/api";
+import { useInstallPrompt } from "../../../lib/install-prompt";
 import { writePreferenceCookie } from "../../../lib/preferences";
 import { queryKeys } from "../../../lib/query-keys";
 import { ROLE_HOME, sortedRoles } from "../../../lib/roles";
@@ -88,6 +89,8 @@ function AccountDetails({ me }: { me: MeDto }) {
         </div>
         <ThemeChoice />
       </Section>
+
+      <InstallApp />
 
       {roles.length > 1 ? (
         <Section id="account-roles" title={t("account.roles.title")}>
@@ -214,5 +217,20 @@ function ThemeChoice() {
         ))}
       </RadioGroup>
     </div>
+  );
+}
+
+/** "Install app" only when the browser offered it (beforeinstallprompt); never a pop up on load. */
+function InstallApp() {
+  const t = useTranslations("pwa");
+  const { canInstall, install } = useInstallPrompt();
+  if (!canInstall) return null;
+  return (
+    <Section id="account-install" title={t("installTitle")}>
+      <p className="text-body text-muted">{t("installHint")}</p>
+      <Button variant="secondary" className="self-start" leftIcon={<Download className="size-4" aria-hidden="true" />} onClick={() => void install()}>
+        {t("install")}
+      </Button>
+    </Section>
   );
 }

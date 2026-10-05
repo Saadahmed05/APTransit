@@ -136,3 +136,9 @@ Payments: provider behind `PAYMENT_PROVIDER` (`RazorpayProvider`, or `FakePaymen
 - Never log OTPs, tokens, cookies, signatures or full phone numbers. Add new sensitive field names to `REDACT_PATHS` in `src/common/logger.ts`.
 
 Tickets: every rule is in `modules/tickets/ticket-rules.ts` (and `refundQuote` in shared `fare.ts`); services call them, controllers never decide. QR: `QrService` signs `APT1` tokens (Ed25519, `QR_SIGNING_KEY_ID`) and checks rotating codes from `packages/shared/src/qr.ts`. Status changes publish `ticket.status`. Demo: `pnpm --filter api demo:window <ticket code> [minutes]`.
+
+Passes and eligibility (Day 8): rules in `modules/passes/pass-rules.ts`; `PassConfirmationService` is the only code that makes a paid pass READY; `EligibilityProvider` (mock today) never sees or stores an ID number. Free travel tickets are made by `BookingConfirmationService.confirmFreeTravel`.
+
+Notifications (Day 9): call `NotificationsService.notify(userId, type, params, link)`; params are language neutral (`<key>En`, `<key>Te`, ISO times, see `notificationParams` in shared). Emails render in the worker (`NotificationEmailService`). `StatusExpiryService` runs every 5 min on the expiry queue; the worker writes `worker:heartbeat` for `/health`.
+
+Tracking (Day 11): `modules/tracking` (`TripContextService` loads a trip with route, stops and open assignment; `progress.ts` holds the math; `TrackingService` the ping trust checks and live views; `LiveGateway` the `/live` namespace) and `modules/driver`. Services publish `trip.status`, `bus.position`, `incident.created`; only the gateway emits to sockets. Tools: `pnpm simulate --trip <id> --speed 20` and `pnpm watch:live trip:<id>`. Integration tests use `test/memory-prisma.ts` (an in memory Prisma stand in) and `test/fake-redis.ts`.

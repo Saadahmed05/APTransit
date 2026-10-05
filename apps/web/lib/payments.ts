@@ -1,6 +1,7 @@
 "use client";
 
-import { BookingDto, PaymentOrderDto, VerifyPaymentResult } from "@aptransit/shared";
+import { BookingDto, PassDto, PaymentOrderDto, VerifyPaymentResult } from "@aptransit/shared";
+import { z } from "zod";
 import { useCallback, useRef, useState } from "react";
 import { api, isApiError } from "./api";
 
@@ -62,14 +63,16 @@ export interface PaymentState {
   errorKey?: string;
 }
 
-export interface PayInput {
-  bookingId: string;
+/** What is being paid for: a booking (tickets) or a pass (Day 9). */
+export type PayTarget = { bookingId: string; passId?: undefined } | { passId: string; bookingId?: undefined };
+
+export type PayInput = PayTarget & {
   /** Checkout name and description, already translated. */
   name: string;
   description: string;
-  /** Called once the booking is confirmed (tickets exist). */
-  onConfirmed: (bookingId: string) => void;
-}
+  /** Called once the server confirmed it (tickets exist, or the pass is READY), with the booking or pass id. */
+  onConfirmed: (id: string) => void;
+};
 
 const isFake = () => process.env.NEXT_PUBLIC_PAYMENTS_FAKE === "1";
 
@@ -77,14 +80,27 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Polls GET /bookings/:id for up to 30 s. True when the server confirmed the booking. */
-async function waitForConfirmation(bookingId: string): Promise<boolean> {
+const PassList = z.array(PassDto);
+
+/** "paid", "pending" or "gone" for the booking or pass, from the server. */
+async function confirmationState(target: PayTarget): Promise<"paid" | "pending" | "gone"> {
+  if (target.passId) {
+    const pass = (await api("/passes", { schema: PassList })).find((p) => p.id === target.passId);
+    if (!pass) return "gone";
+    return pass.status === "PENDING_PAYMENT" ? "pending" : pass.status === "READY" || pass.status === "ACTIVE" ? "paid" : "gone";
+  }
+  const booking = await api(`/bookings/${target.bookingId}`, { schema: BookingDto });
+  return booking.status === "CONFIRMED" ? "paid" : booking.status === "PENDING_PAYMENT" ? "pending" : "gone";
+}
+
+/** Polls for up to 30 s. True when the server confirmed the booking or pass. */
+async function waitForConfirmation(target: PayTarget): Promise<boolean> {
   const until = Date.now() + POLL_FOR_MS;
   while (Date.now() < until) {
     try {
-      const booking = await api(`/bookings/${bookingId}`, { schema: BookingDto });
-      if (booking.status === "CONFIRMED") return true;
-      if (booking.status !== "PENDING_PAYMENT") return false;
+      const state = await confirmationState(target);
+      if (state === "paid") return true;
+      if (state === "gone") return false;
     } catch {
       // Still offline: keep trying until the time is up
     }
@@ -102,7 +118,10 @@ export function usePayment() {
   const [state, setState] = useState<PaymentState>({ phase: "idle" });
   const busy = useRef(false);
 
-  const pay = useCallback(async ({ bookingId, name, description, onConfirmed }: PayInput) => {
+  const pay = useCallback(async (input: PayInput) => {
+    const { name, description, onConfirmed } = input;
+    const target: PayTarget = input.passId ? { passId: input.passId } : { bookingId: input.bookingId! };
+    const targetId = target.passId ?? target.bookingId!;
     if (busy.current) return; // The Pay button cannot be pressed twice
     busy.current = true;
     setState({ phase: "working" });
@@ -115,7 +134,7 @@ export function usePayment() {
 
     let order: PaymentOrderDto;
     try {
-      order = await api("/payments/orders", { method: "POST", body: { bookingId }, schema: PaymentOrderDto });
+      order = await api("/payments/orders", { method: "POST", body: target, schema: PaymentOrderDto });
     } catch (err) {
       fail(err);
       return;
@@ -125,7 +144,7 @@ export function usePayment() {
     if (isFake()) {
       try {
         await api("/payments/test/complete", { method: "POST", body: { orderId: order.orderId }, schema: VerifyPaymentResult });
-        onConfirmed(bookingId);
+        onConfirmed(targetId);
       } catch (err) {
         fail(err);
       }
@@ -156,12 +175,12 @@ export function usePayment() {
           },
           schema: VerifyPaymentResult,
         });
-        onConfirmed(bookingId);
+        onConfirmed(targetId);
       } catch (err) {
         // Paid, but the answer was lost: the webhook may still confirm it
         if (isApiError(err) && (err.code === "NETWORK" || err.status >= 500)) {
           setState({ phase: "checking" });
-          if (await waitForConfirmation(bookingId)) onConfirmed(bookingId);
+          if (await waitForConfirmation(target)) onConfirmed(targetId);
           else busy.current = false;
           return;
         }
