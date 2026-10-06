@@ -3,7 +3,7 @@
 import { cn } from "@aptransit/ui";
 import { Bus } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 
 export interface NavItem {
@@ -22,13 +22,14 @@ export interface ManagementSidebarProps {
 
 /** docs/09: icons only (collapsed) at md, fixed 248 px with labels at lg. Desktop first shells. */
 export function ManagementSidebar({ title, baseHref, items }: ManagementSidebarProps) {
-  const pathname = usePathname();
+  const pathname = usePathname(), depot = useSearchParams().get("depot");
+  const scopedHref = (href: string) => href.startsWith("/ops") && depot ? href + "?depot=" + encodeURIComponent(depot) : href;
 
   return (
     <aside className="hidden w-18 shrink-0 flex-col border-r border-default bg-surface-raised md:flex lg:w-62">
       <div className="flex h-16 items-center border-b border-default px-4">
         <Link
-          href={baseHref}
+          href={scopedHref(baseHref)}
           className="inline-flex min-h-11 min-w-0 items-center gap-2 text-h3 text-primary max-lg:mx-auto"
         >
           <Bus className="size-6 shrink-0" aria-hidden="true" />
@@ -46,7 +47,7 @@ export function ManagementSidebar({ title, baseHref, items }: ManagementSidebarP
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={scopedHref(item.href)}
               aria-current={active ? "page" : undefined}
               title={item.label}
               className={cn(

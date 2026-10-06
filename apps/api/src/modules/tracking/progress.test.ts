@@ -18,6 +18,14 @@ const route = buildRouteGeometry(POLYLINE, 365, STOPS);
 const lerp = (a: RouteStopRef, b: RouteStopRef, t: number): [number, number] => [a.lat + (b.lat - a.lat) * t, a.lng + (b.lng - a.lng) * t];
 
 describe("progress (seeded KNL-VJA polyline)", () => {
+  it("handles empty, single and repeated vertices without invalid progress", () => {
+    expect(snapToRoute([15, 78], buildRouteGeometry([], 0))).toEqual({ kmAlong: 0, offRouteM: 0, progressPct: 0 });
+    expect(snapToRoute([15, 78], buildRouteGeometry([[15, 78]], 0))).toEqual({ kmAlong: 0, offRouteM: 0, progressPct: 0 });
+    expect(snapToRoute([15, 78], buildRouteGeometry([[15, 78], [15, 78]], 0)).progressPct).toBe(0);
+    expect(progressPct(10, 0)).toBe(0);
+    expect(currentStop([], 0)).toBeNull();
+    expect(nextStop([], 0)).toBeNull();
+  });
   it("anchors road km to the stops", () => {
     expect(route.kmAtVertex).toEqual([0, 70, 130, 190, 245, 285, 330, 365]);
   });

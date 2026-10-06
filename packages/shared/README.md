@@ -48,3 +48,15 @@ Then `export * from "./schemas/booking";` in `src/index.ts`. The API validates w
 Naming: `<Thing>Input` for request bodies, `<Thing>Dto` for responses, `<Thing>Query` for query strings.
 
 Added on Days 8 to 11: `schemas/passes.ts`, `schemas/notifications.ts`, `schemas/tracking.ts`, `countdown.ts`, `messages.ts` (the notification and email strings, built into `dist`), `notification-params.ts`, `normalizeRecipient` and `TransferTicketInput` in `schemas/tickets.ts`, `formatClock`.
+
+## Day 12 contracts
+
+Schemas in schemas/conductor.ts define validation input/result, conductor assignment and manifest counts. ALREADY_SCANNED can carry earlierScanAt. LiveTripDto includes hasOpenIncident and incidentTypes for accessible incident labels.
+
+## Day 13 contracts
+
+schemas/ops.ts provides strict request schemas and response DTOs for the operations API. ValidateTicketInput accepts either signed QR content or ticketNumber plus an eight-character liveCode; mixed inputs and code-only inputs are rejected. Validation context supplies reason-specific times and route details without secrets. ConductorTodayDto includes bilingual route names. SCAN_RESULT_MAP in status.ts owns scanner result tones, icons and translation keys. D-027 is approved; the other dev still reviews these shared changes.
+
+## Day 14
+
+Day 14 adds schemas/admin.ts for strict admin mutation inputs and validated responses. Ops DTOs include scoped depot/bus-type lookups, optional current fleet details and an inferred OpsTripDto type. INCIDENT_STATUS_MAP centralizes incident labels, icons and tones. Shared changes require the other dev review (D-029).

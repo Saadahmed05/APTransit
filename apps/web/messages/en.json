@@ -541,7 +541,8 @@
     "qr": {
       "label": "Ticket QR code for {route}",
       "colourOfDay": "Colour of the day: {colour}",
-      "brightness": "Raise screen brightness for faster scanning."
+      "brightness": "Raise screen brightness for faster scanning.",
+      "validationCode": "Live validation code: {code}"
     },
     "scanned": {
       "title": "Checked by the conductor",
@@ -830,6 +831,187 @@
       "sentTitle": "Depot alerted",
       "sentHint": "Report {code} was sent with your location.",
       "backToTrip": "Back to trip"
+    }
+  },
+  "tracking": {
+    "title": "Track bus",
+    "yourTickets": "Your upcoming trips",
+    "signIn": "Log in to pick your tickets",
+    "ticketCode": "Ticket code",
+    "findTicket": "Find my trip",
+    "ticketMissing": "No upcoming ticket matches that code. Check the code or log in to the account that holds it.",
+    "routeSearch": "Find a running bus",
+    "from": "From",
+    "to": "To",
+    "placeHint": "Search a place",
+    "search": "Search running buses",
+    "noRunning": "No buses are running on this route right now.",
+    "errorTitle": "Tracking could not load",
+    "routeProgress": "Route progress",
+    "nextStop": "Next stop",
+    "eta": "Arriving in about {minutes} min",
+    "arriving": "Arriving now",
+    "delay": "{minutes} min late",
+    "incident": "Issue reported on this trip",
+    "updated": "Updated {seconds} s ago",
+    "waiting": "Waiting for the next GPS update",
+    "notStarted": "Tracking starts when the bus leaves {stop} at {time}.",
+    "completed": "This trip is complete",
+    "feedback": "Give feedback",
+    "done": "Done",
+    "current": "Current",
+    "upcoming": "Upcoming",
+    "recenter": "Recenter",
+    "mapError": "Map unavailable. Live stop information is shown below.",
+    "showStops": "Show all stops",
+    "details": "Live trip details",
+    "connectionFallback": "Live connection interrupted. Checking updates every 15 s.",
+    "noTickets": "No upcoming tickets yet."
+  },
+  "conductorApp": {
+    "today": "Today's trip",
+    "counts": "Trip counts",
+    "passengers": "Passengers",
+    "checked": "Checked",
+    "pending": "Pending",
+    "scan": "Scan ticket",
+    "manifest": "Passenger manifest",
+    "empty": "No trip assigned",
+    "emptyHelper": "Contact your depot for today's assignment.",
+    "manifestEmpty": "No passengers yet",
+    "error": "Could not load your trip",
+    "departure": "Departure at {time}",
+    "notRunning": "The trip must be running before you scan",
+    "seat": "Seat {seat}",
+    "unreserved": "Unreserved",
+    "back": "Back to today's trip",
+    "cameraTitle": "Use the camera to check tickets",
+    "cameraWhy": "The camera reads ticket QR codes. Images are not saved or uploaded.",
+    "cameraDenied": "Camera access is blocked",
+    "cameraHelp": "Open this site's permissions in your browser, allow Camera, then try again.",
+    "noCamera": "No camera available",
+    "noCameraHelp": "Enter the ticket number and the current live code instead.",
+    "enableCamera": "Enable camera",
+    "frame": "Place QR inside the frame",
+    "torch": "Torch",
+    "mute": "Mute scan sound",
+    "unmute": "Enable scan sound",
+    "manual": "Enter ticket details",
+    "manualHelp": "Ask the passenger to open the live ticket. Enter its ticket number and current validation code.",
+    "ticketNumber": "Ticket number",
+    "liveCode": "Live 8-character validation code",
+    "check": "Check ticket",
+    "useCamera": "Use camera",
+    "checking": "Checking",
+    "continue": "Tap anywhere to continue",
+    "timing": "Decode to result: {ms} ms",
+    "passenger": "Passenger",
+    "seatLabel": "Seat",
+    "route": "Route",
+    "boarding": "Boarding",
+    "dropping": "Dropping",
+    "unavailable": "Not available",
+    "reasons": {
+      "OK": {
+        "line": "Passenger verified",
+        "helper": "Passenger verified"
+      },
+      "NOT_ACTIVATED": {
+        "line": "Not activated",
+        "helper": "Ask the passenger to activate the ticket"
+      },
+      "ALREADY_SCANNED": {
+        "line": "Already checked",
+        "helper": "Checked at {time}"
+      },
+      "EXPIRED": {
+        "line": "Expired",
+        "helper": "Valid until {time}"
+      },
+      "CANCELLED": {
+        "line": "Cancelled",
+        "helper": "This ticket was cancelled"
+      },
+      "WRONG_TRIP": {
+        "line": "Wrong bus",
+        "helper": "Ticket is for {route} at {time}"
+      },
+      "WRONG_DATE": {
+        "line": "Wrong date",
+        "helper": "Ticket is for {date}"
+      },
+      "STALE_CODE": {
+        "line": "Old QR code",
+        "helper": "Ask the passenger to open the live ticket, not a screenshot"
+      },
+      "BAD_SIGNATURE": {
+        "line": "Not recognised",
+        "helper": "This is not an AP TransitOS ticket"
+      },
+      "NOT_FOUND": {
+        "line": "Not recognised",
+        "helper": "This is not an AP TransitOS ticket"
+      },
+      "SERVICE_NOT_ELIGIBLE": {
+        "line": "Not valid on this bus",
+        "helper": "Pass works on {services}"
+      }
+    }
+  },
+  "opsApp": {
+    "dashboard": "Depot dashboard",
+    "buses": "Fleet",
+    "trips": "Trips",
+    "incidents": "Incidents",
+    "depot": "Depot",
+    "allDepots": "All permitted depots",
+    "activeBuses": "Active buses",
+    "totalBuses": "Total buses",
+    "activeTrips": "Active trips",
+    "delayedTrips": "Delayed trips",
+    "breakdowns": "Breakdowns",
+    "busStatus": "Bus status",
+    "liveMap": "Live buses",
+    "openIncidents": "Open incidents",
+    "mapError": "Map unavailable. Use the bus and incident lists below.",
+    "empty": "No results",
+    "emptyHint": "Try another date, depot or filter.",
+    "bus": "Bus number",
+    "type": "Type",
+    "status": "Status",
+    "route": "Route",
+    "driver": "Driver",
+    "conductor": "Conductor",
+    "delay": "Delay (minutes)",
+    "maintenanceDue": "Maintenance due",
+    "unassigned": "Not assigned",
+    "addBus": "Add bus",
+    "addBusHint": "Register a bus in your permitted depot.",
+    "searchBus": "Search bus number",
+    "allStatuses": "All statuses",
+    "allRoutes": "All routes",
+    "selectOption": "Choose an option",
+    "invalidForm": "Check the required fields and try again.",
+    "saveBus": "Save bus",
+    "code": "Code",
+    "departure": "Departure",
+    "passengers": "Passengers",
+    "assign": "Assign trip",
+    "date": "Date",
+    "trip": "Trip",
+    "assignHint": "Choose an available bus and staff for {trip}. The server checks overlapping assignments.",
+    "availableBus": "Available bus",
+    "noAvailableBuses": "No bus is available at departure. Choose another trip or update the fleet.",
+    "saveAssignment": "Save assignment",
+    "reported": "Reported at",
+    "acknowledge": "Acknowledge",
+    "resolve": "Resolve incident",
+    "resolutionNote": "Resolution note",
+    "resolveHint": "Resolving closes this incident and updates the trip and bus when no other open incident remains.",
+    "incidentStatus": {
+      "OPEN": "Open",
+      "ACKNOWLEDGED": "Acknowledged",
+      "RESOLVED": "Resolved"
     }
   }
 }

@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
+import { OpsScopeSwitcher } from "../../components/ops-scope-switcher";
 import type { ReactNode } from "react";
-import {
-  AlertOctagon,
-  Building2,
-  Bus,
-  Calendar,
-  LayoutDashboard,
-  MessageSquare,
-  Users,
-} from "lucide-react";
+import { AlertOctagon, Bus, Calendar, LayoutDashboard, MessageSquare, Users } from "lucide-react";
 import { ManagementShell } from "../../components/management-shell";
 import { RequirePermission } from "../../components/require-auth";
 
@@ -36,7 +30,11 @@ export default async function OpsLayout({ children }: { children: ReactNode }) {
       title={t("shell.ops")}
       baseHref="/ops"
       items={navItems}
-      scope={{ icon: Building2, label: t("common.depot"), value: t("common.notSelected") }}
+      scopeControl={
+        <Suspense>
+          <OpsScopeSwitcher />
+        </Suspense>
+      }
     >
       <RequirePermission anyOf={["ops:read"]}>{children}</RequirePermission>
     </ManagementShell>

@@ -224,6 +224,32 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
 - **Decision:** (1) Shapes in `packages/shared/src/schemas/tracking.ts` (`DriverTodayDto` adds `startableFrom` and `thisDevice` from the `X-Device-Key` header, `LiveTripDto`, `LiveBusDto`, `IncidentDto`, socket payloads), plus `GET /driver/trips` (today's assignments, used by the simulator). (2) Start is allowed from 60 min before to 60 min after departure and needs an approved device; start sets the bus RUNNING and end sets it IDLE. Not running is 409 `TRIP_NOT_STARTABLE`. (3) A ping is refused as a whole when any point fails: AP box plus about 50 km, reported `speedKmh` under 120, `recordedAt` within 2 min; refusals are counted in `gps:rejected:{tripId}`. Speed implied between points is not checked yet (the simulator compresses time); add it in the Day 17 hardening pass. (4) The driver app drops buffered points older than 110 s when it flushes, since the API refuses them; the live position resumes at once. (5) `/tracking/live` reads RUNNING trips from Postgres and positions from Redis; `depot:live:{depotId}` is maintained on start and end as docs/13 says. (6) The gateway authenticates in Socket.IO middleware (a subscribe sent right after connect raced the token check); emits come from domain events (`trip.status`, `bus.position`, `incident.created`, and `ticket:status` to `user:{id}`). (7) `pnpm simulate --all` shares a budget of 25 pings a minute across trips (one driver, one device). (8) Incidents of type BREAKDOWN set the bus BREAKDOWN; the location comes from bus:live, else the last sample, else the last reached or first stop. (9) socket.io, @nestjs/websockets, @nestjs/platform-socket.io (api) and socket.io-client (web, and api dev for tests) installed as listed in docs/04.
 - **Status:** Proposed, review at the Day 11 sync
 
+### D-026: Day 12 live tracking and scan implementation
+- **Date:** 2026-10-05
+- **Raised by:** Day 12
+- **Doc affected:** docs/06-api-contract.md, docs/13-realtime-tracking.md
+- **Decision:** Shared conductor schemas add earlierScanAt to duplicate scan responses; LiveTripDto adds incident flags and types. Notifications use deterministic IDs for durable deduplication. Prisma's relationJoins preview is enabled to load narrowly selected validation relations in one query. MapLibre is exported from a lazy UI subpath only. Simulator delay minutes use server wall time even when movement speed is accelerated, since trusted GPS timestamps cannot advance the server clock.
+- **Status:** Proposed, review at the Day 12 sync
+
+### D-027: Day 13 manual scanner validation
+- **Date:** 2026-10-05
+- **Raised by:** Day 13
+- **Docs affected:** docs/07-ticket-and-pass-rules.md section 5, docs/06-api-contract.md validation, docs/11-screens.md conductor scanner
+- **Question:** Day 13 requires manual ticket-code entry, but the validation contract accepts a signed QR and rotating code only. How must manual entry prove possession of the live ticket?
+- **Proposed approach:** Require the ticket code plus its current eight-character rotating code. Keep the same assignment, status, trip, date and eligibility checks, scan/audit records and race protection. Display the live code on the passenger's active ticket for this fallback. A ticket code alone must not silently bypass live-code verification.
+- **Status:** Approved by the human: ticket number plus current live eight-character code, unchanged backend validation checks.
+
+### D-028: Day 13 operations and scanner contracts
+- **Date:** 2026-10-05
+- **Decision:** Operations request/response schemas live in shared/schemas/ops.ts. Conductor today adds bilingual route names; validation adds reason context without exposing secrets. A conductor:counts trip-room event invalidates authenticated manifest queries after scans. Device DTOs exclude key hashes. Scan result tones/icons are defined in shared/status.ts.
+- **Status:** Proposed for the other dev's contract review. Locked docs unchanged.
+
+### D-029: Day 14 admin and operations contracts
+- **Date:** 2026-10-06
+- **Decision:** Admin payloads and response schemas live in `packages/shared/src/schemas/admin.ts`. Ordered route stops are replaced atomically and the encoded polyline is regenerated from stop coordinates. Fare history is append-only and selected at the scheduled departure timestamp. Refund policies retain history: one row is marked active as the latest configuration, while the effective policy is the latest row with validFrom at or before the current time. A future configuration must not suppress the current effective policy. Admin mutations invalidate cached network settings.
+- **Contracts:** Scoped GET /ops/depots, /ops/bus-types and /ops/routes support the dashboard forms. Bus responses add optional current bilingual route and driver names. Incident status labels, icons and tones are centralized in shared/status.ts. Depot audit reads use the audited entity's depot in before/after snapshots, not the actor's current roles, which may span several depots. State roles retain global audit access.
+- **Status:** Proposed for the other dev's shared contract review. Locked docs unchanged.
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |

@@ -4,6 +4,7 @@ import { Toaster } from "@aptransit/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { isApiError } from "../lib/api";
+import { LiveEvents } from "./live-events";
 import { AuthProvider } from "./auth-provider";
 import { ServiceWorkerRegistration } from "./service-worker";
 
@@ -35,6 +36,7 @@ export function Providers({ hasSession, children }: { hasSession: boolean; child
         {children}
         <Toaster />
         <ServiceWorkerRegistration />
+        <LiveEvents />
       </AuthProvider>
     </QueryClientProvider>
   );

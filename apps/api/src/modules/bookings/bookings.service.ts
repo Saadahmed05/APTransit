@@ -216,8 +216,8 @@ export class BookingsService {
     const fareRule = await this.prisma.fareRule.findFirst({
       where: {
         busTypeId: trip.busTypeId,
-        validFrom: { lte: trip.serviceDate },
-        OR: [{ validTo: null }, { validTo: { gte: trip.serviceDate } }],
+        validFrom: { lte: trip.scheduledDepartureAt },
+        OR: [{ validTo: null }, { validTo: { gte: trip.scheduledDepartureAt } }],
       },
       orderBy: { validFrom: "desc" },
     });

@@ -1,9 +1,36 @@
-import type { ErrorCode, TicketStatus, TicketType, TripStatus } from "@aptransit/shared";
+import type {
+  ErrorCode,
+  ScanReason,
+  TicketStatus,
+  TicketType,
+  TripStatus,
+} from "@aptransit/shared";
 
 // docs/07 ticket rules, implemented once (sections 1, 2, 6, 7). Pure functions: times are UTC
 // Dates, minutes come from settings. Controllers and services never repeat these checks.
 
 const MS_PER_MIN = 60_000;
+
+/** docs/07 section 5, checks 5 to 11 after parsing, signature, code and existence. */
+export function scanStatusReason(input: {
+  status: string;
+  validUntil: Date | null;
+  now: Date;
+  alreadyScanned: boolean;
+  wrongTrip: boolean;
+  wrongDate: boolean;
+  serviceEligible: boolean;
+}): ScanReason {
+  if (["CANCELLED", "REFUNDED"].includes(input.status)) return "CANCELLED";
+  if (input.status === "EXPIRED" || (input.validUntil !== null && input.now > input.validUntil))
+    return "EXPIRED";
+  if (["BOOKED", "READY", "PENDING_PAYMENT"].includes(input.status)) return "NOT_ACTIVATED";
+  if (["SCANNED", "USED"].includes(input.status) || input.alreadyScanned) return "ALREADY_SCANNED";
+  if (input.wrongTrip) return "WRONG_TRIP";
+  if (input.wrongDate) return "WRONG_DATE";
+  if (!input.serviceEligible) return "SERVICE_NOT_ELIGIBLE";
+  return "OK";
+}
 
 export const TICKET_SETTING_DEFAULTS = {
   "activation.opensMinutesBefore": 60,
@@ -27,7 +54,10 @@ export interface ActivationWindow {
 }
 
 /** Window opens at scheduledDeparture(boardingStop) minus activation.opensMinutesBefore. */
-export function activationOpensAt({ boardingDepartureAt }: BoardingTimes, opensMinutesBefore: number): Date {
+export function activationOpensAt(
+  { boardingDepartureAt }: BoardingTimes,
+  opensMinutesBefore: number,
+): Date {
   return new Date(boardingDepartureAt.getTime() - opensMinutesBefore * MS_PER_MIN);
 }
 
@@ -35,11 +65,17 @@ export function activationOpensAt({ boardingDepartureAt }: BoardingTimes, opensM
  * Window closes at scheduledDeparture(boardingStop) + trip.delayMinutes + activation.closesMinutesAfter.
  * A BOOKED ticket expires at this time (tickets.expiresAt).
  */
-export function activationClosesAt({ boardingDepartureAt, delayMinutes }: BoardingTimes, closesMinutesAfter: number): Date {
+export function activationClosesAt(
+  { boardingDepartureAt, delayMinutes }: BoardingTimes,
+  closesMinutesAfter: number,
+): Date {
   return new Date(boardingDepartureAt.getTime() + (delayMinutes + closesMinutesAfter) * MS_PER_MIN);
 }
 
-export function activationWindow(times: BoardingTimes, settings: Pick<TicketSettings, "activation.opensMinutesBefore" | "activation.closesMinutesAfter">): ActivationWindow {
+export function activationWindow(
+  times: BoardingTimes,
+  settings: Pick<TicketSettings, "activation.opensMinutesBefore" | "activation.closesMinutesAfter">,
+): ActivationWindow {
   return {
     opensAt: activationOpensAt(times, settings["activation.opensMinutesBefore"]),
     closesAt: activationClosesAt(times, settings["activation.closesMinutesAfter"]),
@@ -47,8 +83,14 @@ export function activationWindow(times: BoardingTimes, settings: Pick<TicketSett
 }
 
 /** validUntil = scheduledArrivalAt(droppingStop) + trip.delayMinutes + ticket.graceMinutesAfterArrival. */
-export function computeValidUntil(droppingArrivalAt: Date, delayMinutes: number, graceMinutesAfterArrival: number): Date {
-  return new Date(droppingArrivalAt.getTime() + (delayMinutes + graceMinutesAfterArrival) * MS_PER_MIN);
+export function computeValidUntil(
+  droppingArrivalAt: Date,
+  delayMinutes: number,
+  graceMinutesAfterArrival: number,
+): Date {
+  return new Date(
+    droppingArrivalAt.getTime() + (delayMinutes + graceMinutesAfterArrival) * MS_PER_MIN,
+  );
 }
 
 export type RuleResult = { ok: true } | { ok: false; error: ErrorCode };
@@ -63,7 +105,12 @@ export interface TicketState {
 }
 
 /** BOOKED to ACTIVE (docs/07 section 2): holder, inside the window, trip not cancelled. */
-export function canActivate(ticket: TicketState, window: ActivationWindow, tripStatus: TripStatus, now: Date): RuleResult {
+export function canActivate(
+  ticket: TicketState,
+  window: ActivationWindow,
+  tripStatus: TripStatus,
+  now: Date,
+): RuleResult {
   if (ticket.status === "ACTIVE") return fail("TICKET_ALREADY_ACTIVE");
   if (ticket.status !== "BOOKED" || tripStatus === "CANCELLED" || tripStatus === "COMPLETED") {
     return fail("TICKET_NOT_ACTIVATABLE");
@@ -129,7 +176,10 @@ export function nextStatusOnJob(
 }
 
 /** Upcoming tab: still usable (not finished, not cancelled) and not past its last valid moment. */
-export function isUpcoming(ticket: { status: TicketStatus; expiresAt: Date; validUntil: Date | null }, now: Date): boolean {
+export function isUpcoming(
+  ticket: { status: TicketStatus; expiresAt: Date; validUntil: Date | null },
+  now: Date,
+): boolean {
   if (ticket.status === "BOOKED") return ticket.expiresAt.getTime() >= now.getTime();
   if (ticket.status === "ACTIVE" || ticket.status === "SCANNED") {
     return (ticket.validUntil ?? ticket.expiresAt).getTime() >= now.getTime();

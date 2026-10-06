@@ -28,3 +28,8 @@ export * from "./components/seat-map";
 export * from "./components/ticket-card";
 export * from "./components/offline-banner";
 export * from "./components/countdown";
+
+export * from "./components/route-progress";
+
+export * from "./components/data-table";
+export * from "./components/kpi-tile";

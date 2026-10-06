@@ -2,6 +2,7 @@
 // Full schema v1 for Day 2.
 
 generator client {
+  previewFeatures = ["relationJoins"]
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
   moduleFormat = "cjs"

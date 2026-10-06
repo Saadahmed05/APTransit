@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { BusStatus, TicketStatus, TripStatus } from "./enums";
+import type { BusStatus, TicketStatus, TripStatus, IncidentStatus } from "./enums";
 
 // One status system for the whole product. Source: docs/09-design-system.md (Status tones, Status labels)
 // and docs/07-ticket-and-pass-rules.md section 3. Colour is never the only signal: every status has
@@ -28,6 +28,12 @@ export interface StatusMeta {
   icon: string;
   i18nKey: string;
 }
+
+export const INCIDENT_STATUS_MAP: Record<IncidentStatus, StatusMeta> = {
+  OPEN: { key: "OPEN", tone: "warning", icon: "triangle-alert", i18nKey: "opsApp.incidentStatus.OPEN" },
+  ACKNOWLEDGED: { key: "ACKNOWLEDGED", tone: "info", icon: "clock", i18nKey: "opsApp.incidentStatus.ACKNOWLEDGED" },
+  RESOLVED: { key: "RESOLVED", tone: "success", icon: "circle-check", i18nKey: "opsApp.incidentStatus.RESOLVED" },
+};
 
 export const STATUS_MAP: Record<DisplayStatus, StatusMeta> = {
   UPCOMING: { key: "UPCOMING", tone: "neutral", icon: "clock", i18nKey: "status.UPCOMING" },
@@ -98,6 +104,10 @@ export const TICKET_STATUS_MAP: Record<TicketStatus, { tone: StatusTone; i18nKey
 };
 
 export const ColourOfDay = z.enum(["RED", "BLUE", "GREEN", "VIOLET", "AMBER", "TEAL", "PINK"]);
+export const SCAN_RESULT_MAP = {
+  VALID: {tone:"success",icon:"circle-check",i18nKey:"scan.valid"},
+  INVALID: {tone:"danger",icon:"circle-x",i18nKey:"scan.invalid"},
+} as const;
 export type ColourOfDay = z.infer<typeof ColourOfDay>;
 
 /** Index 0 is Sunday, matching the IST weekday. CSS tokens live in packages/ui tokens.css. */

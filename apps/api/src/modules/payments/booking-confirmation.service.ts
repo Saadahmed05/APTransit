@@ -253,8 +253,8 @@ export class BookingConfirmationService {
     if (booking) await this.releaseHolds(booking.tripId, booking.passengers.map((p) => p.seatNo), booking.id);
 
     const policy =
-      (await this.prisma.refundPolicy.findFirst({ where: { isActive: true }, orderBy: { validFrom: "desc" } })) ??
-      (await this.prisma.refundPolicy.findFirst({ orderBy: { validFrom: "desc" } }));
+      (await this.prisma.refundPolicy.findFirst({ where: { validFrom: { lte: new Date() } }, orderBy: { validFrom: "desc" } })) ??
+      (await this.prisma.refundPolicy.findFirst({ where: { validFrom: { lte: new Date() } }, orderBy: { validFrom: "desc" } }));
 
     let providerRefund: { id: string; status: string } | null = null;
     try {

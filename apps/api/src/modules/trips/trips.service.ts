@@ -293,8 +293,8 @@ export class TripsService {
     const fareRule = await this.prisma.fareRule.findFirst({
       where: {
         busTypeId: trip.busTypeId,
-        validFrom: { lte: trip.serviceDate },
-        OR: [{ validTo: null }, { validTo: { gte: trip.serviceDate } }],
+        validFrom: { lte: trip.scheduledDepartureAt },
+        OR: [{ validTo: null }, { validTo: { gte: trip.scheduledDepartureAt } }],
       },
       orderBy: { validFrom: "desc" },
     });
@@ -315,7 +315,7 @@ export class TripsService {
 
     // Active refund policy
     const policy = await this.prisma.refundPolicy.findFirst({
-      where: { isActive: true },
+      where: { validFrom: { lte: new Date() } },
       orderBy: { validFrom: "desc" },
     });
 

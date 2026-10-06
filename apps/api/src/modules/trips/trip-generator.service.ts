@@ -17,6 +17,10 @@ export class TripGeneratorService {
     const end = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
     const endStr = formatIstDate(end);
 
+    return this.generateRange(todayStr, endStr);
+  }
+
+  async generateRange(todayStr: string, endStr: string): Promise<number> {
     const timetables = await this.prisma.timetable.findMany({
       where: { isActive: true },
       include: {
@@ -58,7 +62,7 @@ export class TripGeneratorService {
     const toCreate = generated.filter((g) => !existingSet.has(g.code));
     if (toCreate.length === 0) return 0;
 
-    await this.prisma.trip.createMany({
+    const result = await this.prisma.trip.createMany({
       data: toCreate.map((g) => ({
         code: g.code,
         timetableId: g.timetableId,
@@ -75,6 +79,6 @@ export class TripGeneratorService {
     });
 
     this.logger.log(`Generated ${toCreate.length} trips for ${todayStr} to ${endStr}`);
-    return toCreate.length;
+    return result.count;
   }
 }

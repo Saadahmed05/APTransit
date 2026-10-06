@@ -72,8 +72,8 @@ export class PassConfirmationService {
       this.logger.error(`Refund for pass payment ${paymentRowId} failed, needs an operator: ${(err as Error).message}`);
     }
     const policy =
-      (await this.prisma.refundPolicy.findFirst({ where: { isActive: true }, orderBy: { validFrom: "desc" } })) ??
-      (await this.prisma.refundPolicy.findFirst({ orderBy: { validFrom: "desc" } }));
+      (await this.prisma.refundPolicy.findFirst({ where: { validFrom: { lte: new Date() } }, orderBy: { validFrom: "desc" } })) ??
+      (await this.prisma.refundPolicy.findFirst({ where: { validFrom: { lte: new Date() } }, orderBy: { validFrom: "desc" } }));
     if (!policy) {
       this.logger.error(`No refund policy, refund row for pass payment ${paymentRowId} not written`);
       return;

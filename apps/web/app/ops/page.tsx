@@ -1,13 +1,15 @@
-import type { Metadata } from "next";
+import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
-import { ComingSoon } from "../../components/coming-soon";
-
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations();
-  return { title: t("nav.dashboard") };
+import { Skeleton } from "@aptransit/ui";
+import Client from "./dashboard";
+export async function generateMetadata() {
+  const t = await getTranslations("opsApp");
+  return { title: t("dashboard") };
 }
-
-export default async function OpsDashboardPage() {
-  const t = await getTranslations();
-  return <ComingSoon title={t("nav.dashboard")} />;
+export default function Page() {
+  return (
+    <Suspense fallback={<Skeleton className="h-48 w-full" />}>
+      <Client />
+    </Suspense>
+  );
 }

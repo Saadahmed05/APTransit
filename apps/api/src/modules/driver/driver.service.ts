@@ -16,6 +16,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService, type LogAuditParams } from "../audit/audit.service";
 import { depotLiveKey, readLive } from "../tracking/live-state";
+import { TripNotificationsService } from "../tracking/trip-notifications.service";
 import { displayStatusOf, roomsOf, type TripContext, TripContextService, toTripDto } from "../tracking/trip-context.service";
 
 type AuditActor = Pick<LogAuditParams, "actorUserId" | "actorRole" | "ip" | "userAgent">;
@@ -47,6 +48,7 @@ export class DriverService {
     private readonly audit: AuditService,
     private readonly events: DomainEventsService,
     private readonly trips: TripContextService,
+    private readonly notifications: TripNotificationsService,
   ) {}
 
   /** The key is returned once and never stored in clear. Approval is a depot action (Day 14). */
@@ -152,6 +154,7 @@ export class DriverService {
     await this.audit.log({ action: "trip.start", entityType: "trip", entityId: tripId, before: { status: "SCHEDULED" }, after: { status: "RUNNING" }, ...actor });
     const fresh = await this.trips.load(tripId);
     this.publishStatus(fresh);
+    void this.notifications.update(fresh, fresh.trip.delayMinutes, fresh.trip.lastStopSeq, now, true).catch((error: unknown) => this.logger.error("Trip notifications failed", error));
     return toTripDto(fresh.trip);
   }
 

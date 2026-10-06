@@ -100,6 +100,8 @@ export const LiveTripDto = z.object({
   etaNextStopSec: z.number().int().nonnegative().nullable(),
   delayMinutes: z.number().int().nonnegative(),
   progressPct: z.number().min(0).max(100),
+  hasOpenIncident: z.boolean().default(false),
+  incidentTypes: z.array(IncidentType).default([]),
   progress: z.array(
     z.object({
       stopId: z.string(),
@@ -151,6 +153,8 @@ export const DriverIncidentInput = z
 export type DriverIncidentInput = z.infer<typeof DriverIncidentInput>;
 
 export const IncidentDto = z.object({
+  busRegNo: z.string().optional(),
+  tripCode: z.string().optional(),
   id: z.string(),
   code: z.string(),
   type: IncidentType,

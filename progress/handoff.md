@@ -14,20 +14,33 @@ Read order for a new session:
 
 ---
 
-## Current state (Day 11 built, 2026-10-05)
+## Current state (Day 14 implemented, 2026-10-06)
 
 ### Git
 
 | Branch | Contains | Status |
 | --- | --- | --- |
-| `main` | Day 1 to Day 7 | Baseline |
-| `day-8` | Days 8 to 11 (this handoff) | Pull request to `main`, review by the other dev |
+| `main` | Day 1 to Day 11, PR #4 merged | Baseline |
+| `pranay-day12` | Day 12 to Day 14 code and progress updates | Uncommitted, other dev review and PR merge pending |
 
-**Day 12 starts from `main` once the Days 8 to 11 pull request is merged.**
+**Day 12 was built from merged main. The human approved D-027 and authorized Day 13 before review. Both days await the other dev review and PR merge.**
 
-### Works today (verified 2026-10-05)
+### Works today (verified 2026-10-06)
 
-- `pnpm lint`, `pnpm i18n:check`, `pnpm typecheck`, `pnpm test` (shared 119, ui 40, web 42, api 281 plus 6 database tests skipped, scripts 6), `pnpm build`, `pnpm check:dashes` pass on Windows (Node 22, pnpm 11.10).
+- Day 14: live operations dashboard, fleet/trips/incidents lists and actions, URL depot/date/status/route/search filters, shared DataTable and KpiTile, and guarded admin network/users/policies/settings/audit endpoints. All admin writes include atomic before/after audit snapshots. Scoped audit reads use entity snapshots rather than multi-depot actor roles.
+- Day 14 root lint, typecheck, build and dashes passed. Full suite: shared 119, UI 46, web 42, API 359, scripts 6 passed; 6 database cases skipped. Local search and refund verification confirmed validFrom behavior, including a future refund policy retaining today's effective quote. See daily-log.md and D-029. Review/CI/merge remain pending.
+- Refund policy isActive denotes the latest configured row; effective reads select the latest validFrom at or before now from retained history. Fare selection uses scheduled departure time. Admin settings changes invalidate the network cache. Zod 4 refined objects require safeExtend; derive partial patch schemas from their shape and revalidate the merged object on the server.
+
+- Day 13: conductor home/scanner/manifest and live counts; approved manual ticket number plus live-code validation through unchanged QR rules; scoped operations dashboard/fleet/trips/staff/devices/incidents, atomic replacement and full operator cancellation refunds. Signed callbacks complete paid ticket refunds idempotently. Listener-only operations KPI updates run every 15 seconds.
+- E2E-8 passed on desktop and Pixel 7, including axe and English/Telugu layouts at 360, 768 and 1280 px. Focused API tests: 18 validation and 13 operations passed; root lint, types, build, i18n, dashes and scripts passed. The simulator breakdown at 60 km, manager acknowledgement and replacement, preserved seat and citizen notification passed against local PGlite and Redis. Physical-phone HTTPS timing and other-dev/CI review remain pending.
+- qr-scanner is allowed by docs/04. Test injection uses apt:test-scan only when NEXT_PUBLIC_PAYMENTS_FAKE=1 is set during the web build, and still invokes the validation API. The browser test mocks response cases; API HTTP tests enforce actual server rules.
+- New Telugu copy must be written as UTF-8. Windows PowerShell's default pipe encoding can replace Telugu with question marks. Use apply_patch or Unicode escapes when passing scripts through this shell.
+- Provider refund failures are preserved as FAILED rows for reconciliation; automatic retry is not part of Day 13. Review D-028 shared contracts before merge.
+
+
+- Day 12: citizen tracking map and progress, shared authenticated sockets and REST fallback, driver live hook, notification/ticket query updates, stop/delay/pace math, durable trip notification deduplication, simulator stalls/breakdown, conductor assignment/manifest and ordered validation with audit and race protection. Local database validation p95 134.72 ms over 30 requests. Progress math has 100 percent line coverage. E2E-7 passed on desktop and mobile. See daily-log.md for measurements and checks.
+
+- `pnpm lint`, `pnpm i18n:check`, `pnpm typecheck`, `pnpm test` (shared 119, ui 41, web 42, api 313 plus 6 database tests skipped, scripts 6), `pnpm build`, `pnpm check:dashes` pass on Windows (Node 24.13.1, pnpm 11.10).
 - Day 8: gifting (`POST /tickets/:id/transfer`), passes with payments (`{ passId }`), Stree Shakti eligibility (mock provider, strict schema, no identifiers stored), zero fare free travel tickets; `/tickets/[id]` with the live rotating QR (Web Crypto), offline copy in IndexedDB, `/tickets/[id]/cancel`.
 - Day 9: notifications (rows, email jobs rendered in the user's language, subscribers, endpoints), expiry jobs every 5 min, worker heartbeat in `/health`; `/tickets/[id]/gift`, `/passes`, `/passes/buy`, `/free-travel`, `/book/[tripId]/free`, bell and `/updates`, `Countdown`.
 - Day 10: manifest, icons, `public/sw.js`, `/offline`, Install app; Playwright fixtures, E2E-1 to E2E-6 and axe checks: 18 of 18 pass locally on both projects with one worker.
@@ -51,15 +64,21 @@ Read order for a new session:
 | Worker run for an hour, Upstash command count | Needs a real Redis | After the real `.env` |
 | Real Razorpay test checkout | Placeholder keys locally | When test keys exist |
 | Device approval screen for the depot | Scheduled | Day 14 (ops) |
-| Pace factor, delay updates, stop notifications, simulator `--delay-at` and `--breakdown-at`, citizen tracking map | Scheduled | Day 12 |
 | Implied speed check between GPS points | The simulator compresses time (D-025) | Day 17 hardening |
 | Short Telugu label for "Track bus" | D-015, needs a native speaker | Open |
 
 ### Decisions
 
-All in `progress/decisions-log.md`. D-022 (Day 8), D-023 (Day 9), D-024 (Day 10) and D-025 (Day 11) are new and proposed.
+All in `progress/decisions-log.md`. D-022 (Day 8), D-023 (Day 9), D-024 (Day 10) D-025 (Day 11) and D-026 (Day 12) are proposed.
 
-### New gotchas (Days 8 to 11)
+### New gotchas (Days 8 to 12)
+
+- E2E-7 fixture and API must use the same DATABASE_URL. Set it explicitly for local tests so a saved .env cannot send fixture writes to another development database.
+- Repeated E2E retries can exhaust seeded driver OTP limits. Use a fresh isolated test Redis or clear only local test counters.
+- Simulator delay minutes are wall-clock minutes, even with accelerated movement.
+- Map paint widths must be pixel tokens, not a numeric parse of rem spacing.
+- Regenerate Prisma after enabling relationJoins; no database migration is required for this generator feature.
+
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
@@ -351,3 +370,7 @@ All six items from the prompt are done:
 | Payment flow | Not today per prompt | Day 10 |
 | Upstash usage logged | Needs running Upstash instance | After real .env |
 | Worker drain delay verified | Needs BULLMQ_DRAIN_DELAY_SEC in .env | After real .env |
+
+## Day 13 notes
+
+The API validation and conductor manifest contracts are ready for the scanner UI. Use schemas/conductor.ts and earlierScanAt for duplicate scan copy. Keep QR validation on the server; mirror reason labels through both i18n files.
