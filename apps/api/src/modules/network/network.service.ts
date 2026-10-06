@@ -34,6 +34,8 @@ export class NetworkService {
   private readonly districtsCache = new TtlCache<DistrictDto[]>(CACHE_TTL_MS, 1);
   private readonly settingsCache = new TtlCache<number>(CACHE_TTL_MS, 50);
 
+  invalidateAdminChanges(): void { this.placesCache.clear(); this.districtsCache.clear(); this.settingsCache.clear(); }
+
   constructor(
     private readonly repo: NetworkRepository,
     private readonly redis?: RedisService,

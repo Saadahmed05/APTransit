@@ -4,6 +4,85 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## Day 14: 2026-10-06, Dev A and Dev B
+
+**Done**
+- Operations dashboard with live KPIs, bus status counts, multiple map markers and bus/route/driver details. Scoped depot selection and table filters live in the URL. Fleet creation, trip assignment and incident acknowledgement/resolution use guarded backend mutations.
+- Shared DataTable and KpiTile with sorting accessibility, keyboard activation, skeleton/empty states, cursor controls, typed columns, delta tones/icons and unit tests. Incident labels/icons/tones use the shared status map.
+- Admin API: bilingual bounded stops, ordered routes and generated polyline, booked/active future-ticket stop protection, timetable deactivation and idempotent trip generation, scoped role grants/revocation and last-admin protection, append-only fares, effective refund history, validated settings and scoped cursor audit reads. Admin mutations audit before/after atomically.
+
+**Verification**
+- Root lint, typecheck, production build and dash check passed. Full package suite: shared 119, UI 46, web 42, API 359 passed, with 6 database tests skipped. Script suite: 6 passed. The API suite includes 30 admin tests and a two-client socket acknowledgement propagation test.
+- Local PGlite/API policy verification: today's search fare stayed unchanged, tomorrow's search used the new fare, the current refund quote returned 80 percent (8000 paise), and a future refund policy did not apply early. Fixtures used the isolated localhost database only.
+
+**Merged PRs**
+- None. Day 12 to Day 14 remain uncommitted on pranay-day12.
+
+**Contract changes (packages/shared)**
+- Admin schemas, operations lookup DTOs and fleet context, incident status metadata. D-029 records additive contracts and effective policy semantics. Locked docs were not edited.
+
+**Bugs found**
+- Fixed nullable driver joins, refined Zod partial DTO handling, missing incident translation paths and early activation of future refund policies. Concurrent Windows verification hit a pre-existing calendar test timeout; rerunning with one worker passed.
+
+**Carry over and review**
+- Other dev review of D-029 and earlier shared decisions, CI, PR and merge to main. Cloud staging and Day 13 physical-phone timing remain pending.
+
+## Day 13: 2026-10-05, Dev A and Dev B
+
+**Done**
+- Conductor home, camera scanner, live counts and manifest. Every scan reason has an accessible result, optional sound and haptics, duplicate debounce, three-second resume and manual fallback.
+- Approved D-027: manual entry requires ticket number and current eight-character live validation code. Code-only and mixed requests fail schema validation. Manual and camera entry share QR verification, ordered status/expiry/live-code/duplicate rules, scans and audit.
+- Operations dashboard, bus profiles and maintenance, scoped trips and assignment, atomic bus replacement, full operator refunds, staff creation, device approval/revocation and incident acknowledgement/resolution. Permission-specific scope blocks multi-role scope escalation. Resource locks prevent conflicting assignments and bus edits. KPI updates run only for occupied operations rooms.
+- Full-fare refunds include fees. Paid tickets remain BOOKED or ACTIVE until the signed refund.processed webhook; repeated callbacks do not repeat refunds or status changes. Zero-fare tickets need no provider call.
+- Local database/API demonstration: simulator --breakdown-at 60 reported INC-GQTDM2, manager acknowledged and replaced the bus/driver, the ticket retained its trip and seat 1, and citizen@aptransit.test received REPLACEMENT_BUS. The isolated fixture clock overlapped seeded conductor assignments; those unrelated fixture assignments were ended before successful replacement. Availability correctly rejected the overlap first.
+
+**Verification**
+- Full suite passed: shared 119, UI 41, web 42, API 325 with 6 database tests skipped. Additional final status-filter, KPI and signed refund callback tests are included in the focused rerun.
+- Root production build, typecheck and lint passed. E2E-8 scanner results, duplicate debounce and manual live-code form passed on Desktop Chrome and Pixel 7 (2 tests). Scanner axe check found no serious or critical violations.
+- Final focused API rerun: 18 validation tests and 13 operations tests passed. E2E-8 with axe and English/Telugu layouts at 360, 768 and 1280 px: 2 passed (50 seconds). Final lint, typecheck, i18n and dashes passed; scripts 6 passed. Fixed encoding in both new conductor and Day 12 tracking translations; no corrupted question-mark runs remain.
+
+**Carry over**
+- Physical phone camera test over HTTPS: ten actual QR scans with average decode-to-result below two seconds. Browser injection tests do not establish phone camera performance or torch/audio compatibility.
+- Other dev review of shared contracts D-028, PR/CI and merge to main. Day 12 and Day 13 remain uncommitted on pranay-day12; no merge has been performed.
+- Real provider staging callback and cloud deployment checks. Failed provider refunds persist as FAILED rows for reconciliation; no automatic provider retry workflow is introduced today.
+
+**Bugs found**
+- Fixed malformed status filters returning server errors, manual input ambiguity, cancellation/fleet write races, test-server raw body handling, and Windows shell encoding corrupting newly added Telugu copy.
+
+**Decisions**
+- D-027 approved by the human. D-028 records additive shared contracts for the other dev's review. Locked docs unchanged.
+
+## Day 12: 2026-10-05, Dev A and Dev B
+
+**Done**
+- Citizen /track entry and /track/[tripId] live map, next stop, pace ETA, delay, incident, stale updates, scheduled/completed states and accessible route progress. Shared socket client refreshes auth, restores rooms and falls back to 15 s REST polling after 10 s disconnected. Notifications and ticket status update queries; driver uses the live hook. English and Telugu copy added together. MapLibre stays behind the lazy UI subpath.
+- Tracking math uses 150 m stop reach, monotonic lastStopSeq, delay floored at zero and pace clamped 0.8 to 1.5. Trip rows persist delay changes of at least 2 min. Departure, delay bands and near-stop notifications have durable deduplication. Simulator supports --delay-at and --breakdown-at.
+- POST /tickets/validate implements the ordered ticket/pass rules, conductor assignment permission, optimistic ticket updates, serialized pass scans, every authorized attempt's scan/audit, duplicate scan time and ticket status events. GET /conductor/today and manifest return passenger, checked and pending counts.
+
+**Verified**
+- Full test suite: shared 119, ui 41, web 42, api 313 passed plus 6 database tests skipped, scripts 6. Final validation query changes: 16 HTTP tests passed again. Progress math coverage: 100 percent lines, 97.67 percent branches.
+- Validation benchmark on the isolated local PGlite database: 30 sequential HTTP requests (one successful pass scan and 29 duplicate scans), p95 134.72 ms, maximum 437.63 ms. In-memory HTTP p95 15.72 ms. The database measurement, not the memory stub, satisfies the Day 12 p95 target.
+- pnpm lint, pnpm typecheck, pnpm check:dashes and pnpm i18n:check pass. API and web production builds pass. E2E-7: 2 of 2 passed on Desktop Chrome and Pixel 7 (movement, next stop/ETA, incident, offline fallback, REST recovery, completion and no horizontal overflow). Map screenshots were inspected on both sizes; route lines, stop dots, heading marker and attribution are visible.
+
+- Responsive smoke passed in English and Telugu at 360, 768 and 1280 px. Home-page network chunks contain no MapLibre code.
+
+**Merged PRs**
+- None for Day 12. Changes remain on pranay-day12 for the other dev's review. Days 8 to 11 are already merged into main (PR #4).
+
+**Contract changes (packages/shared)**
+- Conductor validation/today/manifest schemas, earlierScanAt, LiveTripDto incident flags and types.
+
+**Bugs found**
+- Fixed S2: duplicate incident labels when several open incidents have the same type.
+- Fixed S2: loading every validation relation separately missed the latency target. Narrow joined reads include only required fields and prior valid scans.
+- Fixed S3: map layer widths treated rem spacing as pixels. Dedicated map width token added.
+
+**Carry over**
+- CI and other dev PR review/merge. Existing staging, real Redis worker, real Android over HTTPS and Lighthouse checks remain environment-dependent. Scanner UI is Day 13.
+
+**Decisions needed**
+- D-026, shared contracts and Prisma relationJoins preview, proposed for review.
+
 ## Day 11 · 2026-10-05 · Dev A and Dev B
 
 **Done**

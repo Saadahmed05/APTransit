@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+  INCIDENT_STATUS_MAP,
   STATUS_MAP,
   TICKET_STATUS_MAP,
 } from "@aptransit/shared";
@@ -7,6 +8,7 @@ import type {
   DisplayStatus,
   StatusTone,
   TicketStatus,
+  IncidentStatus,
 } from "@aptransit/shared";
 import {
   Bus,
@@ -163,3 +165,5 @@ export const TicketStatusBadge = React.forwardRef<HTMLSpanElement, TicketStatusB
   }
 );
 TicketStatusBadge.displayName = "TicketStatusBadge";
+
+export function IncidentStatusBadge({status,label}:{status:IncidentStatus;label:string}) { const meta=INCIDENT_STATUS_MAP[status];return <ToneChip tone={meta.tone} icon={ICON_MAP[meta.icon]??Clock} label={label}/>; }

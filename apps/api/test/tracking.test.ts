@@ -376,7 +376,8 @@ describe("Driver, tracking and sockets (Day 11)", () => {
       expect(live.position).toMatchObject({ lat: 15.4786, lng: 78.4836 });
       expect(live.nextStop?.stopId).toBe("stopgdl0000001");
       expect(live.progress.map((p) => p.state)).toEqual(["DONE", "DONE", "CURRENT"]);
-      expect(live.etaNextStopSec).toBe(70 * 60);
+      // Compressed simulator time is early: Day 12 clamps pace to 0.8.
+      expect(live.etaNextStopSec).toBe(70 * 60 * 0.8);
     });
 
     it("GET /tracking/live: ops roles with scope only", async () => {

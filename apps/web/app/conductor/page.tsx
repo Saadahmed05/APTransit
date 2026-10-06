@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { ComingSoon } from "../../components/coming-soon";
+import { ConductorHome } from "./conductor-home";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations();
@@ -8,6 +8,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ConductorHomePage() {
-  const t = await getTranslations();
-  return <ComingSoon title={t("shell.conductor")} />;
+  return <ConductorHome />;
 }

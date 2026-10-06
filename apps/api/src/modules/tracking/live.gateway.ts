@@ -1,5 +1,6 @@
 import { type BusPositionEvent, type Role, SubscribeInput } from "@aptransit/shared";
-import { Logger, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
+import { Logger, Optional, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
+import { OpsService } from "../ops/ops.service";
 import { ConfigService } from "@nestjs/config";
 import {
   ConnectedSocket,
@@ -43,17 +44,27 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
   private readonly lastPosition = new Map<string, number>();
   private readonly lastStatePosition = new Map<string, number>();
   private readonly off: (() => void)[] = [];
+  private kpiTimer?: ReturnType<typeof setInterval>;
+  private kpiBusy = false;
 
   constructor(
     config: ConfigService<Env, true>,
     private readonly events: DomainEventsService,
     private readonly tracking: TrackingService,
+    @Optional() private readonly ops?: OpsService,
   ) {
     this.jwtSecret = new TextEncoder().encode(config.get("JWT_SECRET", { infer: true }));
   }
 
   onModuleInit(): void {
     this.off.push(
+      this.events.on("incident.updated", ({rooms,...payload}) => this.emitTo(roomList(rooms).concat("state"), "incident:update", payload)),
+      this.events.on("conductor.scan", e => this.emitTo(["trip:"+e.tripId], "conductor:counts", e)),
+    );
+    this.kpiTimer = setInterval(() => { void this.pushKpis(); }, 15_000);
+    this.kpiTimer.unref();
+    this.off.push(
+      this.events.on("notification.created", (e) => this.emitTo([`user:${e.userId}`], "notification:new", e.notification)),
       this.events.on("bus.position", (event) => this.emitPosition(event)),
       this.events.on("trip.status", ({ rooms, ...payload }) => this.emitTo([...roomList(rooms).filter((r) => !r.startsWith("route:")), "state"], "trip:status", payload)),
       this.events.on("incident.created", ({ rooms, ...payload }) =>
@@ -65,6 +76,23 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
 
   onModuleDestroy(): void {
     this.off.forEach((unsubscribe) => unsubscribe());
+    clearInterval(this.kpiTimer);
+  }
+
+  async pushKpis(): Promise<void> {
+    if (!this.ops || !this.server || this.kpiBusy) return;
+    const rooms = [...(this.server.adapter?.rooms?.entries() ?? [])]
+      .filter(([room,members]) => members.size > 0 && (room.startsWith("depot:") || room === "state"))
+      .map(([room]) => room);
+    if (!rooms.length) return;
+    this.kpiBusy = true;
+    try {
+      for (const room of rooms) {
+        const values = await this.ops.dashboard({id:"socket-kpi-service",roles:[{role:"STATE_ADMIN"}]}, room==="state"?{}:{depotId:room.slice(6)});
+        this.emitTo([room], "kpi:update", {scope:room,values});
+      }
+    } catch { this.logger.warn("KPI update failed"); }
+    finally { this.kpiBusy = false; }
   }
 
   /**

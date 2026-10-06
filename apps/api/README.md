@@ -142,3 +142,19 @@ Passes and eligibility (Day 8): rules in `modules/passes/pass-rules.ts`; `PassCo
 Notifications (Day 9): call `NotificationsService.notify(userId, type, params, link)`; params are language neutral (`<key>En`, `<key>Te`, ISO times, see `notificationParams` in shared). Emails render in the worker (`NotificationEmailService`). `StatusExpiryService` runs every 5 min on the expiry queue; the worker writes `worker:heartbeat` for `/health`.
 
 Tracking (Day 11): `modules/tracking` (`TripContextService` loads a trip with route, stops and open assignment; `progress.ts` holds the math; `TrackingService` the ping trust checks and live views; `LiveGateway` the `/live` namespace) and `modules/driver`. Services publish `trip.status`, `bus.position`, `incident.created`; only the gateway emits to sockets. Tools: `pnpm simulate --trip <id> --speed 20` and `pnpm watch:live trip:<id>`. Integration tests use `test/memory-prisma.ts` (an in memory Prisma stand in) and `test/fake-redis.ts`.
+
+## Day 12 live tracking and conductor validation
+
+ConductorModule exposes POST /tickets/validate, GET /conductor/today and GET /conductor/trips/:id/manifest. Validation checks the current assignment, signed QR and rotating code before the ordered ticket rules. Every authorized attempt writes a scan and audit record. Tickets use an optimistic version update; pass scans serialize on the pass row. ALREADY_SCANNED includes earlierScanAt. Prisma relationJoins loads only the required ticket/pass relations and prior successful scan together.
+
+Tracking progress persists physically reached stops (150 m), delay changes of at least 2 min, and clamped pace ETA. TripNotificationsService uses durable notification IDs to deduplicate departure, delay bands and boarding proximity. Timing is logged without QR data. The development-only scripts/demo-tracking.ts prepares the seeded driver trip for E2E-7.
+
+## Day 13 operations and manual validation
+
+OpsModule provides scoped dashboard, fleet, trip assignment and replacement, operator cancellation, staff, device and incident endpoints. Permission-specific scope prevents a lower-permission role from widening a mutation. Assignment and fleet changes lock resources before availability checks. Replacement preserves the trip and seats, rejects smaller layouts, notifies holders and publishes domain events. Cancellation creates full-fare refunds including fees; paid tickets move to REFUNDED only on the signed refund webhook. Provider failures persist FAILED refund rows for operations reconciliation.
+
+D-027 manual entry requires ticketNumber plus the current eight-character liveCode. ValidateService reconstructs the signed content from trusted database fields and calls the same QR verifier and ordered rules. Missing, stale and duplicate submissions never bypass existing validation. LiveGateway publishes conductor:counts and incident:update and computes kpi:update every 15 seconds only for occupied operations rooms.
+
+## Day 14
+
+Day 14 adds the guarded admin module for stops, routes, timetables, date-range trip generation, users and scoped roles, fare/refund policy history, validated settings and cursor audit reads. Admin writes persist before/after audit snapshots in the same transaction. Future policy rows do not take effect early. Scoped operations lookup endpoints supply form options. See D-029 and test/day14-admin.test.ts.

@@ -350,13 +350,13 @@ export class TicketsService {
   }
 
   private async quote(ticket: LoadedTicket, now: Date): Promise<{ quote: RefundQuote; policyName: string; policyId: string | null }> {
-    const policy = await this.prisma.refundPolicy.findFirst({ where: { isActive: true }, orderBy: { validFrom: "desc" } });
+    const policy = await this.prisma.refundPolicy.findFirst({ where: { validFrom: { lte: new Date() } }, orderBy: { validFrom: "desc" } });
     const tiers = RefundTiers.safeParse(policy?.tiers);
     const rule = await this.prisma.fareRule.findFirst({
       where: {
         busTypeId: ticket.trip.busTypeId,
-        validFrom: { lte: ticket.trip.serviceDate },
-        OR: [{ validTo: null }, { validTo: { gte: ticket.trip.serviceDate } }],
+        validFrom: { lte: ticket.trip.scheduledDepartureAt },
+        OR: [{ validTo: null }, { validTo: { gte: ticket.trip.scheduledDepartureAt } }],
       },
       orderBy: { validFrom: "desc" },
       select: { reservationFeePaise: true },

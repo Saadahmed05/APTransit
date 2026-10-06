@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { FieldShell } from "../../components/field-shell";
+import { ConductorCounts } from "../../components/conductor-counts";
 import { RequirePermission } from "../../components/require-auth";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -13,21 +14,13 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ConductorLayout({ children }: { children: ReactNode }) {
   const t = await getTranslations();
 
-  // Trip counts area: filled from the assigned trip once the conductor screens ship.
-  const counts = (
-    <dl aria-label={t("shell.tripCounts")} className="hidden items-center gap-4 text-small md:flex">
-      {(["BOOKED", "SCANNED"] as const).map((status) => (
-        <div key={status} className="flex items-center gap-1">
-          <dt className="text-muted">{t(`ticketStatus.${status}`)}</dt>
-          <dd className="font-semibold tabular-nums">0</dd>
-        </div>
-      ))}
-    </dl>
-  );
+  const counts = <ConductorCounts />;
 
   return (
-    <FieldShell title={t("shell.conductor")} homeHref="/conductor" status={counts}>
-      <RequirePermission anyOf={["ticket:validate"]}>{children}</RequirePermission>
-    </FieldShell>
+    <div className="[&_button]:min-h-14 [&_button]:min-w-14 [&_a]:min-h-14">
+      <FieldShell title={t("shell.conductor")} homeHref="/conductor" status={counts}>
+        <RequirePermission anyOf={["ticket:validate"]}>{children}</RequirePermission>
+      </FieldShell>
+    </div>
   );
 }

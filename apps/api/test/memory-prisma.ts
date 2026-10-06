@@ -12,7 +12,8 @@ export type Relations = Record<string, Record<string, (row: Row, tables: Tables)
 export type Defaults = Record<string, Record<string, unknown | (() => unknown)>>;
 
 let seq = 0;
-export const memoryId = (prefix = "m") => `${prefix}${String(++seq).padStart(12, "0")}`.slice(0, 24);
+export const memoryId = (prefix = "m") =>
+  `${prefix}${String(++seq).padStart(12, "0")}`.slice(0, 24);
 
 const isPlainObject = (value: unknown): value is Record<string, any> =>
   typeof value === "object" && value !== null && !(value instanceof Date) && !Array.isArray(value);
@@ -21,8 +22,11 @@ const time = (value: unknown) => (value instanceof Date ? value.getTime() : valu
 
 function matchValue(actual: unknown, cond: unknown): boolean {
   if (!isPlainObject(cond)) return time(actual) === time(cond);
+  if (Array.isArray(cond.path)) { const {path,...rest}=cond;const selected=path.reduce((v: any,k: string)=>v?.[k],actual);return matchValue(selected,rest); }
   return Object.entries(cond).every(([op, expected]) => {
     switch (op) {
+      case "mode": return true;
+      case "contains": return typeof actual === "string" && (cond.mode === "insensitive" ? actual.toLowerCase().includes(String(expected).toLowerCase()) : actual.includes(String(expected)));
       case "equals":
         return time(actual) === time(expected);
       case "in":
@@ -30,15 +34,33 @@ function matchValue(actual: unknown, cond: unknown): boolean {
       case "notIn":
         return !(expected as unknown[]).some((e) => time(e) === time(actual));
       case "not":
-        return isPlainObject(expected) ? !matchValue(actual, expected) : time(actual) !== time(expected);
+        return isPlainObject(expected)
+          ? !matchValue(actual, expected)
+          : time(actual) !== time(expected);
       case "gt":
-        return actual !== null && actual !== undefined && (time(actual) as number) > (time(expected) as number);
+        return (
+          actual !== null &&
+          actual !== undefined &&
+          (time(actual) as number) > (time(expected) as number)
+        );
       case "gte":
-        return actual !== null && actual !== undefined && (time(actual) as number) >= (time(expected) as number);
+        return (
+          actual !== null &&
+          actual !== undefined &&
+          (time(actual) as number) >= (time(expected) as number)
+        );
       case "lt":
-        return actual !== null && actual !== undefined && (time(actual) as number) < (time(expected) as number);
+        return (
+          actual !== null &&
+          actual !== undefined &&
+          (time(actual) as number) < (time(expected) as number)
+        );
       case "lte":
-        return actual !== null && actual !== undefined && (time(actual) as number) <= (time(expected) as number);
+        return (
+          actual !== null &&
+          actual !== undefined &&
+          (time(actual) as number) <= (time(expected) as number)
+        );
       case "has":
         return Array.isArray(actual) && actual.includes(expected);
       default:
@@ -50,7 +72,12 @@ function matchValue(actual: unknown, cond: unknown): boolean {
 /** model to relation field to the child model and its foreign key, for nested `create` in data. */
 export type Nested = Record<string, Record<string, { model: string; fk: string }>>;
 
-export function createMemoryPrisma(tables: Tables, relations: Relations = {}, defaults: Defaults = {}, nested: Nested = {}) {
+export function createMemoryPrisma(
+  tables: Tables,
+  relations: Relations = {},
+  defaults: Defaults = {},
+  nested: Nested = {},
+) {
   const matches = (model: string, row: Row, where: Row = {}): boolean =>
     Object.entries(where).every(([key, cond]) => {
       if (cond === undefined) return true;
@@ -61,16 +88,33 @@ export function createMemoryPrisma(tables: Tables, relations: Relations = {}, de
       if (resolver) {
         const related = resolver(row, tables);
         if (Array.isArray(related)) {
-          if (isPlainObject(cond) && "some" in cond) return related.some((r) => matchesPlain(r as Row, cond.some));
-          if (isPlainObject(cond) && "none" in cond) return !related.some((r) => matchesPlain(r as Row, cond.none));
+          if (isPlainObject(cond) && "some" in cond)
+            return related.some((r) => matchesPlain(r as Row, cond.some));
+          if (isPlainObject(cond) && "none" in cond)
+            return !related.some((r) => matchesPlain(r as Row, cond.none));
           return false;
         }
         if (cond === null) return related === null || related === undefined;
-        return related !== null && related !== undefined && matchesPlain(related as Row, cond as Row);
+        return (
+          related !== null && related !== undefined && matchesPlain(related as Row, cond as Row)
+        );
       }
       return matchValue(row[key] ?? null, cond);
     });
-  const matchesPlain = (row: Row, where: Row): boolean => Object.entries(where).every(([k, c]) => c === undefined || matchValue(row[k] ?? null, c));
+  const matchesPlain = (row: Row, where: Row): boolean =>
+    Object.entries(where).every(([k, c]) => {
+      if (c === undefined) return true;
+      if (k === "OR") return (c as Row[]).some((w) => matchesPlain(row, w));
+      if (k === "AND") return (c as Row[]).every((w) => matchesPlain(row, w));
+      if (k === "NOT") return !matchesPlain(row, c as Row);
+      const value = row[k] ?? null;
+      if (Array.isArray(value) && isPlainObject(c)) {
+        if ("some" in c) return value.some((v) => matchesPlain(v, c.some));
+        if ("none" in c) return !value.some((v) => matchesPlain(v, c.none));
+      }
+      if (isPlainObject(value) && isPlainObject(c)) return matchesPlain(value, c);
+      return matchValue(value, c);
+    });
 
   const shape = (model: string, row: Row, args: Row = {}): Row => {
     const spec = args.include ?? args.select;
@@ -79,7 +123,17 @@ export function createMemoryPrisma(tables: Tables, relations: Relations = {}, de
       for (const [name, value] of Object.entries(spec)) {
         if (!value) continue;
         const resolver = relations[model]?.[name];
-        if (resolver) out[name] = resolver(row, tables);
+        if (resolver) {
+          let related = resolver(row, tables);
+          if (Array.isArray(related) && isPlainObject(value)) {
+            related = sortRows(
+              related.filter((r) => matchesPlain(r, value.where ?? {})),
+              value.orderBy,
+            );
+            if (value.take !== undefined) related = (related as Row[]).slice(0, value.take);
+          }
+          out[name] = related;
+        }
       }
     }
     return out;
@@ -105,8 +159,10 @@ export function createMemoryPrisma(tables: Tables, relations: Relations = {}, de
   const applyData = (row: Row, data: Row) => {
     for (const [key, value] of Object.entries(data)) {
       if (value === undefined) continue;
-      if (isPlainObject(value) && "increment" in value) row[key] = (row[key] ?? 0) + value.increment;
-      else if (isPlainObject(value) && "decrement" in value) row[key] = (row[key] ?? 0) - value.decrement;
+      if (isPlainObject(value) && "increment" in value)
+        row[key] = (row[key] ?? 0) + value.increment;
+      else if (isPlainObject(value) && "decrement" in value)
+        row[key] = (row[key] ?? 0) - value.decrement;
       else if (isPlainObject(value) && ("connect" in value || "create" in value)) continue;
       else row[key] = value;
     }
@@ -118,6 +174,7 @@ export function createMemoryPrisma(tables: Tables, relations: Relations = {}, de
     const findMany = async (args: Row = {}) => {
       let rows = table().filter((r) => matches(model, r, args.where));
       rows = sortRows(rows, args.orderBy);
+      if (args.cursor) { const at=rows.findIndex(r=>matchesPlain(r,args.cursor));rows=at>=0?rows.slice(at):[]; }
       if (args.skip) rows = rows.slice(args.skip);
       if (args.take !== undefined) rows = rows.slice(0, args.take);
       return rows.map((r) => shape(model, r, args));
@@ -129,10 +186,16 @@ export function createMemoryPrisma(tables: Tables, relations: Relations = {}, de
         const row = table().find((r) => matches(model, r, args.where));
         return row ? shape(model, row, args) : null;
       },
+      findUniqueOrThrow: async (args: Row) => {
+        const row = table().find((r) => matches(model, r, args.where));
+        if (!row) throw new Error("memory-prisma: missing " + model);
+        return shape(model, row, args);
+      },
       count: async (args: Row = {}) => table().filter((r) => matches(model, r, args.where)).length,
       create: async (args: Row) => {
         const base: Row = { id: memoryId(model.slice(0, 3)), createdAt: new Date() };
-        for (const [key, value] of Object.entries(defaults[model] ?? {})) base[key] = typeof value === "function" ? (value as () => unknown)() : value;
+        for (const [key, value] of Object.entries(defaults[model] ?? {}))
+          base[key] = typeof value === "function" ? (value as () => unknown)() : value;
         const row = { ...base };
         applyData(row, args.data);
         table().push(row);
@@ -140,13 +203,23 @@ export function createMemoryPrisma(tables: Tables, relations: Relations = {}, de
           const child = nested[model]?.[field];
           if (!child || !isPlainObject(value) || !("create" in value)) continue;
           const items = Array.isArray(value.create) ? value.create : [value.create];
-          for (const item of items as Row[]) (tables[child.model] ??= []).push({ id: memoryId(child.model.slice(0, 3)), createdAt: new Date(), ...item, [child.fk]: row.id });
+          for (const item of items as Row[])
+            (tables[child.model] ??= []).push({
+              id: memoryId(child.model.slice(0, 3)),
+              createdAt: new Date(),
+              ...item,
+              [child.fk]: row.id,
+            });
         }
         return shape(model, row, args);
       },
       createMany: async (args: Row) => {
         for (const data of args.data as Row[]) {
-          const row: Row = { id: memoryId(model.slice(0, 3)), createdAt: new Date(), ...(defaults[model] ?? {}) };
+          const row: Row = {
+            id: memoryId(model.slice(0, 3)),
+            createdAt: new Date(),
+            ...(defaults[model] ?? {}),
+          };
           applyData(row, data);
           table().push(row);
         }
@@ -196,7 +269,9 @@ export function createMemoryPrisma(tables: Tables, relations: Relations = {}, de
       onModuleDestroy: async () => undefined,
       $transaction: async (arg: any) => {
         if (Array.isArray(arg)) return Promise.all(arg);
-        const snapshot = Object.fromEntries(Object.entries(tables).map(([k, rows]) => [k, rows.map((r) => ({ ...r }))]));
+        const snapshot = Object.fromEntries(
+          Object.entries(tables).map(([k, rows]) => [k, rows.map((r) => ({ ...r }))]),
+        );
         try {
           return await arg(prisma);
         } catch (err) {

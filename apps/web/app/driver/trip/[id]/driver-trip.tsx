@@ -1,6 +1,6 @@
 "use client";
 
-import { LiveTripDto, TripDto } from "@aptransit/shared";
+import { TripDto } from "@aptransit/shared";
 import {
   Button,
   Dialog,
@@ -14,7 +14,7 @@ import {
   toast,
   ToneChip,
 } from "@aptransit/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CloudOff, MapPin, Satellite, SatelliteDish, TriangleAlert, WifiOff } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
@@ -25,7 +25,7 @@ import { useDeviceKey } from "../../../../lib/driver-device";
 import { type GpsStatus, useGpsSender } from "../../../../lib/use-gps-sender";
 import { useWakeLock } from "../../../../lib/use-wake-lock";
 
-const LIVE_POLL_MS = 15_000;
+import { useLiveTrip } from "../../../../lib/use-live-trip";
 const GPS_LOOK = {
   ACTIVE: { tone: "success", icon: Satellite },
   WEAK: { tone: "warning", icon: SatelliteDish },
@@ -42,12 +42,7 @@ export function DriverTrip({ tripId }: { tripId: string }) {
   const deviceKey = useDeviceKey();
   const [endOpen, setEndOpen] = useState(false);
 
-  // Sockets replace this poll for passengers on Day 12; the driver only needs the next stop
-  const live = useQuery({
-    queryKey: ["tracking", "live", tripId],
-    queryFn: ({ signal }) => api(`/tracking/trips/${tripId}/live`, { schema: LiveTripDto, signal, redirectOn401: false }),
-    refetchInterval: LIVE_POLL_MS,
-  });
+  const live = useLiveTrip(tripId);
   const running = live.data?.status === "RUNNING";
   const gps = useGpsSender({ tripId, deviceKey, enabled: running });
   const wake = useWakeLock(running);

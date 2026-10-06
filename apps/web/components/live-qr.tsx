@@ -62,6 +62,7 @@ export function LiveQr({ data, label }: { data: LiveQrData; label: string }) {
         {content ? <QrSvg value={content.value} label={label} /> : <Skeleton className="size-64 rounded-md" />}
       </div>
 
+      <p className="text-body-lg font-mono" aria-live="off">{t("validationCode", {code: content?.value.split("~")[1] ?? ""})}</p>
       <p className="text-display tabular-nums text-fg" aria-live="off">
         {serverNow ? formatClock(serverNow, locale) : ""}
       </p>

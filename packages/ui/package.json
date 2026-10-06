@@ -5,7 +5,8 @@
   "description": "AP TransitOS design tokens and React components. Source only, compiled by Next.js (transpilePackages).",
   "exports": {
     ".": "./src/index.ts",
-    "./tokens.css": "./src/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./map-view": "./src/components/map-view.tsx"
   },
   "scripts": {
     "lint": "eslint .",
@@ -25,6 +26,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "2.1.1",
     "lucide-react": "^1.16.0",
+    "maplibre-gl": "^5.24.0",
+    "react-map-gl": "^8.1.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "3.7.0",
     "vaul": "^1.1.2"

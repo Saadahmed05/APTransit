@@ -83,3 +83,17 @@ public/          manifest icons, static files
 - PWA: `app/manifest.ts`, `public/sw.js` (read its header before changing caching), `components/service-worker.tsx`, `/offline`, `lib/install-prompt.ts`.
 - E2E: use `e2e/fixtures.ts` (`citizen`, `citizen2`) and `e2e/helpers.ts` (`bookAndPay`, `pickTrip`); run with `E2E_PAYMENTS_FAKE=1` and `--workers=1` locally.
 - Driver app: `lib/use-gps-sender.ts`, `lib/gps-buffer.ts`, `lib/use-wake-lock.ts`, `lib/driver-device.ts` (device key in localStorage), `lib/driver-today.ts`.
+
+## Day 12 citizen live tracking
+
+/track supports upcoming tickets, owned ticket codes and route search. /track/[tripId] loads the map dynamically, shows accessible route progress and subscribes to the trip room. lib/socket.ts owns one client per tab, refreshes auth and restores subscriptions. lib/use-live-trip.ts falls back to REST every 15 s after a 10 s disconnection. LiveEvents updates notification and ticket queries; the driver trip uses the same live hook. All tracking copy lives in both message files. E2E-7 exercises movement, incident, offline fallback and completion on desktop and mobile.
+
+## Day 13 conductor app
+
+/conductor shows the assigned route, departure and live counts. /conductor/scan uses qr-scanner with the back camera, ten scans per second, a permission explanation, torch detection and manual entry. Manual entry needs the ticket number and current live code shown on the passenger ticket. Result overlays announce every reason, show passenger fields for valid tickets, provide haptics and optional sound, and resume after three seconds or a tap. /conductor/manifest shows checked and pending seats. All copy is translated in English and Telugu.
+
+E2E-8 injects decoded text through apt:test-scan when NEXT_PUBLIC_PAYMENTS_FAKE=1 was set at build time. It follows the regular validation request path; the flag is disabled in a normal production build. Browser result tests mock API responses, while API integration tests separately verify real validation rules and race protection. Physical phone/HTTPS scan latency remains a release check.
+
+## Day 14
+
+Day 14 adds /ops, /ops/buses, /ops/trips and /ops/incidents with live query updates, a depot URL scope, fleet creation, assignment and incident acknowledgement/resolution. Ops tables use shared DataTable and KPIs use KpiTile. Browser coverage lives in e2e/operations.spec.ts. MapLibre stays behind the lazy UI map-view import.

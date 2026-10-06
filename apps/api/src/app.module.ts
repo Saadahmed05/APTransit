@@ -15,6 +15,9 @@ import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BookingsModule } from "./modules/bookings/bookings.module";
 import { DriverModule } from "./modules/driver/driver.module";
+import { ConductorModule } from "./modules/conductor/conductor.module";
+import { AdminModule } from "./modules/admin/admin.module";
+import { OpsModule } from "./modules/ops/ops.module";
 import { EligibilityModule } from "./modules/eligibility/eligibility.module";
 import { HealthModule } from "./modules/health/health.module";
 import { NetworkModule } from "./modules/network/network.module";
@@ -66,6 +69,9 @@ import { RedisService } from "./redis/redis.service";
     NotificationsModule,
     TrackingModule,
     DriverModule,
+    ConductorModule,
+    OpsModule,
+    AdminModule,
     QueueModule,
   ],
   providers: [

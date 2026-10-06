@@ -115,3 +115,13 @@ Day 4 additions:
 
 - `TicketCard`: full ticket with a perforation; QR area as children. `OfflineBanner`. `Countdown` (uses `countdownParts` from shared, one timer, paused while hidden, hidden summary once a minute).
 - Tokens: `qr-ink` and `qr-paper` (the QR is black on white in both themes), `--dur-band`, utilities `animate-ticket-band` (stops under reduced motion) and `animate-fade-in`.
+
+## Tracking components
+
+RouteProgress is exported from the main entry and announces the current stop politely. MapView is exported only from @aptransit/ui/map-view, so consumers can dynamically import it without adding MapLibre to other routes. It reads map colours from theme variables, shows attribution and provides a separate recenter button. --spacing-tracking-map defines the mobile map height.
+
+--map-line-width supplies pixel widths for the map renderer.
+
+## Day 14
+
+Day 14 adds typed DataTable (sorting, aria-sort, keyboard row actions, filter slot, skeleton/empty and cursor controls), KpiTile (delta icon/tone, optional link and skeleton), IncidentStatusBadge and the lazy OpsMap with multiple bus markers and detail popups. Component tests cover the new table and KPI behavior.

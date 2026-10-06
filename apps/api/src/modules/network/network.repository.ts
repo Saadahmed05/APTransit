@@ -280,8 +280,8 @@ export class NetworkRepository {
         SELECT f."baseFarePaise", f."perKmPaise", f."minFarePaise", f."reservationFeePaise"
         FROM fare_rules f
         WHERE f."busTypeId" = bt.id
-          AND f."validFrom" < CAST(${serviceDate} AS date) + 1
-          AND (f."validTo" IS NULL OR f."validTo" >= CAST(${serviceDate} AS date))
+          AND f."validFrom" <= t."scheduledDepartureAt"
+          AND (f."validTo" IS NULL OR f."validTo" >= t."scheduledDepartureAt")
         ORDER BY f."validFrom" DESC
         LIMIT 1
       ) fr ON true

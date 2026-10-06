@@ -323,13 +323,14 @@ export class PaymentsService {
       }
       if (!refund.ticketId) return { ticket: null };
       const ticket = await tx.ticket.findUnique({ where: { id: refund.ticketId }, select: { id: true, holderUserId: true, status: true } });
-      if (ticket?.status !== "CANCELLED") return { ticket: null };
+      if (!ticket || !(ticket.status === "CANCELLED" ||
+        (refund.reason === "OPERATOR_CANCELLED" && ["BOOKED", "ACTIVE"].includes(ticket.status)))) return { ticket: null };
       await tx.ticket.update({ where: { id: ticket.id }, data: { status: "REFUNDED", version: { increment: 1 } } });
       return { ticket };
     });
 
     if (changed?.ticket) {
-      this.events.publish("ticket.status", { ticketId: changed.ticket.id, holderUserId: changed.ticket.holderUserId, from: "CANCELLED", to: "REFUNDED" });
+      this.events.publish("ticket.status", { ticketId: changed.ticket.id, holderUserId: changed.ticket.holderUserId, from: changed.ticket.status, to: "REFUNDED" });
     }
     await this.audit.log({ action: "payment.webhook", entityType: "refund", entityId: refund.id, after: { event: "refund.processed", result: changed ? "PROCESSED" : "IGNORED" } });
   }
