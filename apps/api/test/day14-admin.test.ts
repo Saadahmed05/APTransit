@@ -3,7 +3,8 @@ import { Test } from "@nestjs/testing";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { getQueueToken } from "@nestjs/bullmq";
 import request from "supertest";
-import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest";
+import { beforeAll, afterAll, beforeEach, describe, it, expect, vi } from "vitest";
+import { AdminService } from "../src/modules/admin/admin.service";
 import { decodePolyline } from "@aptransit/shared";
 import { AppModule } from "../src/app.module";
 import { configureHttpApp } from "../src/http-app";
@@ -441,6 +442,21 @@ describe("Day 14 admin HTTP", () => {
     expect(first.status, first.text).toBe(201);
     expect(first.body.count).toBe(1);
     expect((await write("post", "trips/generate", { from, to: from })).body.count).toBe(0);
+  });
+  it("rolls back generated trips when the audit write fails", async () => {
+    const from = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const before = tables.trip!.map((trip) => trip.code);
+    const audit = vi.spyOn(app.get(AdminService) as any, "audit")
+      .mockRejectedValueOnce(new Error("Audit unavailable"));
+    try {
+      expect((await write("post", "trips/generate", { from, to: from })).status).toBe(500);
+      expect(tables.trip!.map((trip) => trip.code)).toEqual(before);
+      expect(tables.auditLog).toHaveLength(0);
+    } finally {
+      audit.mockRestore();
+    }
+    expect((await write("post", "trips/generate", { from, to: from })).body.count).toBe(1);
+    expect(tables.auditLog).toHaveLength(1);
   });
   it("limits admin grants and revokes to super admin, validates scope and protects last role", async () => {
     expect((await write("post", "users/citizentest01/roles", { role: "STATE_ADMIN" })).status).toBe(

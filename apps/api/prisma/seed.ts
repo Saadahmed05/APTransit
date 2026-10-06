@@ -713,6 +713,14 @@ export async function runSeed(): Promise<void> {
   }
   console.log("Trips and initial assignments seeded.");
 
+  const args = process.argv.slice(2);
+  const historyIdx = args.indexOf("--history");
+  if (historyIdx !== -1) {
+    const days = parseInt(args[historyIdx + 1]!, 10) || 14;
+    const { generateHistory } = await import("./seed-history.js");
+    await generateHistory(prisma, days);
+  }
+
   console.log("\nDeterministic seed complete!");
   console.log("Approved Simulator Device Keys for Driver:");
   console.log("Device 1 Key:", deviceKeys[0]!.rawKey);

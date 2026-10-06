@@ -1,6 +1,7 @@
 import { formatIstDate } from "@aptransit/shared";
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import type { Prisma } from "../../generated/prisma/client";
 import { generateTripsForTimetables, type TimetableInput } from "./trip-generator";
 
 @Injectable()
@@ -20,8 +21,12 @@ export class TripGeneratorService {
     return this.generateRange(todayStr, endStr);
   }
 
-  async generateRange(todayStr: string, endStr: string): Promise<number> {
-    const timetables = await this.prisma.timetable.findMany({
+  async generateRange(
+    todayStr: string,
+    endStr: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<number> {
+    const timetables = await db.timetable.findMany({
       where: { isActive: true },
       include: {
         route: {
@@ -53,7 +58,7 @@ export class TripGeneratorService {
 
     // Filter out trips that already exist by code
     const codes = generated.map((g) => g.code);
-    const existing = await this.prisma.trip.findMany({
+    const existing = await db.trip.findMany({
       where: { code: { in: codes } },
       select: { code: true },
     });
@@ -62,7 +67,7 @@ export class TripGeneratorService {
     const toCreate = generated.filter((g) => !existingSet.has(g.code));
     if (toCreate.length === 0) return 0;
 
-    const result = await this.prisma.trip.createMany({
+    const result = await db.trip.createMany({
       data: toCreate.map((g) => ({
         code: g.code,
         timetableId: g.timetableId,

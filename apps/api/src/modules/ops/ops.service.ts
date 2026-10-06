@@ -155,8 +155,9 @@ export class OpsService {
     entityType: string,
     entityId: string,
     after: unknown,
+    before?: unknown,
   ) {
-    await this.audit.log({ ...actor, action, entityType, entityId, after });
+    await this.audit.log({ ...actor, action, entityType, entityId, after, before });
   }
   async dashboard(user: AuthenticatedUser, query: OpsQuery = {}) {
     if (query.depotId) await this.depot(user, query.depotId);
@@ -249,11 +250,14 @@ export class OpsService {
       data: { ...b, maintenanceDueAt: b.maintenanceDueAt ? new Date(b.maintenanceDueAt) : null },
       include: { busType: true },
     });
-    await this.log(actor, "fleet.create", "bus", bus.id, { regNo: bus.regNo });
+    await this.log(actor, "fleet.create", "bus", bus.id, {
+      regNo: bus.regNo,
+      depotId: bus.depotId,
+    });
     return busDto(bus);
   }
   async patchBus(user: AuthenticatedUser, id: string, b: OpsBusPatch, actor: Actor) {
-    await this.bus(user, id, "fleet:write");
+    const before = await this.bus(user, id, "fleet:write");
     if (b.depotId) await this.depot(user, b.depotId, "fleet:write");
     const bus = await this.prisma.$transaction(async (tx) => {
       await tx.bus.update({ where: { id }, data: { updatedAt: new Date() } });
@@ -273,11 +277,13 @@ export class OpsService {
         include: { busType: true },
       });
     });
-    await this.log(actor, "fleet.update", "bus", id, b);
+    await this.log(actor, "fleet.update", "bus", id, { ...b, depotId: bus.depotId }, {
+      depotId: before.depotId,
+    });
     return this.busProfile(user, bus.id);
   }
   async maintenance(user: AuthenticatedUser, id: string, b: MaintenanceInput, actor: Actor) {
-    await this.bus(user, id, "fleet:write");
+    const bus = await this.bus(user, id, "fleet:write");
     const row = await this.prisma.$transaction(async (tx) => {
       await tx.bus.update({ where: { id }, data: { updatedAt: new Date() } });
       const overlap = await tx.tripAssignment.count({
@@ -305,7 +311,10 @@ export class OpsService {
         await tx.bus.update({ where: { id }, data: { status: "MAINTENANCE" } });
       return m;
     });
-    await this.log(actor, "fleet.maintenance", "maintenance_record", row.id, b);
+    await this.log(actor, "fleet.maintenance", "maintenance_record", row.id, {
+      ...b,
+      depotId: bus.depotId,
+    });
     return maintenanceDto(row);
   }
   async available(user: AuthenticatedUser, q: OpsQuery) {
@@ -476,6 +485,7 @@ export class OpsService {
       });
     });
     await this.log(actor, replacement ? "trip.replace_bus" : "trip.assign", "trip", id, {
+      depotId: updated.route.depotId,
       busId: b.busId,
       driverId,
       ...("reason" in b ? { reason: b.reason } : {}),
@@ -607,6 +617,7 @@ export class OpsService {
         await this.prisma.refund.update({ where: { id: item.row.id }, data: { status: "FAILED" } });
       }
       await this.log(actor, "refund.create", "refund", item.row.id, {
+        depotId: trip.route.depotId,
         amountPaise: item.row.amountPaise,
         reason: "OPERATOR_CANCELLED",
       });
@@ -629,7 +640,11 @@ export class OpsService {
         await this.prisma.bus.update({ where: { id: a.busId }, data: { status: "IDLE" } });
     const updated = await this.trip(user, id, "trip:cancel");
     this.publishTrip(updated);
-    await this.log(actor, "trip.cancel", "trip", id, { reason, status: "CANCELLED" });
+    await this.log(actor, "trip.cancel", "trip", id, {
+      depotId: trip.route.depotId,
+      reason,
+      status: "CANCELLED",
+    });
     return toTripDto(updated);
   }
   async staff(user: AuthenticatedUser, q: OpsQuery) {
@@ -738,6 +753,7 @@ export class OpsService {
       data: revoke ? { revokedAt: new Date() } : { approvedAt: new Date(), approvedById: user.id },
     });
     await this.log(actor, revoke ? "device.revoke" : "device.approve", "device", id, {
+      depotId: device.user.driver.depotId,
       userId: row.userId,
     });
     return {
@@ -807,6 +823,7 @@ export class OpsService {
       return result;
     });
     await this.log(actor, note ? "incident.resolve" : "incident.acknowledge", "incident", id, {
+      depotId: trip.route.depotId,
       status: updated.status,
       ...(note ? { note } : {}),
     });

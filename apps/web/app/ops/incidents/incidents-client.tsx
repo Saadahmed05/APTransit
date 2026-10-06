@@ -188,7 +188,7 @@ function IncidentDrawer({ incident: i, close }: { incident: IncidentDto; close: 
               },
             ]}
             mapStyle={
-              process.env.NEXT_PUBLIC_MAP_STYLE ?? "https://tiles.openfreemap.org/styles/liberty"
+              process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/liberty"
             }
             labels={{
               error: t("mapError"),

@@ -108,6 +108,9 @@ test("E2E-8 scanner reasons, duplicate debounce and manual live code", async ({
   expect(requests).toHaveLength(11);
   expect(requests[0]).toMatchObject({ qr: "fixture-OK", tripId: "tripscanner001" });
   await page.getByRole("button", { name: "Enter ticket details" }).click();
+  await inject("qr-during-manual-entry");
+  await page.waitForTimeout(300);
+  expect(requests).toHaveLength(11);
   await page.getByLabel("Ticket number", { exact: true }).fill("APT-1234-5678");
   await page.getByLabel("Live 8-character validation code").fill("ABCDEFG2");
   result = { result: "VALID", reason: "OK" };

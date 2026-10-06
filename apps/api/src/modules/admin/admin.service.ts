@@ -250,14 +250,14 @@ export class AdminService {
     });
   }
   async generate(b: GenerateTripsInput, actor: Actor) {
-    const count = await this.generator.generateRange(b.from, b.to);
-    await this.write((tx) =>
-      this.audit(tx, actor, "network.update", "trip_generation", b.from + ":" + b.to, null, {
+    return this.write(async (tx) => {
+      const count = await this.generator.generateRange(b.from, b.to, tx);
+      await this.audit(tx, actor, "network.update", "trip_generation", b.from + ":" + b.to, null, {
         ...b,
         count,
-      }),
-    );
-    return { count };
+      });
+      return { count };
+    });
   }
   async users(q: AdminQuery) {
     const rows = await this.prisma.user.findMany({
@@ -435,7 +435,12 @@ export class AdminService {
       take: q.limit + 1,
     });
     return {
-      items: rows.slice(0, q.limit).map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
+      items: rows.slice(0, q.limit).map((r) => ({
+        ...r,
+        before: r.before ?? null,
+        after: r.after ?? null,
+        createdAt: r.createdAt.toISOString(),
+      })),
       nextCursor: rows.length > q.limit ? rows[q.limit - 1]!.id : null,
     };
   }

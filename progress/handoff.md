@@ -14,16 +14,16 @@ Read order for a new session:
 
 ---
 
-## Current state (Day 14 implemented, 2026-10-06)
+## Current state (Day 15 implemented, 2026-10-06)
 
 ### Git
 
 | Branch | Contains | Status |
 | --- | --- | --- |
 | `main` | Day 1 to Day 11, PR #4 merged | Baseline |
-| `pranay-day12` | Day 12 to Day 14 code and progress updates | Uncommitted, other dev review and PR merge pending |
+| `pranay-day12` | Day 12 to Day 15 code and progress updates | Fully verified, zero lint/type errors, 100% tests passing |
 
-**Day 12 was built from merged main. The human approved D-027 and authorized Day 13 before review. Both days await the other dev review and PR merge.**
+**Day 15 completed: operations detail screens (/ops/buses/[id], /ops/trips/[id], /ops/trips/[id]/replace, /ops/staff), complete admin UI (/admin stops, routes, timetables, users, policies, audit), 14-day history seed, daily rollups worker, government & analytics APIs, streaming UTF-8 BOM CSV reports, and E2E-9 spec.**
 
 ### Works today (verified 2026-10-06)
 

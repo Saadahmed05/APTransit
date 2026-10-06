@@ -33,3 +33,4 @@ export * from "./components/route-progress";
 
 export * from "./components/data-table";
 export * from "./components/kpi-tile";
+export * from "./components/map-view";

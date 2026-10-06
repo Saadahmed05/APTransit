@@ -34,6 +34,8 @@ export const AdminStopPatch = AdminStopInput.partial();
 export type AdminStopInput = z.infer<typeof AdminStopInput>;
 export type AdminStopPatch = z.infer<typeof AdminStopPatch>;
 export const AdminStopDto = AdminStopInput.safeExtend({ id: PublicId }).strip();
+export type AdminStopDto = z.infer<typeof AdminStopDto>;
+
 export const AdminRouteStop = z
   .object({
     stopId: PublicId,
@@ -43,6 +45,7 @@ export const AdminRouteStop = z
     isDropping: z.boolean(),
   })
   .strict();
+export type AdminRouteStop = z.infer<typeof AdminRouteStop>;
 const orderedStops = z
   .array(AdminRouteStop)
   .min(2)
@@ -83,6 +86,7 @@ export const AdminRouteDto = AdminRouteInput.extend({
   polyline: z.string(),
   distanceKm: z.number(),
 }).strip();
+export type AdminRouteDto = z.infer<typeof AdminRouteDto>;
 export const AdminTimetableInput = z
   .object({
     routeId: PublicId,
@@ -98,12 +102,15 @@ export const AdminTimetablePatch = z.object(AdminTimetableInput.shape).strict().
 export type AdminTimetableInput = z.infer<typeof AdminTimetableInput>;
 export type AdminTimetablePatch = z.infer<typeof AdminTimetablePatch>;
 export const AdminTimetableDto = AdminTimetableInput.safeExtend({ id: PublicId }).strip();
+export type AdminTimetableDto = z.infer<typeof AdminTimetableDto>;
+
 export const GenerateTripsInput = z
   .object({ from: ServiceDateString, to: ServiceDateString })
   .strict()
   .refine((x) => x.to >= x.from, { message: "Invalid date range" });
 export type GenerateTripsInput = z.infer<typeof GenerateTripsInput>;
 export const GenerateTripsDto = z.object({ count: z.number().int().nonnegative() });
+export type GenerateTripsDto = z.infer<typeof GenerateTripsDto>;
 export const GrantRoleInput = z
   .object({ role: Role, depotId: PublicId.optional(), districtId: PublicId.optional() })
   .strict()
@@ -126,6 +133,8 @@ export const AdminRoleDto = z.object({
   depotId: PublicId.nullable(),
   districtId: PublicId.nullable(),
 });
+export type AdminRoleDto = z.infer<typeof AdminRoleDto>;
+
 export const AdminUserDto = z.object({
   id: PublicId,
   name: z.string().nullable(),
@@ -133,6 +142,7 @@ export const AdminUserDto = z.object({
   phone: z.string().nullable(),
   roles: z.array(AdminRoleDto),
 });
+export type AdminUserDto = z.infer<typeof AdminUserDto>;
 const paise = z.number().int().nonnegative();
 export const AdminFareInput = z
   .object({
@@ -147,6 +157,7 @@ export const AdminFareInput = z
   .refine((x) => !x.validTo || x.validTo > x.validFrom, { message: "Invalid validity window" });
 export type AdminFareInput = z.infer<typeof AdminFareInput>;
 export const AdminFareDto = AdminFareInput.safeExtend({ id: PublicId }).strip();
+export type AdminFareDto = z.infer<typeof AdminFareDto>;
 export const AdminRefundInput = z
   .object({
     name,
@@ -174,6 +185,8 @@ export const AdminRefundInput = z
   });
 export type AdminRefundInput = z.infer<typeof AdminRefundInput>;
 export const AdminRefundDto = AdminRefundInput.safeExtend({ id: PublicId, isActive: z.boolean() }).strip();
+export type AdminRefundDto = z.infer<typeof AdminRefundDto>;
+
 const positive = z.number().int().positive();
 export const AdminSettingsInput = z
   .object({
@@ -194,6 +207,7 @@ export const AdminSettingsInput = z
   .refine((x) => Object.keys(x).length > 0, { message: "At least one setting is required" });
 export type AdminSettingsInput = z.infer<typeof AdminSettingsInput>;
 export const AdminSettingDto = z.object({ key: z.string(), value: z.unknown() });
+export type AdminSettingDto = z.infer<typeof AdminSettingDto>;
 export const AdminAuditDto = z.object({
   id: PublicId,
   actorUserId: z.string().nullable(),
@@ -201,10 +215,13 @@ export const AdminAuditDto = z.object({
   action: z.string(),
   entityType: z.string(),
   entityId: z.string(),
-  before: z.unknown(),
-  after: z.unknown(),
+  before: z.unknown().optional(),
+  after: z.unknown().optional(),
   createdAt: iso,
+  ip: z.string().nullable().optional(),
+  userAgent: z.string().nullable().optional(),
 });
+export type AdminAuditDto = z.infer<typeof AdminAuditDto>;
 export const AdminAuditPage = z.object({
   items: z.array(AdminAuditDto),
   nextCursor: PublicId.nullable(),
