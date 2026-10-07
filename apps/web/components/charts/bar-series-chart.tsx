@@ -51,7 +51,7 @@ export function BarSeriesChart({ title, data, xLabel, yLabel, format, tone = "in
             <LineChart data={data} margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis dataKey="label" tick={axisText} label={{ value: xLabel, position: "insideBottom", offset: -16, ...axisText }} />
-              <YAxis tickFormatter={(v: number) => format(v)} tick={axisText} label={{ value: yLabel, angle: -90, position: "insideLeft", ...axisText }} />
+              <YAxis tickFormatter={(v: number) => format(v)} tick={axisText} width={56} label={{ value: yLabel, angle: -90, position: "insideLeft", style: { textAnchor: "middle" }, ...axisText }} />
               {tooltip}
               <Line dataKey="value" stroke={color} strokeWidth={2} dot={{ r: 3, fill: color }} isAnimationActive={false} />
             </LineChart>
@@ -67,7 +67,7 @@ export function BarSeriesChart({ title, data, xLabel, yLabel, format, tone = "in
             <BarChart data={data} margin={{ top: 8, right: 8, bottom: 24, left: 8 }}>
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis dataKey="label" tick={axisText} label={{ value: xLabel, position: "insideBottom", offset: -16, ...axisText }} />
-              <YAxis tickFormatter={(v: number) => format(v)} tick={axisText} label={{ value: yLabel, angle: -90, position: "insideLeft", ...axisText }} />
+              <YAxis tickFormatter={(v: number) => format(v)} tick={axisText} width={56} label={{ value: yLabel, angle: -90, position: "insideLeft", style: { textAnchor: "middle" }, ...axisText }} />
               {tooltip}
               <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} isAnimationActive={false} />
             </BarChart>

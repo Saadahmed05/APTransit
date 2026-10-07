@@ -2,11 +2,15 @@
 import { decodePolyline, STATUS_MAP } from "@aptransit/shared";
 import { Bus, LocateFixed, TriangleAlert } from "lucide-react";
 import { useRef, useSyncExternalStore, useState } from "react";
+import { setWorkerUrl } from "maplibre-gl";
 import Map, { Layer, Marker, Source, type MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Button } from "./button";
 import { StatusBadge } from "./status-badge";
 import type { LiveBusDto } from "@aptransit/shared";
+// The app serves the MapLibre worker from public/ (apps/web/scripts/copy-map-worker.mjs).
+if (typeof window !== "undefined") setWorkerUrl("/maplibre-gl-worker.mjs");
+
 const themeSubscribe = (notify: () => void) => {
   const observer = new MutationObserver(notify);
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });

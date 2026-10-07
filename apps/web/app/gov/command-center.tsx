@@ -119,9 +119,9 @@ export function CommandCenter() {
                 <li key={d.id}>
                   <Link
                     href={`/gov/district/${d.id}`}
-                    className="flex min-h-11 items-center justify-between gap-2 rounded-md border border-default bg-surface px-3 py-2 hover:bg-surface-raised"
+                    className="flex min-h-11 flex-col gap-1 rounded-md border border-default bg-surface px-3 py-2 hover:bg-surface-raised"
                   >
-                    <span className="min-w-0 break-words">{placeName(locale, { nameEn: d.nameEn ?? "", nameTe: d.nameTe ?? "" })}</span>
+                    <span className="min-w-0 font-medium">{placeName(locale, { nameEn: d.nameEn ?? "", nameTe: d.nameTe ?? "" })}</span>
                     <span className="text-small tabular-nums text-muted">
                       {t("districtShort", { buses: d.activeBuses, delayed: d.delayed })}
                     </span>
