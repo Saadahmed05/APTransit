@@ -4,6 +4,38 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## Day 19: 2026-10-08, release checks (local and Neon)
+
+**Done**
+- `pnpm check:endpoints`: all 116 docs/06 endpoints exist in the API; extras are listed with their decision (D-029 lookups, Day 11 driver trips) and the offline pack is in the backlog (D-031).
+- Neon staging (project cool-smoke-27052649, branch production): 3 migrations applied, base seed and 14 days of history loaded (6,384 trips, 266 daily_stats rows). History step 171 s, whole seed 303 s, run from a laptop in India to Neon Singapore. Target under 2 minutes: missed by about 50 s from here; from Render in the same region it should be faster (to measure on deploy).
+- Branch `days-15-16` pushed to the fork; PR description in `.local/pr-description.md`.
+
+**Bugs found and fixed while running every E2E spec on both projects**
+- S2: ops replace bus confirm dialog and trip detail showed the bus id ("busops0000001") instead of the registration number.
+- S2: five message keys used by staff and admin screens did not exist in either language (opsApp.name, adminApp.users, adminApp.auditLogs, adminApp.stops, adminApp.routes); next-intl showed the key path. pnpm i18n:check only compares the two files, so the route sweep now catches this.
+- S2: login tabs had no tab panel (axe aria-valid-attr-value, critical); the form is now the active tab's panel.
+- S3: /gov/analytics scrolled sideways at 360 and 768 px (tab list), charts were focusable inside an aria-hidden container (Recharts accessibility layer), gov map markers overlapped as small targets (now pointer shortcuts; the district list is the keyboard route), admin route links were a button inside a link.
+- Final run: Desktop Chrome 16 passed, Pixel 7 16 passed (E2E-3 once ran out of far trips tomorrow after many runs; the helper now falls back to the day after), route sweep 5 of 5. One skipped spec needs a real Razorpay key.
+- Test fixes: E2E-9 expected the incident note in the list (it is in the drawer) and an old button name; E2E-4 did not allow paise in refunds (docs/07 has no rounding rule, refunds keep paise); E2E-12 booked in Telugu with English selectors and left the shared citizen in Telugu.
+
+## Day 18: 2026-10-07 and 08, polish and operations
+
+**Done**
+- Backend: retention on the maintenance queue (02:00 IST, batches of 10,000: GPS 30 days, OTP 24 h, dead refresh tokens 30 days, notifications 90 days), failed jobs summary (07:00 IST), GET /health with workerAgeSec and queue depth, GET /admin/jobs/failed (D-032). Sentry skipped (D-032).
+- MapLibre worker fix: maps never loaded in production builds ("Worker failed to load"); the worker files are now copied into public/ and set with setWorkerUrl.
+- Tailwind classes that never applied (bg-success/10, text-danger, border-border, text-xs, text-foreground, font-tabular and others in admin, ops and ui) mapped to theme classes; `pnpm check:classes` lists any left.
+- E2E-12 (Telugu journey) and `e2e/route-sweep.spec.ts`: 26 routes (public, citizen, ops, gov, admin) at 360, 768 and 1280 px in English and Telugu: h1, no horizontal scroll, no untranslated keys, no serious or critical axe violations at 1280 px.
+- Telugu review list for a native speaker: `progress/telugu-review.md` (201 strings, Days 15 to 18).
+- Command center checked live with the simulator: KPIs, district counts, incident feed, most delayed routes, map with district and incident markers, no console errors.
+
+**Verification**
+- API 419 tests (6 database tests skipped), shared 121, web 44, lint, typecheck, i18n, dashes.
+- Route sweep: 5 of 5 groups pass after the fixes above.
+
+**Not done (needs staging, devices or people)**
+- Lighthouse on staging, uptime monitor, Neon restore drill, Upstash and Neon usage numbers, TalkBack and NVDA passes, zoom 200 percent and dark mode manual pass, native Telugu review.
+
 ## Day 17: 2026-10-07, Dev A and Dev B
 
 **Done**

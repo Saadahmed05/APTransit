@@ -3,10 +3,10 @@ import { expect, type Page } from "@playwright/test";
 // Shared steps for the citizen journeys (docs/14). Needs the API with OTP_DEV_ECHO=1 and
 // PAYMENTS_FAKE=1, the web built with NEXT_PUBLIC_PAYMENTS_FAKE=1, and a seeded database.
 
-/** Tomorrow as YYYY-MM-DD in Asia/Kolkata. */
-export function tomorrowIst(): string {
+/** Tomorrow (or `days` from now) as YYYY-MM-DD in Asia/Kolkata. */
+export function tomorrowIst(days = 1): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    new Date(Date.now() + 24 * 3_600_000),
+    new Date(Date.now() + days * 24 * 3_600_000),
   );
 }
 
@@ -29,7 +29,8 @@ export async function login(page: Page, email: string, next = "/"): Promise<void
 
 /**
  * A Kurnool to Vijayawada trip tomorrow that leaves at least 3 hours from now. E2E-3 moves one
- * trip into its activation window (demo:window), so "the first card" is not always a far trip.
+ * trip into its activation window (demo:window), so "the first card" is not always a far trip,
+ * and after many runs tomorrow can run out: then the day after tomorrow is used.
  */
 export async function pickTrip(page: Page): Promise<{ tripId: string; from: string; to: string; date: string }> {
   const place = async (q: string) => {
@@ -38,12 +39,14 @@ export async function pickTrip(page: Page): Promise<{ tripId: string; from: stri
   };
   const from = await place("Kurnool");
   const to = await place("Vijayawada");
-  const date = tomorrowIst();
-  const res = await page.request.get(`/api/v1/search/trips?from=${from}&to=${to}&date=${date}`);
-  const trips = (await res.json()) as { tripId: string; departureAt: string; seatsLeft: number }[];
-  const far = trips.filter((t) => Date.parse(t.departureAt) > Date.now() + 3 * 3_600_000 && t.seatsLeft > 0);
-  expect(far.length, "seed must have a trip tomorrow that leaves in 3 hours or more").toBeGreaterThan(0);
-  return { tripId: far[Math.floor(Math.random() * far.length)]!.tripId, from, to, date };
+  for (const days of [1, 2]) {
+    const date = tomorrowIst(days);
+    const res = await page.request.get(`/api/v1/search/trips?from=${from}&to=${to}&date=${date}`);
+    const trips = (await res.json()) as { tripId: string; departureAt: string; seatsLeft: number }[];
+    const far = trips.filter((t) => Date.parse(t.departureAt) > Date.now() + 3 * 3_600_000 && t.seatsLeft > 0);
+    if (far.length) return { tripId: far[Math.floor(Math.random() * far.length)]!.tripId, from, to, date };
+  }
+  throw new Error("seed must have a trip tomorrow or the day after that leaves in 3 hours or more");
 }
 
 /** Books one random free seat on a far Kurnool to Vijayawada trip tomorrow and pays (fake). Returns the booking id. */
