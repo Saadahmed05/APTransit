@@ -64,4 +64,24 @@ describe("DataTable", () => {
     );
     expect(screen.getByText("Empty")).toBeVisible();
   });
+  it("activates from every cell and calls the handler once per click", () => {
+    const click = vi.fn();
+    const row = { id: "a", n: 12 };
+    render(
+      <DataTable
+        label="Rows"
+        columns={[...columns, { id: "id", header: "ID", cell: (r) => r.id }]}
+        rows={[row]}
+        rowKey={(r) => r.id}
+        empty="Empty"
+        onRowClick={click}
+      />,
+    );
+    fireEvent.click(screen.getByText("a"));
+    expect(click).toHaveBeenCalledExactlyOnceWith(row);
+    fireEvent.click(screen.getAllByRole("cell")[0]!);
+    expect(click).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole("button", { name: "12" }));
+    expect(click).toHaveBeenCalledTimes(3);
+  });
 });

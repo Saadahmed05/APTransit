@@ -18,6 +18,10 @@ import { DriverModule } from "./modules/driver/driver.module";
 import { ConductorModule } from "./modules/conductor/conductor.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { OpsModule } from "./modules/ops/ops.module";
+import { GovModule } from "./modules/gov/gov.module";
+import { AnalyticsModule } from "./modules/analytics/analytics.module";
+import { ReportsModule } from "./modules/reports/reports.module";
+import { RollupsModule } from "./modules/rollups/rollups.module";
 import { EligibilityModule } from "./modules/eligibility/eligibility.module";
 import { HealthModule } from "./modules/health/health.module";
 import { NetworkModule } from "./modules/network/network.module";
@@ -72,6 +76,10 @@ import { RedisService } from "./redis/redis.service";
     ConductorModule,
     OpsModule,
     AdminModule,
+    GovModule,
+    AnalyticsModule,
+    ReportsModule,
+    RollupsModule,
     QueueModule,
   ],
   providers: [

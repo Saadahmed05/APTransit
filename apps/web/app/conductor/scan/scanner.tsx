@@ -30,6 +30,7 @@ export function ConductorScanner() {
     client = useQueryClient();
   const video = useRef<HTMLVideoElement>(null),
     camera = useRef<QrScanner | null>(null),
+    manualMode = useRef(false),
     busy = useRef(false),
     last = useRef({ text: "", at: 0 }),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,7 +61,10 @@ export function ConductorScanner() {
     async (payload: { qr: string } | { ticketNumber: string; liveCode: string }) => {
       const text = "qr" in payload ? payload.qr : payload.ticketNumber + ":" + payload.liveCode,
         now = performance.now();
-      if (!tripId || busy.current || (last.current.text === text && now - last.current.at < 3000))
+      if (
+        ("qr" in payload && manualMode.current) ||
+        !tripId || busy.current || (last.current.text === text && now - last.current.at < 3000)
+      )
         return;
       last.current = { text, at: now };
       busy.current = true;
@@ -112,7 +116,7 @@ export function ConductorScanner() {
         setCameraState("missing");
         return;
       }
-      if (!video.current) return;
+      if (!video.current || manualMode.current) return;
       if (!camera.current)
         camera.current = new Scanner(
           video.current,
@@ -127,6 +131,10 @@ export function ConductorScanner() {
           },
         );
       await camera.current.start();
+      if (manualMode.current) {
+        camera.current.stop();
+        return;
+      }
       setCameraState("active");
       setHasTorch(await camera.current.hasFlash());
     } catch {
@@ -342,8 +350,16 @@ export function ConductorScanner() {
           size="xl"
           variant="secondary"
           onClick={() => {
-            setManual(!manual);
+            const next = !manual;
+            manualMode.current = next;
+            setManual(next);
             unlockScannerAudio();
+            if (next) {
+              camera.current?.stop();
+              setTorch(false);
+            } else if (cameraState === "active") {
+              void startCamera();
+            }
           }}
         >
           {t(manual ? "useCamera" : "manual")}

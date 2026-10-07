@@ -23,27 +23,43 @@ const themeRead = () => {
     .map((k) => css.getPropertyValue(k).trim())
     .join("|");
 };
-export interface MapViewProps {
-  polyline: string;
-  progressPct: number;
-  position: { lat: number; lng: number; headingDeg: number | null } | null;
-  stops: { stopId: string; lat: number; lng: number }[];
-  nextStopId: string | null;
-  mapStyle: string;
-  recenterLabel: string;
-  errorLabel: string;
-  retryLabel: string;
+export interface MapMarker {
+  id: string;
+  lat: number;
+  lng: number;
+  label: string;
 }
-export default function MapView({
-  polyline,
-  progressPct,
-  position,
-  stops,
-  nextStopId,
-  mapStyle,
+
+export interface MapViewProps {
+  polyline?: string;
+  progressPct?: number;
+  position?: { lat: number; lng: number; headingDeg: number | null } | null;
+  stops?: { stopId: string; lat: number; lng: number }[];
+  nextStopId?: string | null;
+  markers?: MapMarker[];
+  center?: { lat: number; lng: number };
+  zoom?: number;
+  fitBounds?: boolean;
+  mapStyle?: string;
+  recenterLabel?: string;
+  errorLabel?: string;
+  retryLabel?: string;
+}
+
+export function MapView({
+  polyline = "",
+  progressPct = 0,
+  position = null,
+  stops = [],
+  nextStopId = null,
+  markers = [],
+  center,
+  zoom,
+  fitBounds: shouldFit = true,
+  mapStyle = "https://tiles.openfreemap.org/styles/liberty",
   recenterLabel,
-  errorLabel,
-  retryLabel,
+  errorLabel = "Map failed to load",
+  retryLabel = "Retry",
 }: MapViewProps) {
   const ref = useRef<MapRef>(null);
   const [failed, setFailed] = useState(false);
@@ -51,7 +67,7 @@ export default function MapView({
   const colors = useSyncExternalStore(themeSubscribe, themeRead, () => "|||");
   const [doneColor, aheadColor, currentColor, spacing] = colors.split("|");
   const unit = parseFloat(spacing ?? "") || 0;
-  const coords = decodePolyline(polyline).map(([lat, lng]) => [lng, lat]);
+  const coords = polyline ? decodePolyline(polyline).map(([lat, lng]) => [lng, lat]) : [];
   const lengths = [0];
   for (let i = 1; i < coords.length; i++) {
     const a = coords[i - 1]!,
@@ -79,21 +95,31 @@ export default function MapView({
   const split =
     a && b
       ? [a[0]! + (b[0]! - a[0]!) * fraction, a[1]! + (b[1]! - a[1]!) * fraction]
-      : (coords[0] ?? [78, 16]);
+      : (coords[0] ?? [center?.lng ?? 78, center?.lat ?? 16]);
   const line = (points: number[][]) => ({
     type: "Feature" as const,
     properties: {},
     geometry: { type: "LineString" as const, coordinates: points },
   });
   const fit = () => {
-    if (coords.length > 1)
+    if (!shouldFit) return;
+    if (coords.length > 1) {
       ref.current?.fitBounds(
         [
           [Math.min(...coords.map((c) => c[0]!)), Math.min(...coords.map((c) => c[1]!))],
           [Math.max(...coords.map((c) => c[0]!)), Math.max(...coords.map((c) => c[1]!))],
         ],
-        { padding: unit * 8, duration: 0 },
+        { padding: unit * 8 || 32, duration: 0 },
       );
+    } else if (markers.length > 1) {
+      ref.current?.fitBounds(
+        [
+          [Math.min(...markers.map((m) => m.lng)), Math.min(...markers.map((m) => m.lat))],
+          [Math.max(...markers.map((m) => m.lng)), Math.max(...markers.map((m) => m.lat))],
+        ],
+        { padding: 32, duration: 0 },
+      );
+    }
   };
   return (
     <section className="relative h-tracking-map overflow-hidden rounded-lg border border-default bg-surface">
@@ -102,7 +128,11 @@ export default function MapView({
           key={attempt}
           ref={ref}
           mapStyle={mapStyle}
-          initialViewState={{ bounds: [76.7, 12.6, 84.8, 19.95] }}
+          initialViewState={
+            center
+              ? { longitude: center.lng, latitude: center.lat, zoom: zoom ?? 12 }
+              : { bounds: [76.7, 12.6, 84.8, 19.95] }
+          }
           attributionControl={{ compact: false }}
           keyboard={false}
           onLoad={fit}
@@ -147,6 +177,16 @@ export default function MapView({
               </Source>
             </>
           )}
+          {markers.map((m) => (
+            <Marker key={m.id} longitude={m.lng} latitude={m.lat} anchor="bottom">
+              <span
+                className="flex size-7 items-center justify-center rounded-full bg-primary text-on-primary text-xs font-bold shadow-md"
+                title={m.label}
+              >
+                *
+              </span>
+            </Marker>
+          ))}
           {position && (
             <Marker
               longitude={position.lng}
@@ -161,18 +201,20 @@ export default function MapView({
           )}
         </Map>
       </div>
-      <Button
-        variant="secondary"
-        className="absolute right-3 top-3"
-        onClick={() => {
-          if (position)
-            ref.current?.flyTo({ center: [position.lng, position.lat], zoom: 13, duration: 0 });
-          else fit();
-        }}
-      >
-        <LocateFixed className="size-5" aria-hidden="true" />
-        {recenterLabel}
-      </Button>
+      {recenterLabel && (
+        <Button
+          variant="secondary"
+          className="absolute right-3 top-3"
+          onClick={() => {
+            if (position)
+              ref.current?.flyTo({ center: [position.lng, position.lat], zoom: 13, duration: 0 });
+            else fit();
+          }}
+        >
+          <LocateFixed className="size-5" aria-hidden="true" />
+          {recenterLabel}
+        </Button>
+      )}
       {failed && (
         <div
           className="absolute bottom-3 left-3 right-3 rounded-md bg-surface-raised p-3 text-small"
@@ -280,3 +322,5 @@ export function OpsMap({ buses, mapStyle, labels, statusLabel, details }: OpsMap
     </section>
   );
 }
+
+export default MapView;

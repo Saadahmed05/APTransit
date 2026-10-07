@@ -17,7 +17,8 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "tsx prisma/reset.ts",
-    "demo:window": "tsx prisma/demo-window.ts"
+    "demo:window": "tsx prisma/demo-window.ts",
+    "rollups:backfill": "tsx scripts/backfill-rollups.ts"
   },
   "dependencies": {
     "@aptransit/shared": "workspace:*",

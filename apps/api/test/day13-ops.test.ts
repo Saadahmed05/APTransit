@@ -382,6 +382,28 @@ describe("Day 13 operations HTTP", () => {
       403,
     );
   });
+  it("makes real operations audits visible only to the entity's depot and district", async () => {
+    const created = await post("buses", {
+      regNo: "AP 39 Z 2000",
+      depotId: ids.depot,
+      busTypeId: "bustypeops0001",
+    });
+    expect(created.status, created.text).toBe(201);
+    expect((await post("incidents/" + ids.incident + "/acknowledge")).status).toBe(201);
+    const audit = (token: string) => request(app.getHttpServer())
+      .get("/api/v1/admin/audit-logs")
+      .auth(token, { type: "bearer" });
+    for (const token of [manager, district]) {
+      const result = await audit(token);
+      expect(result.status, result.text).toBe(200);
+      expect(result.body.items.map((row: { action: string }) => row.action).sort())
+        .toEqual(["fleet.create", "incident.acknowledge"]);
+    }
+    const other = await (app.get(AuthService) as any).generateAccessToken("othermanager01", [
+      { role: "DEPOT_MANAGER", depotId: ids.other },
+    ]);
+    expect((await audit(other)).body.items).toEqual([]);
+  });
   it("blocks cross-depot reads and writes, including district scope", async () => {
     expect((await get("buses?depotId=" + ids.other)).status).toBe(403);
     expect((await get("buses/busother000001")).status).toBe(403);

@@ -22,6 +22,7 @@
     "db:reset": "pnpm --filter api db:reset",
     "simulate": "pnpm --filter api exec tsx ../../scripts/simulate-trip.ts",
     "watch:live": "pnpm --filter api exec tsx scripts/watch-live.ts",
+    "rollups:backfill": "pnpm --filter api exec tsx scripts/backfill-rollups.ts",
     "e2e": "pnpm --filter web e2e"
   },
   "devDependencies": {

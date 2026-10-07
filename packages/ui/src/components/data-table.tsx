@@ -144,6 +144,7 @@ export function DataTable<T>({
                   {columns.map((column, i) => (
                     <td
                       key={column.id}
+                      onClick={onRowClick ? () => onRowClick(row) : undefined}
                       className={cn(
                         "min-h-11 px-4 py-3 align-middle",
                         column.numeric && "text-right tabular-nums",
@@ -153,7 +154,10 @@ export function DataTable<T>({
                         <button
                           type="button"
                           className="min-h-11 text-left text-primary underline underline-offset-4"
-                          onClick={() => onRowClick(row)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onRowClick(row);
+                          }}
                         >
                           {column.cell(row)}
                         </button>

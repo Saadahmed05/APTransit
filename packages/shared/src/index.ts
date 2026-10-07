@@ -28,3 +28,6 @@ export * from "./schemas/conductor";
 export * from "./schemas/ops";
 
 export * from "./schemas/admin";
+export * from "./schemas/gov";
+export * from "./schemas/analytics";
+export * from "./schemas/reports";

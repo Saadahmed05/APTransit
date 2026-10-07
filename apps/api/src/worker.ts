@@ -41,6 +41,19 @@ async function bootstrap(): Promise<void> {
     logger.warn(`Could not schedule repeatable job on maintenance queue: ${(err as Error).message}`, "Worker");
   }
 
+  // Register repeatable rollups job: daily at 00:15 IST (Day 15)
+  try {
+    const rollupsQueue = app.get<Queue>(getQueueToken(QUEUES.ROLLUPS));
+    await rollupsQueue.upsertJobScheduler(
+      "daily-rollups",
+      { pattern: "15 0 * * *", tz: "Asia/Kolkata" },
+      { name: "daily-rollups" },
+    );
+    logger.log("Scheduled repeatable daily-rollups job at 00:15 IST daily", "Worker");
+  } catch (err) {
+    logger.warn(`Could not schedule repeatable job on rollups queue: ${(err as Error).message}`, "Worker");
+  }
+
   // Ticket and pass expiry every 5 min (Day 9), upserted so restarts never stack schedules
   try {
     const expiryQueue = app.get<Queue>(getQueueToken(QUEUES.EXPIRY));

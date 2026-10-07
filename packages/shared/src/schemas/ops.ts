@@ -89,6 +89,8 @@ export const MaintenanceDto = z.object({
   startAt: iso,
   endAt: iso.nullable(),
 });
+export type MaintenanceDto = z.infer<typeof MaintenanceDto>;
+
 export const AssignmentDto = z.object({
   id: PublicId,
   busId: PublicId,
@@ -101,6 +103,7 @@ export const AssignmentDto = z.object({
   startedAt: iso,
   endedAt: iso.nullable(),
 });
+export type AssignmentDto = z.infer<typeof AssignmentDto>;
 export const OpsTripDto = TripDto.extend({
   routeId: PublicId,
   routeNameEn: z.string(),
@@ -128,6 +131,8 @@ export const StaffDto = z.object({
   employeeCode: z.string(),
   licenseNo: z.string().optional(),
 });
+export type StaffDto = z.infer<typeof StaffDto>;
+
 export const DeviceDto = z.object({
   id: PublicId,
   userId: PublicId,
@@ -136,6 +141,7 @@ export const DeviceDto = z.object({
   approvedById: PublicId.nullable(),
   revokedAt: iso.nullable(),
 });
+export type DeviceDto = z.infer<typeof DeviceDto>;
 export const OpsDashboardDto = z.object({
   activeBuses: z.number().int(),
   totalBuses: z.number().int(),

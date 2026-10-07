@@ -9,8 +9,11 @@ import { NotificationsProcessor } from "./modules/queue/processors/notifications
 import { QueueModule } from "./modules/queue/queue.module";
 import { TripsModule } from "./modules/trips/trips.module";
 
+import { RollupsModule } from "./modules/rollups/rollups.module";
+import { RollupsProcessor } from "./modules/queue/processors/rollups.processor";
+
 @Module({
-  imports: [AppModule, QueueModule, BookingsModule, TripsModule, LifecycleModule, NotificationsModule],
-  providers: [ExpiryProcessor, MaintenanceProcessor, NotificationsProcessor],
+  imports: [AppModule, QueueModule, BookingsModule, TripsModule, LifecycleModule, NotificationsModule, RollupsModule],
+  providers: [ExpiryProcessor, MaintenanceProcessor, NotificationsProcessor, RollupsProcessor],
 })
 export class WorkerModule {}
