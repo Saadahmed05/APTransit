@@ -14,82 +14,50 @@ Read order for a new session:
 
 ---
 
-## Current state (Day 15 implemented, 2026-10-06)
+## Current state (Days 15 to 20 code done, 2026-10-07)
 
 ### Git
 
 | Branch | Contains | Status |
 | --- | --- | --- |
-| `main` | Day 1 to Day 11, PR #4 merged | Baseline |
-| `pranay-day12` | Day 12 to Day 15 code and progress updates | Fully verified, zero lint/type errors, 100% tests passing |
+| `main` (upstream) | Day 1 to Day 15 (PRs #1 to #6) | Baseline |
+| `days-15-16` | Day 15 fixes, Days 16 to 20 code and docs | Needs review and PR to main |
 
-**Day 15 completed: operations detail screens (/ops/buses/[id], /ops/trips/[id], /ops/trips/[id]/replace, /ops/staff), complete admin UI (/admin stops, routes, timetables, users, policies, audit), 14-day history seed, daily rollups worker, government & analytics APIs, streaming UTF-8 BOM CSV reports, and E2E-9 spec.**
+### Works today (verified locally, Docker Postgres 16 and Redis 7)
 
-### Works today (verified 2026-10-06)
+- Day 15 fixed: history seed, rollups, gov, analytics, reports and scope (D-030). 18 new indexes (migration 20261007000000_query_indexes).
+- Day 16: feedback and ops complaints API (D-031), command center and drill down (state, district, depot, route, trip), live with the simulator.
+- Day 17: analytics tabs, reports, feedback screens, complaint handling; CSP with nonce and security headers; log masking; load scripts; docs/12 row map and attacks in the daily log.
+- Day 18: retention jobs, health with worker age and queue depth, failed jobs endpoint and summary, MapLibre worker fix (maps were broken in production builds), dropped Tailwind classes fixed, E2E-12 (D-032).
+- Day 19: `pnpm check:endpoints` (docs/06 fully matched), E2E-1 to E2E-12.
+- Day 20 docs: progress/demo-script.md, progress/handover.md, progress/phase-2-backlog.md, both app READMEs.
+- Checks: API 419 tests (6 database tests skipped), shared 121, lint, typecheck, i18n, dashes.
 
-- Day 14: live operations dashboard, fleet/trips/incidents lists and actions, URL depot/date/status/route/search filters, shared DataTable and KpiTile, and guarded admin network/users/policies/settings/audit endpoints. All admin writes include atomic before/after audit snapshots. Scoped audit reads use entity snapshots rather than multi-depot actor roles.
-- Day 14 root lint, typecheck, build and dashes passed. Full suite: shared 119, UI 46, web 42, API 359, scripts 6 passed; 6 database cases skipped. Local search and refund verification confirmed validFrom behavior, including a future refund policy retaining today's effective quote. See daily-log.md and D-029. Review/CI/merge remain pending.
-- Refund policy isActive denotes the latest configured row; effective reads select the latest validFrom at or before now from retained history. Fare selection uses scheduled departure time. Admin settings changes invalidate the network cache. Zod 4 refined objects require safeExtend; derive partial patch schemas from their shape and revalidate the merged object on the server.
+### Run the whole stack locally
 
-- Day 13: conductor home/scanner/manifest and live counts; approved manual ticket number plus live-code validation through unchanged QR rules; scoped operations dashboard/fleet/trips/staff/devices/incidents, atomic replacement and full operator cancellation refunds. Signed callbacks complete paid ticket refunds idempotently. Listener-only operations KPI updates run every 15 seconds.
-- E2E-8 passed on desktop and Pixel 7, including axe and English/Telugu layouts at 360, 768 and 1280 px. Focused API tests: 18 validation and 13 operations passed; root lint, types, build, i18n, dashes and scripts passed. The simulator breakdown at 60 km, manager acknowledgement and replacement, preserved seat and citizen notification passed against local PGlite and Redis. Physical-phone HTTPS timing and other-dev/CI review remain pending.
-- qr-scanner is allowed by docs/04. Test injection uses apt:test-scan only when NEXT_PUBLIC_PAYMENTS_FAKE=1 is set during the web build, and still invokes the validation API. The browser test mocks response cases; API HTTP tests enforce actual server rules.
-- New Telugu copy must be written as UTF-8. Windows PowerShell's default pipe encoding can replace Telugu with question marks. Use apply_patch or Unicode escapes when passing scripts through this shell.
-- Provider refund failures are preserved as FAILED rows for reconciliation; automatic retry is not part of Day 13. Review D-028 shared contracts before merge.
-
-
-- Day 12: citizen tracking map and progress, shared authenticated sockets and REST fallback, driver live hook, notification/ticket query updates, stop/delay/pace math, durable trip notification deduplication, simulator stalls/breakdown, conductor assignment/manifest and ordered validation with audit and race protection. Local database validation p95 134.72 ms over 30 requests. Progress math has 100 percent line coverage. E2E-7 passed on desktop and mobile. See daily-log.md for measurements and checks.
-
-- `pnpm lint`, `pnpm i18n:check`, `pnpm typecheck`, `pnpm test` (shared 119, ui 41, web 42, api 313 plus 6 database tests skipped, scripts 6), `pnpm build`, `pnpm check:dashes` pass on Windows (Node 24.13.1, pnpm 11.10).
-- Day 8: gifting (`POST /tickets/:id/transfer`), passes with payments (`{ passId }`), Stree Shakti eligibility (mock provider, strict schema, no identifiers stored), zero fare free travel tickets; `/tickets/[id]` with the live rotating QR (Web Crypto), offline copy in IndexedDB, `/tickets/[id]/cancel`.
-- Day 9: notifications (rows, email jobs rendered in the user's language, subscribers, endpoints), expiry jobs every 5 min, worker heartbeat in `/health`; `/tickets/[id]/gift`, `/passes`, `/passes/buy`, `/free-travel`, `/book/[tripId]/free`, bell and `/updates`, `Countdown`.
-- Day 10: manifest, icons, `public/sw.js`, `/offline`, Install app; Playwright fixtures, E2E-1 to E2E-6 and axe checks: 18 of 18 pass locally on both projects with one worker.
-- Day 11: driver endpoints, trusted `/tracking/ping`, live state in Redis, Socket.IO `/live`, incidents, `pnpm simulate`, `pnpm watch:live`; driver app `/driver`, `/driver/setup`, `/driver/trip/[id]`, `/driver/report` with the GPS sender and wake lock. Simulator to socket verified live; driver smoke spec passes.
-- Everything above was checked on a local PGlite database with `scripts/dev-redis.mjs`, not on Neon or Upstash yet.
-
-### Run the whole stack locally (no cloud accounts)
-
-1. `npx -y @electric-sql/pglite-socket --db=.local/pgdata --port=5433 --max-connections=10` and `pnpm dev:redis` (port 6380, set `REDIS_LISTEN=127.0.0.1:6380`).
-2. `apps/api/.env` from `.env.example` with `DATABASE_URL` and `DIRECT_URL` `postgresql://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable`, `REDIS_URL=redis://127.0.0.1:6380`, `APP_ENV=development`, `OTP_DEV_ECHO=1`, `PAYMENTS_FAKE=1`, fresh QR keys (docs/15). `apps/web/.env.local` with `NEXT_PUBLIC_PAYMENTS_FAKE=1`.
-3. `pnpm --filter api exec prisma migrate deploy`, `pnpm db:seed`, then `pnpm --filter api build && node apps/api/dist/main.js` and `pnpm --filter web build && pnpm --filter web start`.
-4. `E2E_PAYMENTS_FAKE=1 pnpm --filter web exec playwright test --workers=1`.
-5. The worker (BullMQ) needs a real Redis: dev-redis cannot run it.
+1. `docker run` Postgres 16 on 5432 and Redis 7 on 6379 (see the Day 15 log), `apps/api/.env` pointing at them, `OTP_DEV_ECHO=1`, `PAYMENTS_FAKE=1`.
+2. `pnpm --filter api exec prisma migrate deploy`, `pnpm db:seed --history 14` (about 7 minutes locally).
+3. `pnpm --filter api build && node apps/api/dist/main.js`, `pnpm --filter web build && pnpm --filter web start`, optionally `pnpm dev:worker`.
+4. `E2E_PAYMENTS_FAKE=1 pnpm --filter web exec playwright test --workers=1`, one project at a time (the OTP limit is 10 per IP per hour; locally clear `ratelimit:*` keys in Redis between runs).
 
 ### Not done yet
 
 | Item | Why | When |
 | --- | --- | --- |
-| Staging (Render api and worker, Vercel, Neon main, Razorpay webhook), smoke test, Lighthouse PWA, `v0.1.0` tag | Needs the cloud accounts (docs/15, docs/17) | Before the Day 12 demo |
-| `TEST_DATABASE_URL`, `TEST_REDIS_URL` in CI | Needs the Neon test branch and Upstash | CI e2e job skips until then |
-| Worker run for an hour, Upstash command count | Needs a real Redis | After the real `.env` |
-| Real Razorpay test checkout | Placeholder keys locally | When test keys exist |
-| Device approval screen for the depot | Scheduled | Day 14 (ops) |
-| Implied speed check between GPS points | The simulator compresses time (D-025) | Day 17 hardening |
-| Short Telugu label for "Track bus" | D-015, needs a native speaker | Open |
+| Staging (Render api and worker, Vercel, Neon, Upstash), smoke test, v0.2.0 and v1.0.0-demo tags | Upstash, Razorpay, Resend, Render and Vercel accounts pending; Neon connected but not migrated | After the branch is merged |
+| Load tests, headers check, uptime monitor, restore drill, Lighthouse on staging | Need staging | Day 19 on staging |
+| Manual QA on real phones, TalkBack and NVDA, native Telugu review, live demo, screenshots | Need people and devices | Day 19 and 20 |
 
-### Decisions
-
-All in `progress/decisions-log.md`. D-022 (Day 8), D-023 (Day 9), D-024 (Day 10) D-025 (Day 11) and D-026 (Day 12) are proposed.
-
-### New gotchas (Days 8 to 12)
-
-- E2E-7 fixture and API must use the same DATABASE_URL. Set it explicitly for local tests so a saved .env cannot send fixture writes to another development database.
-- Repeated E2E retries can exhaust seeded driver OTP limits. Use a fresh isolated test Redis or clear only local test counters.
-- Simulator delay minutes are wall-clock minutes, even with accelerated movement.
-- Map paint widths must be pixel tokens, not a numeric parse of rem spacing.
-- Regenerate Prisma after enabling relationJoins; no database migration is required for this generator feature.
-
+### New gotchas
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| "Maximum update depth exceeded" (React error 185) on a page using a browser store | `useSyncExternalStore` got a new subscribe function each render | Keep subscribe and getSnapshot stable (module level), see `lib/use-browser-state.ts` |
-| Local API hangs after a request with Telugu text | Old `dev-redis.mjs` counted characters, not bytes | Fixed; restart `pnpm dev:redis` and the API (the API does not reconnect to a restarted dev-redis by itself) |
-| E2E login fails with RATE_LIMITED | 10 OTP requests per IP per hour (docs/12) | Use the `citizen` and `citizen2` fixtures in `e2e/fixtures.ts`; locally, restarting dev-redis clears the counter |
-| A test's ticket cannot be gifted or cancelled | E2E-3 moved that trip to depart in 30 min | Book with `pickTrip` / `bookAndPay` (3 h or more ahead) |
-| `/driver/today` gives BAD_RESPONSE in the web | API dist older than the shared schema | Rebuild shared, then the API, after any contract change |
-| A new socket is refused a depot room it should get | Token checked after the client already subscribed | Authentication runs in Socket.IO middleware (`afterInit`), keep it there |
-| Manifest 500 in production | `import.meta.url` is undefined in the server bundle | Read files relative to `process.cwd()` (apps/web), see `lib/token-values.ts` |
-| Simulator pings refused 429 | One driver and one device drive every trip | `--all` shares 25 pings a minute; one trip at `--speed 60` takes under 2 min for a short route |
+| Map shows "could not load" only in production | MapLibre 6 worker URL resolved to the page | `apps/web/scripts/copy-map-worker.mjs` plus `setWorkerUrl` (runs before dev and build) |
+| A class does nothing and the build is green | Tailwind drops unknown utilities | `pnpm check:classes` after a build |
+| Feedback form refuses to send | An empty optional date was sent as "" | FeedbackInput treats "" as no date |
+| Validate load gets 429 | 120 scans per conductor per minute (docs/12) | `pnpm load:pool` makes several load conductors |
+| Search load gets 429 | 60 per IP per minute | Load from several IPs |
+| `createMany` seeds are slow | About 1,000 rows a second | `bulkInsert` with unnest in seed-history.ts |
 
 ---
 
