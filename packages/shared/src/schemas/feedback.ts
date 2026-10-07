@@ -21,7 +21,8 @@ export const FeedbackInput = z.strictObject({
   ticketCode: optionalText(20).pipe(z.string().toUpperCase().regex(CODE_PATTERNS.ticket).optional()),
   busRegNo: optionalText(20),
   routeCode: optionalText(20).pipe(z.string().toUpperCase().optional()),
-  travelDate: ServiceDateString.optional(),
+  // An empty date field means no date, like the other optional details
+  travelDate: z.preprocess((v) => (v === "" ? undefined : v), ServiceDateString.optional()),
 });
 export type FeedbackInput = z.infer<typeof FeedbackInput>;
 

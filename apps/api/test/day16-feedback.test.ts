@@ -70,6 +70,8 @@ describe("Day 16: feedback input", () => {
     expect(parsed.ticketCode).toBe("APT-AB12-CD34");
     expect(parsed.routeCode).toBe("KNL-VJA-01");
     expect(parsed.busRegNo).toBeUndefined();
+    expect(input({ travelDate: "" as never }).travelDate).toBeUndefined();
+    expect(() => input({ travelDate: "2026-02-30" })).toThrow();
   });
 
   it("rejects short messages, bad ticket codes and unknown fields", () => {
