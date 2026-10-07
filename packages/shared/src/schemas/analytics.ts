@@ -31,6 +31,8 @@ export const PassengerAnalyticsDto = z.object({
   ticketsSold: z.number().int().nonnegative(),
   passUsage: z.number().int().nonnegative(),
   busyHours: z.array(z.number().int().nonnegative()),
+  /** One entry per date of the range (IST), for the tickets sold per day line. */
+  daily: z.array(z.object({ date: z.string(), ticketsSold: z.number().int().nonnegative(), passengers: z.number().int().nonnegative() })),
   topRoutes: z.array(
     z.object({
       routeId: z.string(),
@@ -53,6 +55,9 @@ export const DelayAnalyticsDto = z.object({
       routeId: z.string(),
       routeCode: z.string(),
       avgDelayMin: z.number().nonnegative(),
+      /** The 3 hour window of departures (IST) with the highest average delay, for "mostly 5 PM to 8 PM". */
+      peakFromHour: z.number().int().min(0).max(23).nullable(),
+      peakToHour: z.number().int().min(0).max(24).nullable(),
     }),
   ),
 });

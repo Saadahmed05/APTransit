@@ -197,3 +197,25 @@ export function errorKey(error: unknown, known: (key: string) => boolean): strin
   }
   return "errors.INTERNAL";
 }
+
+/**
+ * Like api(), for file downloads (CSV reports): same refresh on 401, same error shape, but the
+ * body comes back as a Blob. The file name comes from Content-Disposition when the server sends one.
+ */
+export async function apiBlob(
+  path: string,
+  options: Pick<ApiOptions<unknown>, "query" | "signal"> = {},
+): Promise<{ blob: Blob; fileName: string | null }> {
+  let res = await send(path, options, sessionStore.get().accessToken);
+  if (res.status === 401) {
+    const token = await refreshAccessToken();
+    if (token) res = await send(path, options, token);
+    if (!token || res.status === 401) {
+      sessionStore.clear();
+      onUnauthenticated();
+    }
+  }
+  if (!res.ok) throw await toApiError(res);
+  const fileName = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "")?.[1] ?? null;
+  return { blob: await res.blob(), fileName };
+}

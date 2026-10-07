@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@aptransit/ui";
 import { useId, useState } from "react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export interface ChartPoint {
   label: string;
@@ -18,11 +18,23 @@ export interface BarSeriesChartProps {
   format: (value: number) => string;
   /** Token tone of the bars: info for a plain measure, warning or danger for delays. */
   tone?: "info" | "warning" | "danger" | "success" | "neutral";
+  /** A line for a series over time; bars otherwise. */
+  kind?: "bar" | "line";
+  /** Bars along the y axis, for ranked lists with long labels (route codes). */
+  horizontal?: boolean;
   labels: { showTable: string; hideTable: string };
 }
 
 /** One series of bars with a data table toggle (see the chart rules in index.ts). */
-export function BarSeriesChart({ title, data, xLabel, yLabel, format, tone = "info", labels }: BarSeriesChartProps) {
+export function BarSeriesChart({ title, data, xLabel, yLabel, format, tone = "info", kind = "bar", horizontal = false, labels }: BarSeriesChartProps) {
+  const color = `var(--${tone}-solid)`;
+  const axisText = { fill: "var(--text-muted)", fontSize: 12 };
+  const tooltip = (
+    <Tooltip
+      formatter={(v) => [format(Number(v)), yLabel]}
+      contentStyle={{ background: "var(--surface-raised)", border: "1px solid var(--border)", color: "var(--text)" }}
+    />
+  );
   const [table, setTable] = useState(false);
   const tableId = useId();
   return (
@@ -35,24 +47,31 @@ export function BarSeriesChart({ title, data, xLabel, yLabel, format, tone = "in
       </figcaption>
       <div className="h-64 w-full tabular-nums" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 8, right: 8, bottom: 24, left: 8 }}>
-            <CartesianGrid vertical={false} stroke="var(--border)" />
-            <XAxis
-              dataKey="label"
-              tick={{ fill: "var(--text-muted)", fontSize: 12 }}
-              label={{ value: xLabel, position: "insideBottom", offset: -16, fill: "var(--text-muted)", fontSize: 12 }}
-            />
-            <YAxis
-              tickFormatter={(v: number) => format(v)}
-              tick={{ fill: "var(--text-muted)", fontSize: 12 }}
-              label={{ value: yLabel, angle: -90, position: "insideLeft", fill: "var(--text-muted)", fontSize: 12 }}
-            />
-            <Tooltip
-              formatter={(v) => [format(Number(v)), yLabel]}
-              contentStyle={{ background: "var(--surface-raised)", border: "1px solid var(--border)", color: "var(--text)" }}
-            />
-            <Bar dataKey="value" fill={`var(--${tone}-solid)`} radius={[4, 4, 0, 0]} isAnimationActive={false} />
-          </BarChart>
+          {kind === "line" ? (
+            <LineChart data={data} margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
+              <CartesianGrid vertical={false} stroke="var(--border)" />
+              <XAxis dataKey="label" tick={axisText} label={{ value: xLabel, position: "insideBottom", offset: -16, ...axisText }} />
+              <YAxis tickFormatter={(v: number) => format(v)} tick={axisText} label={{ value: yLabel, angle: -90, position: "insideLeft", ...axisText }} />
+              {tooltip}
+              <Line dataKey="value" stroke={color} strokeWidth={2} dot={{ r: 3, fill: color }} isAnimationActive={false} />
+            </LineChart>
+          ) : horizontal ? (
+            <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
+              <CartesianGrid horizontal={false} stroke="var(--border)" />
+              <XAxis type="number" tickFormatter={(v: number) => format(v)} tick={axisText} label={{ value: yLabel, position: "insideBottom", offset: -16, ...axisText }} />
+              <YAxis type="category" dataKey="label" width={96} tick={axisText} />
+              {tooltip}
+              <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]} isAnimationActive={false} />
+            </BarChart>
+          ) : (
+            <BarChart data={data} margin={{ top: 8, right: 8, bottom: 24, left: 8 }}>
+              <CartesianGrid vertical={false} stroke="var(--border)" />
+              <XAxis dataKey="label" tick={axisText} label={{ value: xLabel, position: "insideBottom", offset: -16, ...axisText }} />
+              <YAxis tickFormatter={(v: number) => format(v)} tick={axisText} label={{ value: yLabel, angle: -90, position: "insideLeft", ...axisText }} />
+              {tooltip}
+              <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+            </BarChart>
+          )}
         </ResponsiveContainer>
       </div>
       <div id={tableId} hidden={!table}>

@@ -234,11 +234,22 @@ export class AnalyticsService {
     const byRoute = new Map<string, number>();
     for (const r of routeRows) byRoute.set(r.routeId!, (byRoute.get(r.routeId!) ?? 0) + r.passengers);
     const codeOf = new Map(routes.map((r) => [r.id, r.code]));
+    const perDay = new Map<string, { ticketsSold: number; passengers: number }>();
+    for (let d = new Date(range.fromDate); d <= range.toDate; d = new Date(d.getTime() + DAY_MS)) {
+      perDay.set(d.toISOString().slice(0, 10), { ticketsSold: 0, passengers: 0 });
+    }
+    for (const r of routeRows) {
+      const day = perDay.get(r.date.toISOString().slice(0, 10));
+      if (!day) continue;
+      day.ticketsSold += r.ticketsSold;
+      day.passengers += r.passengers;
+    }
 
     return {
       ticketsSold: routeRows.reduce((s, r) => s + r.ticketsSold, 0),
       passUsage,
       busyHours,
+      daily: [...perDay.entries()].map(([date, v]) => ({ date, ...v })),
       topRoutes: [...byRoute.entries()]
         .map(([routeId, passengers]) => ({ routeId, routeCode: codeOf.get(routeId) ?? "", passengers }))
         .sort((a, b) => b.passengers - a.passengers || a.routeCode.localeCompare(b.routeCode))
@@ -261,21 +272,21 @@ export class AnalyticsService {
           AND (${routeId ?? null}::text IS NULL OR t."routeId" = ${routeId ?? null})
           AND (${scope.all} OR r."depotId" = ANY(${scope.depotIds}))
         GROUP BY 1`),
-      this.prisma.$queryRaw<Array<{ routeId: string; routeCode: string; avg: number }>>(Prisma.sql`
-        SELECT r.id AS "routeId", r.code AS "routeCode", AVG(t."delayMinutes")::float8 AS avg
+      this.prisma.$queryRaw<Array<{ routeId: string; routeCode: string; hour: number; total: number; trips: bigint }>>(Prisma.sql`
+        SELECT r.id AS "routeId", r.code AS "routeCode",
+               EXTRACT(HOUR FROM (t."scheduledDepartureAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'))::int AS hour,
+               SUM(t."delayMinutes")::float8 AS total, COUNT(*)::bigint AS trips
         FROM trips t JOIN routes r ON r.id = t."routeId"
         WHERE t."serviceDate" BETWEEN ${range.fromDate} AND ${range.toDate} AND t.status = 'COMPLETED'
           AND (${routeId ?? null}::text IS NULL OR t."routeId" = ${routeId ?? null})
           AND (${scope.all} OR r."depotId" = ANY(${scope.depotIds}))
-        GROUP BY r.id, r.code
-        ORDER BY avg DESC, r.code ASC
-        LIMIT 5`),
+        GROUP BY 1, 2, 3`),
     ]);
 
     const avgOf = new Map(byHour.map((h) => [h.hour, round1(h.avg)]));
     return {
       avgDelayByHour: Array.from({ length: 24 }, (_, hour) => ({ hour, avgDelayMin: avgOf.get(hour) ?? 0 })),
-      worstRoutes: byRoute.map((r) => ({ routeId: r.routeId, routeCode: r.routeCode, avgDelayMin: round1(r.avg) })),
+      worstRoutes: worstRoutes(byRoute.map((r) => ({ ...r, trips: Number(r.trips) }))),
     };
   }
 
@@ -345,6 +356,62 @@ export class AnalyticsService {
     if (!route) throw new AppError("NOT_FOUND", "Route not found");
     if (!scope.depotIds.includes(route.depotId)) throw new AppError("FORBIDDEN", "Route is outside your scope");
   }
+}
+
+/**
+ * The five routes with the highest average delay, each with the 3 hour window of departures that
+ * had the highest average delay (plan sec 39: "average delay 18 min, mostly 5 PM to 8 PM").
+ */
+export function worstRoutes(rows: ReadonlyArray<{ routeId: string; routeCode: string; hour: number; total: number; trips: number }>): DelayAnalyticsDto["worstRoutes"] {
+  const byRoute = new Map<string, { code: string; hours: Map<number, { total: number; trips: number }> }>();
+  for (const r of rows) {
+    const route = byRoute.get(r.routeId) ?? { code: r.routeCode, hours: new Map() };
+    route.hours.set(r.hour, { total: r.total, trips: r.trips });
+    byRoute.set(r.routeId, route);
+  }
+  return [...byRoute.entries()]
+    .map(([routeId, { code, hours }]) => {
+      let total = 0;
+      let trips = 0;
+      for (const h of hours.values()) {
+        total += h.total;
+        trips += h.trips;
+      }
+      // Peak: the hour with the highest average delay, widened to neighbouring hours that reach at
+      // least 75 percent of it, at most 3 hours wide (ties go to the earlier hour)
+      const avgAt = (h: number) => {
+        const cell = hours.get(h);
+        return cell && cell.trips ? cell.total / cell.trips : null;
+      };
+      let best: { from: number; to: number } | null = null;
+      let peak = -1;
+      for (const h of [...hours.keys()].sort((a, b) => a - b)) {
+        const v = avgAt(h)!;
+        if (v > peak) {
+          peak = v;
+          best = { from: h, to: h + 1 };
+        }
+      }
+      while (best && peak > 0 && best.to - best.from < 3) {
+        const left = avgAt(best.from - 1);
+        const right = avgAt(best.to);
+        const okLeft = left !== null && left >= peak * 0.75;
+        const okRight = right !== null && right >= peak * 0.75;
+        if (!okLeft && !okRight) break;
+        if (okRight && (!okLeft || right! >= left!)) best.to += 1;
+        else best.from -= 1;
+      }
+      const avg = trips ? total / trips : 0;
+      return {
+        routeId,
+        routeCode: code,
+        avgDelayMin: round1(avg),
+        peakFromHour: best && avg > 0 ? best.from : null,
+        peakToHour: best && avg > 0 ? best.to : null,
+      };
+    })
+    .sort((a, b) => b.avgDelayMin - a.avgDelayMin || a.routeCode.localeCompare(b.routeCode))
+    .slice(0, 5);
 }
 
 /** Load factor and level per band from per-hour seats and tickets (plan sec 38). */

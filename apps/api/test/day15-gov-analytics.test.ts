@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AuthenticatedUser } from "../src/common/auth/auth.types";
 import { depotScopeWhere, isStatewide } from "../src/common/services/scope.service";
-import { AnalyticsService, demandBands } from "../src/modules/analytics/analytics.service";
+import { AnalyticsService, demandBands, worstRoutes } from "../src/modules/analytics/analytics.service";
 import { areaRows, countTrips, GovService, sumRows } from "../src/modules/gov/gov.service";
 import { csvLine, escapeCsvField, formatCsvWithBom, rupees } from "../src/modules/reports/csv-helper";
 import { ReportsService } from "../src/modules/reports/reports.service";
@@ -272,5 +272,21 @@ describe("Day 15: CSV", () => {
     expect(lines[1]).toBe(
       "CMP-ABC123,2026-10-05 10:00,DELAY,RESOLVED,Kurnool depot,KNL-VJA-01,AP 39 Z 0101,2026-10-05,\"'=cmd, late\",,\r\n",
     );
+  });
+});
+
+describe("Day 17: worst routes", () => {
+  it("ranks routes by average delay and finds the 3 hour peak window", () => {
+    const out = worstRoutes([
+      { routeId: "a", routeCode: "KNL-VJA-01", hour: 8, total: 10, trips: 2 },
+      { routeId: "a", routeCode: "KNL-VJA-01", hour: 17, total: 60, trips: 2 },
+      { routeId: "a", routeCode: "KNL-VJA-01", hour: 18, total: 60, trips: 2 },
+      { routeId: "a", routeCode: "KNL-VJA-01", hour: 19, total: 50, trips: 2 },
+      { routeId: "b", routeCode: "VSP-SMC-01", hour: 9, total: 4, trips: 4 },
+      { routeId: "c", routeCode: "KNL-NDL-01", hour: 9, total: 0, trips: 4 },
+    ]);
+    expect(out[0]).toEqual({ routeId: "a", routeCode: "KNL-VJA-01", avgDelayMin: 22.5, peakFromHour: 17, peakToHour: 20 });
+    expect(out[1]!.routeCode).toBe("VSP-SMC-01");
+    expect(out[2]).toMatchObject({ routeCode: "KNL-NDL-01", avgDelayMin: 0, peakFromHour: null, peakToHour: null });
   });
 });
