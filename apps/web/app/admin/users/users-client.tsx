@@ -134,7 +134,7 @@ export default function UsersClient() {
           {u.roles.map((r) => (
             <span
               key={r.id}
-              className="rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary"
+              className="rounded-sm bg-primary/10 px-2 py-0.5 text-small font-semibold text-primary"
             >
               {r.role}
             </span>
@@ -214,7 +214,7 @@ export default function UsersClient() {
                   {selectedUser?.roles.map((r) => (
                     <div
                       key={r.id}
-                      className="flex items-center justify-between rounded-md border border-border p-3"
+                      className="flex items-center justify-between rounded-md border border-default p-3"
                     >
                       <div>
                         <span className="font-semibold">{r.role}</span>
@@ -227,7 +227,7 @@ export default function UsersClient() {
 
                       <Button
                         variant="ghost"
-                        className="text-danger hover:bg-danger/10"
+                        className="text-status-danger hover:bg-status-danger-soft"
                         onClick={() => handleRevokeRole(r.id)}
                         loading={revokeMutation.isPending}
                         aria-label={t("removeRole")}
@@ -241,7 +241,7 @@ export default function UsersClient() {
             </div>
 
             {/* Grant Role Form */}
-            <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface/50 p-4">
+            <div className="flex flex-col gap-3 rounded-lg border border-default bg-surface/50 p-4">
               <span className="text-small font-semibold">{t("grantNewRole")}:</span>
 
               <Field id="user-role" label={t("selectRole")}>

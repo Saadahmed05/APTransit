@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 // MapLibre 6 runs its tile work in a module worker. Bundled by Next, its default worker URL points
 // at the page itself ("Worker failed to load"), so we serve the worker file from public/ and set
 // the URL in packages/ui map-view.tsx (setWorkerUrl). Runs before dev and build.

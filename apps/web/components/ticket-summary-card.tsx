@@ -39,7 +39,7 @@ export function TicketSummaryCard({ ticket }: { ticket: TicketSummaryDto }) {
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-h3 font-tabular text-fg">{time}</p>
+          <p className="text-h3 tabular-nums text-fg">{time}</p>
           <p className="text-small text-muted">
             {date} · {t.has(serviceKey) ? t(serviceKey) : ticket.serviceType}
           </p>

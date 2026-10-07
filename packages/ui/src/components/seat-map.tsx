@@ -49,7 +49,7 @@ function SeatGlyph({ state, seatNo }: { state: SeatViewState; seatNo?: string })
   return (
     <span className="flex flex-col items-center leading-none">
       {Icon ? <Icon className="size-4" aria-hidden="true" /> : null}
-      {seatNo !== undefined && <span className={cn("font-tabular text-caption", Icon && "mt-0.5")}>{seatNo}</span>}
+      {seatNo !== undefined && <span className={cn("tabular-nums text-caption", Icon && "mt-0.5")}>{seatNo}</span>}
     </span>
   );
 }

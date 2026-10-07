@@ -160,7 +160,7 @@ export default function RouteEditorClient({ id }: { id: string }) {
       <div>
         <Link
           href="/admin/routes"
-          className="inline-flex items-center gap-2 text-small font-medium text-muted hover:text-foreground"
+          className="inline-flex items-center gap-2 text-small font-medium text-muted hover:text-fg"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>{t("routesTitle")}</span>
@@ -182,7 +182,7 @@ export default function RouteEditorClient({ id }: { id: string }) {
       </div>
 
       {validationError && (
-        <div className="rounded-md border border-danger/40 bg-danger/10 p-4 text-danger font-medium">
+        <div className="rounded-md border border-status-danger bg-status-danger-soft p-4 text-status-danger font-medium">
           {validationError}
         </div>
       )}
@@ -190,7 +190,7 @@ export default function RouteEditorClient({ id }: { id: string }) {
       {/* Map Preview */}
       <Card className="flex flex-col gap-2 p-4">
         <h2 className="text-body font-semibold">{t("routeMapPreview")}</h2>
-        <div className="h-56 w-full overflow-hidden rounded-md border border-border">
+        <div className="h-56 w-full overflow-hidden rounded-md border border-default">
           <MapView
             polyline={route.polyline}
             markers={markers}

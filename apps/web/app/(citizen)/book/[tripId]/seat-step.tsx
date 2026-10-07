@@ -283,7 +283,7 @@ export function SeatStep({
               {t("book.seat.selected", { count: selected.length, seats: selected.join(", ") })}
             </p>
             {total !== undefined && (
-              <p className="text-h3 font-tabular text-fg">
+              <p className="text-h3 tabular-nums text-fg">
                 <span className="sr-only">{t("book.seat.total")}: </span>
                 {formatMoney(total, locale)}
               </p>

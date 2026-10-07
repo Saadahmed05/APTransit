@@ -207,7 +207,7 @@ export function SearchClient({
               <span className="break-words">{toLabel}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-caption text-muted">
-              <span className="flex items-center gap-1 font-tabular">
+              <span className="flex items-center gap-1 tabular-nums">
                 <Calendar className="size-3.5" aria-hidden="true" />
                 {formattedDate}
               </span>
@@ -441,7 +441,7 @@ export function SearchClient({
 
       {/* Edit Form Sheet (Mobile) */}
       <Sheet open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <SheetContent className="max-h-[90vh] overflow-y-auto">
+        <SheetContent className="max-h-svh overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{t("search.editSearch")}</SheetTitle>
           </SheetHeader>

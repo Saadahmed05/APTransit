@@ -32,7 +32,7 @@ export function useOpsWrite<T>(schema: z.ZodType<T>) {
 export function WriteError({ error }: { error: unknown }) {
   const t = useTranslations();
   return error ? (
-    <p role="alert" className="text-danger">
+    <p role="alert" className="text-status-danger">
       {t(errorKey(error, (k) => t.has(k)))}
     </p>
   ) : null;

@@ -102,7 +102,7 @@ export default function ReplaceBusClient({ id }: { id: string }) {
       <div>
         <Link
           href={`/ops/trips/${id}`}
-          className="inline-flex items-center gap-2 text-small font-medium text-muted hover:text-foreground"
+          className="inline-flex items-center gap-2 text-small font-medium text-muted hover:text-fg"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>{trip.code}</span>
@@ -112,7 +112,7 @@ export default function ReplaceBusClient({ id }: { id: string }) {
       <div>
         <h1 className="text-h1 font-bold">{t("replaceBus")}</h1>
         <p className="text-muted">
-          {trip.code} · {t("currentBus")}: <span className="font-semibold text-foreground">{currentBus}</span>
+          {trip.code} · {t("currentBus")}: <span className="font-semibold text-fg">{currentBus}</span>
         </p>
       </div>
 
@@ -147,7 +147,7 @@ export default function ReplaceBusClient({ id }: { id: string }) {
                   className={`flex cursor-pointer text-left flex-col justify-between rounded-lg border p-4 transition-colors ${
                     isSelected
                       ? "border-primary bg-primary/5 ring-2 ring-primary"
-                      : "border-border hover:border-foreground/40 bg-surface"
+                      : "border-default hover:border-strong bg-surface"
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -156,7 +156,7 @@ export default function ReplaceBusClient({ id }: { id: string }) {
                       <p className="text-small text-muted">{bus.serviceType}</p>
                     </div>
                     {isSelected && (
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-on-primary">
                         <Check className="h-4 w-4" />
                       </div>
                     )}

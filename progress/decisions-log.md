@@ -269,6 +269,18 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
 - **Offline scanning pack (stretch, ADR 003):** moved to the backlog. Not built in the 20 days; the conductor app keeps online validation.
 - **Status:** Proposed for the other dev review. Locked docs unchanged.
 
+### D-032: Day 17 and 18 security, operations and UI fixes
+- **Date:** 2026-10-07
+- **Decision:**
+  - CSP is built per request in apps/web/proxy.ts with a nonce and strict-dynamic (Next 16 CSP guide). style-src allows unsafe-inline because MapLibre, Recharts and Radix set style attributes. The proxy now runs on every page (not only protected ones); the login redirect is unchanged.
+  - MapLibre 6 worker: apps/web/scripts/copy-map-worker.mjs copies maplibre-gl-worker.mjs and maplibre-gl-shared.mjs into public/ before dev and build, and map-view.tsx calls setWorkerUrl. Before this the bundled map never loaded in production builds ("Worker failed to load").
+  - Load tests: apps/api/scripts/load-pool.ts creates load test conductors (loadtest+NN@aptransit.test) on running trips and signs 1 hour tokens with JWT_SECRET, because one conductor is limited to 120 scans a minute. Never in production. Search load from one IP hits the 60 per minute limit by design.
+  - Sentry (optional on Day 18): skipped. Not in docs/04; pino logs with request ids, the failed jobs summary and /health cover the demo.
+  - /health adds workerAgeSec and queues (waiting, active, delayed, failed per queue). GET /admin/jobs/failed returns queue, id, name, reason, attempts, failedAt, never job data (policy:write, STATE_ADMIN and up).
+  - Retention runs on the maintenance queue at 02:00 IST in batches of 10,000 rows; the failed jobs summary logs one line at 07:00 IST.
+  - Class names that Tailwind silently dropped (bg-success/10, text-danger, border-border, text-xs, text-foreground and others in admin and ops screens) were mapped to theme classes; pnpm check:classes (scripts/check-classes.cjs) compares used classes with the built CSS.
+- **Status:** Proposed for the other dev review. Locked docs unchanged.
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |

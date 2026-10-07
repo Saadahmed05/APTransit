@@ -121,7 +121,7 @@ export default function TripDetailClient({ id }: { id: string }) {
       <div>
         <Link
           href="/ops/trips"
-          className="inline-flex items-center gap-2 text-small font-medium text-muted hover:text-foreground"
+          className="inline-flex items-center gap-2 text-small font-medium text-muted hover:text-fg"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>{t("trips")}</span>
@@ -135,7 +135,7 @@ export default function TripDetailClient({ id }: { id: string }) {
             <h1 className="text-h1 font-bold">{trip.code}</h1>
             <StatusBadge status={trip.displayStatus} label={trip.displayStatus} />
             {trip.delayMinutes > 0 && (
-              <span className="flex items-center gap-1 text-small font-semibold text-warning">
+              <span className="flex items-center gap-1 text-small font-semibold text-status-warning">
                 <Clock className="h-4 w-4" />
                 <span>+{trip.delayMinutes} min</span>
               </span>
@@ -207,10 +207,10 @@ export default function TripDetailClient({ id }: { id: string }) {
       <div className="flex flex-col gap-3">
         <h2 className="text-h2 font-semibold">{t("timeline")}</h2>
         <Card className="flex flex-col gap-4 p-6">
-          <div className="relative border-l-2 border-border pl-6">
+          <div className="relative border-l-2 border-default pl-6">
             {/* 1. Scheduled */}
             <div className="relative mb-6">
-              <div className="absolute -left-[31px] top-1 h-3 w-3 rounded-full bg-primary" />
+              <div className="absolute -left-8 top-1 h-3 w-3 rounded-full bg-primary" />
               <div className="flex flex-col">
                 <span className="text-small font-semibold">{t("scheduled")}</span>
                 <span className="text-small text-muted">{formatTime(trip.scheduledDepartureAt)}</span>
@@ -220,7 +220,7 @@ export default function TripDetailClient({ id }: { id: string }) {
             {/* 2. Started */}
             {trip.actualDepartureAt && (
               <div className="relative mb-6">
-                <div className="absolute -left-[31px] top-1 h-3 w-3 rounded-full bg-success" />
+                <div className="absolute -left-8 top-1 h-3 w-3 rounded-full bg-status-success-solid" />
                 <div className="flex flex-col">
                   <span className="text-small font-semibold">{t("departed")}</span>
                   <span className="text-small text-muted">{formatTime(trip.actualDepartureAt)}</span>
@@ -231,9 +231,9 @@ export default function TripDetailClient({ id }: { id: string }) {
             {/* 3. Incidents / Replacements */}
             {trip.assignments.length > 1 && (
               <div className="relative mb-6">
-                <div className="absolute -left-[31px] top-1 h-3 w-3 rounded-full bg-warning" />
+                <div className="absolute -left-8 top-1 h-3 w-3 rounded-full bg-status-warning-solid" />
                 <div className="flex flex-col">
-                  <span className="text-small font-semibold text-warning">{t("replacementOccurred")}</span>
+                  <span className="text-small font-semibold text-status-warning">{t("replacementOccurred")}</span>
                   <span className="text-small text-muted">
                     {formatTime(trip.assignments[trip.assignments.length - 1]!.startedAt)}
                   </span>
@@ -244,9 +244,9 @@ export default function TripDetailClient({ id }: { id: string }) {
             {/* 4. Completed or Cancelled */}
             {trip.status === "COMPLETED" && (
               <div className="relative">
-                <div className="absolute -left-[31px] top-1 h-3 w-3 rounded-full bg-success" />
+                <div className="absolute -left-8 top-1 h-3 w-3 rounded-full bg-status-success-solid" />
                 <div className="flex flex-col">
-                  <span className="text-small font-semibold text-success">{t("completed")}</span>
+                  <span className="text-small font-semibold text-status-success">{t("completed")}</span>
                   <span className="text-small text-muted">
                     {trip.actualArrivalAt ? formatTime(trip.actualArrivalAt) : common("notAvailable")}
                   </span>
@@ -256,9 +256,9 @@ export default function TripDetailClient({ id }: { id: string }) {
 
             {trip.status === "CANCELLED" && (
               <div className="relative">
-                <div className="absolute -left-[31px] top-1 h-3 w-3 rounded-full bg-danger" />
+                <div className="absolute -left-8 top-1 h-3 w-3 rounded-full bg-status-danger-solid" />
                 <div className="flex flex-col">
-                  <span className="text-small font-semibold text-danger">{t("cancelled")}</span>
+                  <span className="text-small font-semibold text-status-danger">{t("cancelled")}</span>
                 </div>
               </div>
             )}
@@ -269,13 +269,13 @@ export default function TripDetailClient({ id }: { id: string }) {
       {/* Open Incidents */}
       {trip.incidents.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h2 className="text-h2 font-semibold text-warning">{t("openIncidents")}</h2>
+          <h2 className="text-h2 font-semibold text-status-warning">{t("openIncidents")}</h2>
           <div className="flex flex-col gap-3">
             {trip.incidents.map((inc: IncidentDto) => (
-              <Card key={inc.id} className="flex flex-col gap-2 border-warning/40 p-4">
+              <Card key={inc.id} className="flex flex-col gap-2 border-status-warning p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-warning" />
+                    <AlertTriangle className="h-4 w-4 text-status-warning" />
                     <span className="font-semibold">{inc.type}</span>
                     <span className="text-small text-muted">({inc.severity})</span>
                   </div>

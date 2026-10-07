@@ -184,7 +184,7 @@ export function MapView({
           {markers.map((m) => (
             <Marker key={m.id} longitude={m.lng} latitude={m.lat} anchor="bottom">
               <span
-                className="flex size-7 items-center justify-center rounded-full bg-primary text-on-primary text-xs font-bold shadow-md"
+                className="flex size-7 items-center justify-center rounded-full bg-primary text-on-primary text-small font-bold shadow-md"
                 title={m.label}
               >
                 *

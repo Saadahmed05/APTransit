@@ -245,7 +245,7 @@ export default function StopsClient() {
             {/* Map Preview Pin */}
             <div className="mt-2 flex flex-col gap-1">
               <span className="text-small font-medium text-muted">{t("mapPreviewPin")}</span>
-              <div className="h-44 w-full overflow-hidden rounded-md border border-border">
+              <div className="h-44 w-full overflow-hidden rounded-md border border-default">
                 <MapView
                   markers={[
                     {

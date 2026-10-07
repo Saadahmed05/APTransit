@@ -300,7 +300,7 @@ export function TokenCheck() {
         </p>
         <ul className="flex flex-col divide-y divide-default rounded-lg border border-default">
           {TYPE_SCALE.map((row) => (
-            <li key={row.token} className="grid gap-3 p-4 md:grid-cols-[8rem_1fr_1fr] md:items-baseline">
+            <li key={row.token} className="grid gap-3 p-4 md:grid-cols-3 md:items-baseline">
               <div className="flex flex-col">
                 <code className="font-mono text-small text-fg">{row.token}</code>
                 <span className="text-caption text-subtle tabular-nums">{row.spec}</span>

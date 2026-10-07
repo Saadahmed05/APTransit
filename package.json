@@ -26,7 +26,9 @@
     "e2e": "pnpm --filter web e2e",
     "load:pool": "pnpm --filter api exec tsx scripts/load-pool.ts",
     "load:search": "pnpm --filter api exec tsx ../../scripts/load/search.ts",
-    "load:validate": "pnpm --filter api exec tsx ../../scripts/load/validate.ts"
+    "load:validate": "pnpm --filter api exec tsx ../../scripts/load/validate.ts",
+    "check:classes": "node scripts/check-classes.cjs",
+    "check:endpoints": "node scripts/check-endpoints.cjs"
   },
   "devDependencies": {
     "@aptransit/config": "workspace:*",

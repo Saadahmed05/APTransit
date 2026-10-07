@@ -252,7 +252,7 @@ export default function PoliciesClient() {
                     <Card key={f.id} className="flex flex-col gap-2 p-4">
                       <div className="flex items-center justify-between">
                         <span className="font-bold">{bt ? bt.nameEn : f.busTypeId}</span>
-                        <span className="rounded bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
+                        <span className="rounded-sm bg-status-success-soft px-2 py-0.5 text-small font-semibold text-status-success">
                           Active
                         </span>
                       </div>
@@ -260,7 +260,7 @@ export default function PoliciesClient() {
                         <p>{t("baseFare")}: ₹{(f.baseFarePaise / 100).toFixed(2)}</p>
                         <p>{t("perKmFare")}: ₹{(f.perKmPaise / 100).toFixed(2)} / km</p>
                         <p>{t("minFare")}: ₹{(f.minFarePaise / 100).toFixed(2)}</p>
-                        <p className="mt-1 text-xs">Valid from: {formatDate(f.validFrom, locale)}</p>
+                        <p className="mt-1 text-small">Valid from: {formatDate(f.validFrom, locale)}</p>
                       </div>
                     </Card>
                   );
