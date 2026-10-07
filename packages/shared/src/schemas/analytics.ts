@@ -64,6 +64,24 @@ export type DemandBand = z.infer<typeof DemandBand>;
 export const DemandLevel = z.enum(["LOW", "MEDIUM", "HIGH"]);
 export type DemandLevel = z.infer<typeof DemandLevel>;
 
+/**
+ * Band of an IST departure hour, same bands as search: morning 05:00 to 11:59, afternoon 12:00
+ * to 16:59, evening 17:00 to 20:59, night 21:00 to 04:59.
+ */
+export function demandBandOfHour(istHour: number): DemandBand {
+  if (istHour >= 5 && istHour < 12) return "MORNING";
+  if (istHour >= 12 && istHour < 17) return "AFTERNOON";
+  if (istHour >= 17 && istHour < 21) return "EVENING";
+  return "NIGHT";
+}
+
+/** Fixed demand thresholds on load factor (Day 15): under 50 LOW, 50 to 80 MEDIUM, over 80 HIGH. */
+export function demandLevelOf(loadFactorPct: number): DemandLevel {
+  if (loadFactorPct < 50) return "LOW";
+  if (loadFactorPct <= 80) return "MEDIUM";
+  return "HIGH";
+}
+
 export const DemandBandDto = z.object({
   band: DemandBand,
   loadFactorPct: z.number().min(0).max(100),

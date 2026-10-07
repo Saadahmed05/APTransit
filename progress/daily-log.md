@@ -4,6 +4,25 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## Day 15: 2026-10-07, review and fixes (Dev B scope)
+
+**Done**
+- Review of the Day 15 code on main found the backend half was not working. Fixed: the history seed crashed on its first insert (serviceDate passed as a string), so it had never run; /analytics/buses and /analytics/delays returned 500 on every call (same cause); hours and demand bands used UTC instead of IST; revenue summed ticket fares instead of captured minus refunded; /gov/map incident counts compared bus ids with depot ids (always 0); gov overview, map, routes, analytics and reports had no district scope.
+- History seed rewritten (prisma/seed-history.ts): trips from the shared trip generator, fares from calculateFare, bookings, payments, operator refunds for cancelled trips, assignments, ticket and pass scans, 135 passes, 25 complaints, 11 resolved incidents plus the open breakdown, maintenance windows, GPS for the last 2 days, rollups. Deterministic, reruns delete the earlier run first. Bulk inserts with unnest.
+- Rollups, analytics, gov and reports rewritten (D-030). Reports stream, follow report:export scope and block CSV formula injection.
+- Migration 20261007000000_query_indexes (18 indexes, D-030).
+
+**Verification**
+- SQL against the seeded data: load factor evening 75.4, morning 67.2, afternoon 54.8, night 55.2 percent; evening KNL-VJA and VJA-GNT average delay 20 min, others 5; 3 percent cancelled; captured 92,63,298 minus refunded 1,94,289 equals rollup revenue 90,69,009 rupees; one open incident.
+- Local API timings (median of 3, 14 days of data, Docker Postgres): overview 313 ms, map 398, routes 303, buses 461, passengers 381, delays 242, demand 237, district drill down 301, daily operations CSV 254, route performance CSV 260. Tickets CSV for one full day (3 MB) 1.9 s.
+- District officer: own district 200, other district drill down, route demand and district analytics 403; analytics routes list only Kurnool routes.
+- Tests: shared 121, api 397 passed (6 database tests skipped); lint, typecheck and check:dashes pass.
+
+**Not done**
+- History seed takes 446 s on local Docker Postgres (foreign key checks dominate, 4 per booking and 8 per ticket). Neon timing not measured yet.
+- Frontend Day 15 screens and E2E-9 not rerun in this session. Staging not deployed (Upstash, Razorpay, Resend, Render and Vercel pending; Neon connected, empty).
+- Base seed has one driver and one conductor (docs/19 asks for crews per depot) and registrations without the leading zero (AP 39 Z 101). Logged for Day 19 seed check.
+
 ## Day 14: 2026-10-06, Dev A and Dev B
 
 **Done**

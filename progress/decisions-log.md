@@ -250,6 +250,19 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
 - **Contracts:** Scoped GET /ops/depots, /ops/bus-types and /ops/routes support the dashboard forms. Bus responses add optional current bilingual route and driver names. Incident status labels, icons and tones are centralized in shared/status.ts. Depot audit reads use the audited entity's depot in before/after snapshots, not the actor's current roles, which may span several depots. State roles retain global audit access.
 - **Status:** Proposed for the other dev's shared contract review. Locked docs unchanged.
 
+### D-030: Day 15 review fixes, indexes and analytics definitions
+- **Date:** 2026-10-07
+- **Raised by:** Day 15 review before Day 16
+- **Docs affected:** docs/05-data-model.md (indexes beyond the minimum), docs/06-api-contract.md (gov and analytics shapes, additive)
+- **Decision:**
+  - Indexes (migration 20261007000000_query_indexes): foreign key and range indexes on bookings(tripId), booking_passengers(bookingId), tickets(bookingId), tickets(passengerId), ticket_scans(tripId, scannedAt), ticket_scans(ticketId), ticket_scans(passId), ticket_transfers(ticketId), payments(bookingId), payments(passId), refunds(paymentId), refunds(ticketId), trip_assignments(tripId), trip_assignments(busId, startedAt), incidents(tripId), maintenance_records(busId, startAt), complaints(depotId, createdAt), daily_stats(date, routeId). Without them cascade deletes and per trip joins scanned whole tables.
+  - daily_stats levels: route rows carry routeId (plus depot and district), depot rows depotId and districtId, district rows districtId only, and one state row has no ids. revenuePaise = captured payments minus processed refunds of the trips of that date. passengers = valid tickets plus valid pass scans; ticketsSold = valid tickets. passesActive only on the state row (a pass has no place). complaints counted by route code, depot and district.
+  - Analytics definitions (no doc defines them): load factor = valid tickets over seats of trips that were not cancelled. Bus utilisation = hours on completed trips over the hours in the range that were not downtime; downtime = maintenance records plus breakdown incidents (report to resolution) clipped to the range. Hours and demand bands use IST departure time; bands match search (05:00, 12:00, 17:00, 21:00). Delayed = 5 minutes or more (DELAY_DISPLAY_THRESHOLD_MIN); on the live map delayed means running late now. Ranges are at most 92 days.
+  - Scope: gov, analytics and reports use depotScopeWhere(user, permission): only roles holding the permission count; district officers see their district, depot managers their depot for reports.
+  - Shared contracts (additive): demandBandOfHour and demandLevelOf in schemas/analytics.ts; GovOverviewDto adds complaintsToday, openComplaints, avgHoursToResolve; GovDistrictMapItem adds lat and lng (district HQ bus stand).
+  - Reports stream in pages, use names instead of ids, and prefix text that starts with = + - @ with an apostrophe (CSV injection).
+- **Status:** Proposed for the other dev review. Locked docs unchanged.
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |

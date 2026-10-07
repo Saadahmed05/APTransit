@@ -1,5 +1,5 @@
 import {
-  type DisplayStatus,
+  DELAY_DISPLAY_THRESHOLD_MIN,
   formatIstDate,
   type GovDepotSummaryDto,
   type GovDistrictSummaryDto,
@@ -9,354 +9,277 @@ import {
   type IncidentDto,
   type OpsTripDto,
 } from "@aptransit/shared";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import type { AuthenticatedUser } from "../../common/auth/auth.types";
-import { ScopeService } from "../../common/services/scope.service";
+import { AppError } from "../../common/errors/app-error";
+import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { calculateLoadFactor, type DailyStatsRow, serviceDateOf } from "../rollups/rollups.service";
+import { type AnalyticsScope, AnalyticsService } from "../analytics/analytics.service";
+import { displayStatusOf, toTripDto } from "../tracking/trip-context.service";
 import { TrackingService } from "../tracking/tracking.service";
 
-function toServiceDate(dateStr: string): Date {
-  return new Date(`${dateStr}T00:00:00.000Z`);
+const DAY_MS = 24 * 60 * 60 * 1000;
+const OPEN_INCIDENT = ["OPEN", "ACKNOWLEDGED"] as const;
+const SEATED = ["CANCELLED", "REFUNDED"] as const;
+
+/** Counts for a set of trips of one service date. */
+interface TripCounts {
+  activeTrips: number;
+  activeBuses: number;
+  delayedTrips: number;
 }
 
+const tripSelect = {
+  id: true,
+  status: true,
+  delayMinutes: true,
+  route: { select: { depotId: true, depot: { select: { districtId: true } } } },
+  assignments: { where: { endedAt: null }, select: { busId: true } },
+} as const satisfies Prisma.TripSelect;
+type TripRow = Prisma.TripGetPayload<{ select: typeof tripSelect }>;
+
+/**
+ * Active trips are RUNNING now, active buses are the buses on them, delayed trips are trips of the
+ * date that were not cancelled and are 5 minutes or more late (the DELAYED display threshold).
+ */
+export function countTrips(trips: readonly TripRow[]): TripCounts {
+  const running = trips.filter((t) => t.status === "RUNNING");
+  return {
+    activeTrips: running.length,
+    activeBuses: new Set(running.flatMap((t) => t.assignments.map((a) => a.busId))).size,
+    delayedTrips: trips.filter((t) => t.status !== "CANCELLED" && t.delayMinutes >= DELAY_DISPLAY_THRESHOLD_MIN).length,
+  };
+}
+
+/** Sums rollup rows (one level only) into the totals the summaries show. */
+export function sumRows(rows: readonly DailyStatsRow[]) {
+  let completed = 0;
+  let onTime = 0;
+  let passengers = 0;
+  let tickets = 0;
+  let revenue = 0n;
+  for (const r of rows) {
+    completed += r.tripsCompleted;
+    onTime += (r.onTimePct / 100) * r.tripsCompleted;
+    passengers += r.passengers;
+    tickets += r.ticketsSold;
+    revenue += r.revenuePaise;
+  }
+  return {
+    passengers,
+    tickets,
+    revenuePaise: Number(revenue),
+    onTimePct: completed ? Math.round((onTime / completed) * 1000) / 10 : 100,
+  };
+}
+
+/**
+ * Rows that cover the caller's scope exactly once: the state row for statewide roles, else the
+ * district rows of whole districts in scope plus depot rows for any other depot in scope.
+ */
+export function areaRows(scope: AnalyticsScope, rows: readonly DailyStatsRow[], depotDistrict: ReadonlyMap<string, string>) {
+  if (scope.all) return rows.filter((r) => !r.routeId && !r.depotId && !r.districtId);
+  const districts = new Set(scope.districtIds);
+  return rows.filter((r) => {
+    if (r.routeId) return false;
+    if (!r.depotId) return r.districtId !== null && districts.has(r.districtId);
+    return scope.depotIds.includes(r.depotId) && !districts.has(depotDistrict.get(r.depotId) ?? "");
+  });
+}
+
+/**
+ * Government command center and drill down (docs/06 "Government and analytics", plan sec 35, 36).
+ * Ticket, passenger, revenue and on time numbers come from the rollup rows (stored for past dates,
+ * computed live for today), so the command center, drill down and analytics always agree.
+ */
 @Injectable()
 export class GovService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly scope: ScopeService,
+    private readonly analytics: AnalyticsService,
     private readonly tracking: TrackingService,
   ) {}
 
-  /**
-   * GET /gov/overview: today live from queries plus Redis live counts.
-   */
+  /** GET /gov/overview */
   async overview(user: AuthenticatedUser, dateStr?: string): Promise<GovOverviewDto> {
-    const todayStr = dateStr || formatIstDate(new Date());
-    const serviceDate = toServiceDate(todayStr);
+    const date = dateStr ?? formatIstDate(new Date());
+    const scope = await this.analytics.scopeFor(user);
+    const depotFilter = scope.all ? {} : { depotId: { in: scope.depotIds } };
+    const since = new Date(Date.now() - 30 * DAY_MS);
+    const range = this.analytics.range(date, date);
 
-    // 1. Active buses and trips today
-    const [activeBusesCount, activeTripsCount] = await Promise.all([
-      this.prisma.bus.count({ where: { status: "RUNNING" } }),
-      this.prisma.trip.count({
-        where: { serviceDate, status: "RUNNING" },
+    const [trips, rows, depots, openIncidents, complaintsToday, openComplaints, resolved] = await Promise.all([
+      this.trips(date, scope.depotIds),
+      this.analytics.statsRows(range),
+      this.prisma.depot.findMany({ select: { id: true, districtId: true } }),
+      this.prisma.incident.count({ where: { status: { in: [...OPEN_INCIDENT] }, trip: { route: depotFilter } } }),
+      this.prisma.complaint.count({ where: { ...this.complaintScope(scope), createdAt: { gte: range.start, lt: range.end } } }),
+      this.prisma.complaint.count({ where: { ...this.complaintScope(scope), status: { in: ["RECEIVED", "IN_REVIEW"] } } }),
+      this.prisma.complaint.findMany({
+        where: { ...this.complaintScope(scope), resolvedAt: { not: null, gte: since } },
+        select: { createdAt: true, resolvedAt: true },
       }),
     ]);
-
-    // 2. Delayed trips today (status not CANCELLED, delay > 5)
-    const delayedTripsCount = await this.prisma.trip.count({
-      where: {
-        serviceDate,
-        status: { not: "CANCELLED" },
-        delayMinutes: { gt: 5 },
-      },
-    });
-
-    // 3. Open incidents
-    const openIncidentsCount = await this.prisma.incident.count({
-      where: { status: { in: ["OPEN", "ACKNOWLEDGED"] } },
-    });
-
-    // 4. Tickets and passengers today
-    const tickets = await this.prisma.ticket.findMany({
-      where: {
-        trip: { serviceDate },
-        status: { notIn: ["CANCELLED", "REFUNDED"] },
-      },
-      select: {
-        farePaise: true,
-      },
-    });
-
-    const ticketsToday = tickets.length;
-    const passengersToday = tickets.length;
-    const revenueTodayPaise = tickets.reduce((sum, t) => sum + t.farePaise, 0);
-
-    // 5. On-time percentage
-    const completedOrRunning = await this.prisma.trip.findMany({
-      where: {
-        serviceDate,
-        status: { in: ["RUNNING", "COMPLETED"] },
-      },
-      select: { delayMinutes: true },
-    });
-
-    let onTimePct = 100;
-    if (completedOrRunning.length > 0) {
-      const onTime = completedOrRunning.filter((t) => t.delayMinutes < 5).length;
-      onTimePct = Math.round((onTime / completedOrRunning.length) * 1000) / 10;
-    }
+    const totals = sumRows(areaRows(scope, rows, new Map(depots.map((d) => [d.id, d.districtId]))));
+    const hours = resolved.map((c) => (c.resolvedAt!.getTime() - c.createdAt.getTime()) / 3_600_000);
 
     return {
-      activeBuses: activeBusesCount,
-      activeTrips: activeTripsCount,
-      passengersToday,
-      delayedTrips: delayedTripsCount,
-      openIncidents: openIncidentsCount,
-      onTimePct,
-      ticketsToday,
-      revenueTodayPaise,
+      ...countTrips(trips),
+      openIncidents,
+      passengersToday: totals.passengers,
+      ticketsToday: totals.tickets,
+      revenueTodayPaise: totals.revenuePaise,
+      onTimePct: totals.onTimePct,
+      complaintsToday,
+      openComplaints,
+      avgHoursToResolve: hours.length ? Math.round((hours.reduce((s, h) => s + h, 0) / hours.length) * 10) / 10 : null,
     };
   }
 
-  /**
-   * GET /gov/map: district rollups, live buses and open incidents.
-   */
+  /** GET /gov/map: per district HQ live counts, live buses and open incidents in scope. */
   async map(user: AuthenticatedUser): Promise<GovMapDto> {
-    const districts = await this.prisma.district.findMany({
-      include: {
-        depots: {
-          include: {
-            buses: { where: { status: "RUNNING" }, select: { id: true } },
-            routes: {
-              include: {
-                trips: {
-                  where: {
-                    serviceDate: toServiceDate(formatIstDate(new Date())),
-                    status: { not: "CANCELLED" },
-                    delayMinutes: { gt: 5 },
-                  },
-                  select: { id: true },
-                },
-              },
-            },
-          },
+    const scope = await this.analytics.scopeFor(user);
+    const today = formatIstDate(new Date());
+    const [districts, trips, incidents, buses] = await Promise.all([
+      this.prisma.district.findMany({
+        where: { depots: { some: { id: { in: scope.depotIds } } } },
+        select: {
+          id: true,
+          code: true,
+          nameEn: true,
+          nameTe: true,
+          depots: { select: { busStand: { select: { lat: true, lng: true } } }, orderBy: { code: "asc" }, take: 1 },
         },
-      },
-    });
+        orderBy: { code: "asc" },
+      }),
+      this.trips(today, scope.depotIds),
+      this.prisma.incident.findMany({
+        where: { status: { in: [...OPEN_INCIDENT] }, trip: { route: { depotId: { in: scope.depotIds } } } },
+        include: {
+          trip: { select: { code: true, route: { select: { depot: { select: { districtId: true } } } } } },
+          bus: { select: { regNo: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      this.tracking.liveBuses(user, undefined, undefined),
+    ]);
 
-    // Open incidents across state
-    const openIncidents = await this.prisma.incident.findMany({
-      where: { status: { in: ["OPEN", "ACKNOWLEDGED"] } },
-      include: {
-        trip: { select: { code: true } },
-        bus: { select: { regNo: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const districtItems = districts.map((d) => {
-      let activeBuses = 0;
-      let delayed = 0;
-      for (const depot of d.depots) {
-        activeBuses += depot.buses.length;
-        for (const route of depot.routes) {
-          delayed += route.trips.length;
-        }
-      }
-
-      // Incidents in this district
-      const depotIds = new Set(d.depots.map((dp) => dp.id));
-      const incidentsCount = openIncidents.filter((inc) => inc.busId && depotIds.has(inc.busId)).length;
-
-      return {
-        id: d.id,
-        code: d.code,
-        nameEn: d.nameEn,
-        nameTe: d.nameTe,
-        activeBuses,
-        delayed,
-        incidents: incidentsCount,
-      };
-    });
-
-    // Live buses from tracking service
-    const liveBuses = await this.tracking.liveBuses(user, undefined, undefined);
-
-    const incidentsDto: IncidentDto[] = openIncidents.map((inc) => ({
-      id: inc.id,
-      code: inc.code,
-      type: inc.type,
-      severity: inc.severity,
-      status: inc.status,
-      tripId: inc.tripId,
-      tripCode: inc.trip?.code,
-      busId: inc.busId,
-      busRegNo: inc.bus?.regNo,
-      lat: inc.lat,
-      lng: inc.lng,
-      note: inc.note,
-      createdAt: inc.createdAt.toISOString(),
-    }));
-
+    const inScope = new Set(scope.depotIds);
     return {
-      districts: districtItems,
-      buses: liveBuses,
-      incidents: incidentsDto,
+      districts: districts.map((d) => {
+        const own = trips.filter((t) => t.route.depot.districtId === d.id);
+        const running = own.filter((t) => t.status === "RUNNING");
+        return {
+          id: d.id,
+          code: d.code,
+          nameEn: d.nameEn,
+          nameTe: d.nameTe,
+          activeBuses: countTrips(own).activeBuses,
+          // On the live map "delayed" means running late right now
+          delayed: running.filter((t) => t.delayMinutes >= DELAY_DISPLAY_THRESHOLD_MIN).length,
+          incidents: incidents.filter((i) => i.trip.route.depot.districtId === d.id).length,
+          lat: d.depots[0]?.busStand.lat ?? null,
+          lng: d.depots[0]?.busStand.lng ?? null,
+        };
+      }),
+      buses: buses.filter((b) => inScope.has(b.depotId)),
+      incidents: incidents.map(
+        (inc): IncidentDto => ({
+          id: inc.id,
+          code: inc.code,
+          type: inc.type,
+          severity: inc.severity,
+          status: inc.status,
+          tripId: inc.tripId,
+          tripCode: inc.trip.code,
+          busId: inc.busId,
+          busRegNo: inc.bus.regNo,
+          lat: inc.lat,
+          lng: inc.lng,
+          note: inc.note,
+          createdAt: inc.createdAt.toISOString(),
+        }),
+      ),
     };
   }
 
-  /**
-   * GET /gov/districts/:id: drill down for district.
-   */
+  /** GET /gov/districts/:id */
   async districtSummary(user: AuthenticatedUser, districtId: string, dateStr?: string): Promise<GovDistrictSummaryDto> {
-    this.scope.assertDistrictAccess(user, districtId);
-
+    const date = dateStr ?? formatIstDate(new Date());
+    const scope = await this.analytics.scopeFor(user);
     const district = await this.prisma.district.findUnique({
       where: { id: districtId },
-      include: {
-        depots: {
-          include: {
-            buses: true,
-            routes: {
-              include: {
-                trips: {
-                  where: { serviceDate: toServiceDate(dateStr || formatIstDate(new Date())) },
-                  include: {
-                    tickets: {
-                      where: { status: { notIn: ["CANCELLED", "REFUNDED"] } },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+      include: { depots: { include: { buses: { select: { id: true } } }, orderBy: { code: "asc" } } },
     });
-
-    if (!district) {
-      throw new NotFoundException(`District ${districtId} not found`);
+    if (!district) throw new AppError("NOT_FOUND", "District not found");
+    if (!scope.all && !scope.districtIds.includes(districtId)) {
+      throw new AppError("FORBIDDEN", "District is outside your scope");
     }
-
-    let activeBuses = 0;
-    let activeTrips = 0;
-    let delayedTrips = 0;
-    let passengersToday = 0;
-    let revenueTodayPaise = 0;
-    let totalCompletedOrRunning = 0;
-    let onTimeCount = 0;
-
-    const depotSummaries = district.depots.map((depot) => {
-      const activeDepotBuses = depot.buses.filter((b) => b.status === "RUNNING").length;
-      let depotActiveTrips = 0;
-      let depotDelayedTrips = 0;
-
-      for (const r of depot.routes) {
-        for (const t of r.trips) {
-          if (t.status === "RUNNING") {
-            depotActiveTrips++;
-          }
-          if (t.status !== "CANCELLED" && t.delayMinutes > 5) {
-            depotDelayedTrips++;
-          }
-          if (t.status === "RUNNING" || t.status === "COMPLETED") {
-            totalCompletedOrRunning++;
-            if (t.delayMinutes < 5) onTimeCount++;
-          }
-          for (const tk of t.tickets) {
-            passengersToday += 1;
-            revenueTodayPaise += tk.farePaise;
-          }
-        }
-      }
-
-      activeBuses += activeDepotBuses;
-      activeTrips += depotActiveTrips;
-      delayedTrips += depotDelayedTrips;
-
-      return {
-        id: depot.id,
-        code: depot.code,
-        nameEn: depot.nameEn,
-        nameTe: depot.nameTe,
-        activeBuses: activeDepotBuses,
-        activeTrips: depotActiveTrips,
-        delayedTrips: depotDelayedTrips,
-        totalBuses: depot.buses.length,
-      };
-    });
-
-    const onTimePct =
-      totalCompletedOrRunning > 0
-        ? Math.round((onTimeCount / totalCompletedOrRunning) * 1000) / 10
-        : 100;
-
-    const openIncidents = await this.prisma.incident.count({
-      where: {
-        status: { in: ["OPEN", "ACKNOWLEDGED"] },
-        trip: { route: { depot: { districtId } } },
-      },
-    });
+    const depotIds = district.depots.map((d) => d.id);
+    const [trips, rows, openIncidents] = await Promise.all([
+      this.trips(date, depotIds),
+      this.analytics.statsRows(this.analytics.range(date, date)),
+      this.prisma.incident.count({
+        where: { status: { in: [...OPEN_INCIDENT] }, trip: { route: { depot: { districtId } } } },
+      }),
+    ]);
+    const totals = sumRows(rows.filter((r) => !r.routeId && !r.depotId && r.districtId === districtId));
 
     return {
       id: district.id,
       code: district.code,
       nameEn: district.nameEn,
       nameTe: district.nameTe,
-      activeBuses,
-      activeTrips,
-      passengersToday,
-      delayedTrips,
+      ...countTrips(trips),
       openIncidents,
-      onTimePct,
-      revenueTodayPaise,
-      depots: depotSummaries,
+      passengersToday: totals.passengers,
+      onTimePct: totals.onTimePct,
+      revenueTodayPaise: totals.revenuePaise,
+      depots: district.depots.map((depot) => ({
+        id: depot.id,
+        code: depot.code,
+        nameEn: depot.nameEn,
+        nameTe: depot.nameTe,
+        ...countTrips(trips.filter((t) => t.route.depotId === depot.id)),
+        totalBuses: depot.buses.length,
+      })),
     };
   }
 
-  /**
-   * GET /gov/depots/:id: drill down for depot.
-   */
+  /** GET /gov/depots/:id */
   async depotSummary(user: AuthenticatedUser, depotId: string, dateStr?: string): Promise<GovDepotSummaryDto> {
-    this.scope.assertDepotAccess(user, depotId);
-
-    const todayStr = dateStr || formatIstDate(new Date());
+    const date = dateStr ?? formatIstDate(new Date());
+    const scope = await this.analytics.scopeFor(user);
     const depot = await this.prisma.depot.findUnique({
       where: { id: depotId },
       include: {
-        buses: true,
-        routes: {
-          include: {
-            trips: {
-              where: { serviceDate: toServiceDate(todayStr) },
-              include: {
-                busType: true,
-                tickets: {
-                  where: { status: { notIn: ["CANCELLED", "REFUNDED"] } },
-                },
-              },
-            },
-          },
-        },
+        buses: { select: { id: true } },
+        routes: { select: { id: true, code: true, nameEn: true, nameTe: true }, orderBy: { code: "asc" } },
       },
     });
+    if (!depot) throw new AppError("NOT_FOUND", "Depot not found");
+    if (!scope.depotIds.includes(depotId)) throw new AppError("FORBIDDEN", "Depot is outside your scope");
 
-    if (!depot) {
-      throw new NotFoundException(`Depot ${depotId} not found`);
-    }
-
-    const activeBuses = depot.buses.filter((b) => b.status === "RUNNING").length;
-    let activeTrips = 0;
-    let delayedTrips = 0;
-
-    const routeSummaries = depot.routes.map((route) => {
-      let routeDelayed = 0;
-      let totalTickets = 0;
-      let totalSeats = 0;
-
-      for (const t of route.trips) {
-        if (t.status === "RUNNING") activeTrips++;
-        if (t.status !== "CANCELLED" && t.delayMinutes > 5) {
-          routeDelayed++;
-          delayedTrips++;
-        }
-        totalTickets += t.tickets.length;
-        totalSeats += t.busType?.totalSeats || 40;
-      }
-
-      const loadFactorPct =
-        totalSeats > 0 ? Math.min(100, Math.round((totalTickets / totalSeats) * 1000) / 10) : 0;
-
-      return {
-        id: route.id,
-        code: route.code,
-        nameEn: route.nameEn,
-        nameTe: route.nameTe,
-        tripsToday: route.trips.length,
-        delayedTrips: routeDelayed,
-        loadFactorPct,
-      };
+    const serviceDate = serviceDateOf(date);
+    const [trips, load] = await Promise.all([
+      this.trips(date, [depotId]),
+      this.prisma.trip.findMany({
+        where: { serviceDate, route: { depotId }, status: { not: "CANCELLED" } },
+        select: {
+          routeId: true,
+          delayMinutes: true,
+          busType: { select: { totalSeats: true } },
+          _count: { select: { tickets: { where: { status: { notIn: [...SEATED] } } } } },
+        },
+      }),
+    ]);
+    const allTrips = await this.prisma.trip.groupBy({
+      by: ["routeId"],
+      where: { serviceDate, route: { depotId } },
+      _count: { _all: true },
     });
+    const tripCount = new Map(allTrips.map((r) => [r.routeId, r._count._all]));
 
     return {
       id: depot.id,
@@ -364,109 +287,104 @@ export class GovService {
       nameEn: depot.nameEn,
       nameTe: depot.nameTe,
       districtId: depot.districtId,
-      activeBuses,
-      activeTrips,
-      delayedTrips,
+      ...countTrips(trips),
       totalBuses: depot.buses.length,
-      routes: routeSummaries,
+      routes: depot.routes.map((route) => {
+        const own = load.filter((t) => t.routeId === route.id);
+        return {
+          id: route.id,
+          code: route.code,
+          nameEn: route.nameEn,
+          nameTe: route.nameTe,
+          tripsToday: tripCount.get(route.id) ?? 0,
+          delayedTrips: own.filter((t) => t.delayMinutes >= DELAY_DISPLAY_THRESHOLD_MIN).length,
+          loadFactorPct: calculateLoadFactor(
+            own.reduce((s, t) => s + t._count.tickets, 0),
+            own.reduce((s, t) => s + t.busType.totalSeats, 0),
+          ),
+        };
+      }),
     };
   }
 
-  /**
-   * GET /gov/routes/:id: drill down for route.
-   */
+  /** GET /gov/routes/:id: the route's trips of the date with their bus and crew. */
   async routeSummary(user: AuthenticatedUser, routeId: string, dateStr?: string): Promise<GovRouteSummaryDto> {
-    const todayStr = dateStr || formatIstDate(new Date());
-
+    const date = dateStr ?? formatIstDate(new Date());
+    const scope = await this.analytics.scopeFor(user);
     const route = await this.prisma.route.findUnique({
       where: { id: routeId },
+      select: { id: true, code: true, nameEn: true, nameTe: true, depotId: true },
+    });
+    if (!route) throw new AppError("NOT_FOUND", "Route not found");
+    if (!scope.depotIds.includes(route.depotId)) throw new AppError("FORBIDDEN", "Route is outside your scope");
+
+    const trips = await this.prisma.trip.findMany({
+      where: { routeId, serviceDate: serviceDateOf(date) },
       include: {
-        trips: {
-          where: { serviceDate: toServiceDate(todayStr) },
-          include: {
-            busType: true,
-            assignments: {
-              where: { endedAt: null },
-              take: 1,
-              include: {
-                bus: true,
-                driver: { include: { user: true } },
-                conductor: { include: { user: true } },
-              },
-            },
-            tickets: {
-              where: { status: { notIn: ["CANCELLED", "REFUNDED"] } },
-            },
-          },
-          orderBy: { scheduledDepartureAt: "asc" },
+        busType: { select: { totalSeats: true } },
+        assignments: {
+          orderBy: { startedAt: "desc" },
+          include: { bus: true, driver: { include: { user: true } }, conductor: { include: { user: true } } },
         },
+        _count: { select: { tickets: { where: { status: { notIn: [...SEATED] } } } } },
       },
+      orderBy: { scheduledDepartureAt: "asc" },
     });
 
-    if (!route) {
-      throw new NotFoundException(`Route ${routeId} not found`);
-    }
-
-    let delayedTrips = 0;
-    let totalTickets = 0;
-    let totalSeats = 0;
-    let busesOnRoute = 0;
-
-    const opsTrips: OpsTripDto[] = route.trips.map((t) => {
-      if (t.status !== "CANCELLED" && t.delayMinutes > 5) delayedTrips++;
-      if (t.status === "RUNNING") busesOnRoute++;
-
-      totalTickets += t.tickets.length;
-      totalSeats += t.busType?.totalSeats || 40;
-
-      const assignment = t.assignments[0]
-        ? {
-            id: t.assignments[0].id,
-            busId: t.assignments[0].busId,
-            busRegNo: t.assignments[0].bus.regNo,
-            driverId: t.assignments[0].driverId,
-            driverName: t.assignments[0].driver.user.name,
-            conductorId: t.assignments[0].conductorId,
-            conductorName: t.assignments[0].conductor?.user?.name ?? null,
-            reason: t.assignments[0].reason as "INITIAL" | "REPLACEMENT",
-            startedAt: t.assignments[0].startedAt.toISOString(),
-            endedAt: t.assignments[0].endedAt?.toISOString() ?? null,
-          }
-        : null;
-
+    const ran = trips.filter((t) => t.status !== "CANCELLED");
+    const items: OpsTripDto[] = trips.map((t) => {
+      // The open assignment while the trip runs, else the last one (who finished the trip)
+      const a = t.assignments.find((x) => !x.endedAt) ?? t.assignments[0];
       return {
-        id: t.id,
-        code: t.code,
-        status: t.status,
-        displayStatus: (t.status === "RUNNING" ? (t.delayMinutes > 5 ? "DELAYED" : "RUNNING") : t.status) as DisplayStatus,
-        serviceDate: formatIstDate(t.serviceDate),
-        scheduledDepartureAt: t.scheduledDepartureAt.toISOString(),
-        scheduledArrivalAt: t.scheduledArrivalAt.toISOString(),
-        actualDepartureAt: t.actualDepartureAt?.toISOString() ?? null,
-        actualArrivalAt: t.actualArrivalAt?.toISOString() ?? null,
-        delayMinutes: t.delayMinutes,
+        ...toTripDto(t),
+        displayStatus: displayStatusOf(t),
         routeId: route.id,
         routeNameEn: route.nameEn,
         routeNameTe: route.nameTe,
         depotId: route.depotId,
-        passengers: t.tickets.length,
-        assignment,
+        passengers: t._count.tickets,
+        assignment: a
+          ? {
+              id: a.id,
+              busId: a.busId,
+              busRegNo: a.bus.regNo,
+              driverId: a.driverId,
+              driverName: a.driver.user.name,
+              conductorId: a.conductorId,
+              conductorName: a.conductor?.user.name ?? null,
+              reason: a.reason,
+              startedAt: a.startedAt.toISOString(),
+              endedAt: a.endedAt?.toISOString() ?? null,
+            }
+          : null,
       };
     });
-
-    const loadFactorPct =
-      totalSeats > 0 ? Math.min(100, Math.round((totalTickets / totalSeats) * 1000) / 10) : 0;
 
     return {
       id: route.id,
       code: route.code,
       nameEn: route.nameEn,
       nameTe: route.nameTe,
-      tripsToday: route.trips.length,
-      delayedTrips,
-      loadFactorPct,
-      busesOnRoute,
-      trips: opsTrips,
+      tripsToday: trips.length,
+      delayedTrips: ran.filter((t) => t.delayMinutes >= DELAY_DISPLAY_THRESHOLD_MIN).length,
+      loadFactorPct: calculateLoadFactor(
+        ran.reduce((s, t) => s + t._count.tickets, 0),
+        ran.reduce((s, t) => s + t.busType.totalSeats, 0),
+      ),
+      busesOnRoute: countTrips(trips.map((t) => ({ ...t, route: { depotId: route.depotId, depot: { districtId: "" } } }))).activeBuses,
+      trips: items,
     };
+  }
+
+  private trips(date: string, depotIds: string[]): Promise<TripRow[]> {
+    return this.prisma.trip.findMany({
+      where: { serviceDate: serviceDateOf(date), route: { depotId: { in: depotIds } } },
+      select: tripSelect,
+    });
+  }
+
+  /** Complaints of depots in scope; statewide also sees complaints without a depot. */
+  private complaintScope(scope: AnalyticsScope): Prisma.ComplaintWhereInput {
+    return scope.all ? {} : { depotId: { in: scope.depotIds } };
   }
 }

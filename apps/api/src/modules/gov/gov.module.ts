@@ -1,12 +1,13 @@
 import { Module } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
+import { AnalyticsModule } from "../analytics/analytics.module";
 import { AuthModule } from "../auth/auth.module";
 import { TrackingModule } from "../tracking/tracking.module";
 import { GovController } from "./gov.controller";
 import { GovService } from "./gov.service";
 
 @Module({
-  imports: [PrismaModule, AuthModule, TrackingModule],
+  imports: [PrismaModule, AuthModule, TrackingModule, AnalyticsModule],
   controllers: [GovController],
   providers: [GovService],
   exports: [GovService],

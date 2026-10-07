@@ -532,6 +532,7 @@ model MaintenanceRecord {
 
   bus Bus @relation(fields: [busId], references: [id])
 
+  @@index([busId, startAt])
   @@map("maintenance_records")
 }
 
@@ -586,6 +587,8 @@ model TripAssignment {
   driver    Driver     @relation(fields: [driverId], references: [id])
   conductor Conductor? @relation(fields: [conductorId], references: [id])
 
+  @@index([tripId])
+  @@index([busId, startedAt])
   @@map("trip_assignments")
 }
 
@@ -631,6 +634,7 @@ model Incident {
   bus  Bus  @relation(fields: [busId], references: [id])
 
   @@index([status, createdAt(sort: Desc)])
+  @@index([tripId])
   @@map("incidents")
 }
 
@@ -657,6 +661,7 @@ model Booking {
   payments   Payment[]
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([tripId])
   @@map("bookings")
 }
 
@@ -672,6 +677,7 @@ model BookingPassenger {
   booking Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   tickets Ticket[]
 
+  @@index([bookingId])
   @@map("booking_passengers")
 }
 
@@ -717,6 +723,8 @@ model Ticket {
 
   @@index([holderUserId, status])
   @@index([tripId, status])
+  @@index([bookingId])
+  @@index([passengerId])
   @@map("tickets")
 }
 
@@ -738,6 +746,9 @@ model TicketScan {
   trip      Trip      @relation(fields: [tripId], references: [id])
   conductor Conductor @relation(fields: [conductorId], references: [id])
 
+  @@index([tripId, scannedAt])
+  @@index([ticketId])
+  @@index([passId])
   @@map("ticket_scans")
 }
 
@@ -752,6 +763,7 @@ model TicketTransfer {
   fromUser User   @relation("TransfersFrom", fields: [fromUserId], references: [id])
   toUser   User   @relation("TransfersTo", fields: [toUserId], references: [id])
 
+  @@index([ticketId])
   @@map("ticket_transfers")
 }
 
@@ -833,6 +845,8 @@ model Payment {
   passes  Pass[]
   refunds Refund[]
 
+  @@index([bookingId])
+  @@index([passId])
   @@map("payments")
 }
 
@@ -853,6 +867,8 @@ model Refund {
   ticket  Ticket?      @relation(fields: [ticketId], references: [id])
   policy  RefundPolicy @relation(fields: [policyId], references: [id])
 
+  @@index([paymentId])
+  @@index([ticketId])
   @@map("refunds")
 }
 
@@ -936,6 +952,7 @@ model Complaint {
   depot Depot? @relation(fields: [depotId], references: [id])
 
   @@index([status, createdAt(sort: Desc)])
+  @@index([depotId, createdAt])
   @@map("complaints")
 }
 
@@ -958,6 +975,7 @@ model DailyStats {
   complaints     Int      @default(0)
   createdAt      DateTime @default(now())
 
+  @@index([date, routeId])
   @@map("daily_stats")
 }
 
