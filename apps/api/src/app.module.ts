@@ -20,6 +20,7 @@ import { AdminModule } from "./modules/admin/admin.module";
 import { OpsModule } from "./modules/ops/ops.module";
 import { GovModule } from "./modules/gov/gov.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
+import { FeedbackModule } from "./modules/feedback/feedback.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { RollupsModule } from "./modules/rollups/rollups.module";
 import { EligibilityModule } from "./modules/eligibility/eligibility.module";
@@ -79,6 +80,7 @@ import { RedisService } from "./redis/redis.service";
     GovModule,
     AnalyticsModule,
     ReportsModule,
+    FeedbackModule,
     RollupsModule,
     QueueModule,
   ],

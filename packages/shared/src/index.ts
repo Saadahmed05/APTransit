@@ -31,3 +31,4 @@ export * from "./schemas/admin";
 export * from "./schemas/gov";
 export * from "./schemas/analytics";
 export * from "./schemas/reports";
+export * from "./schemas/feedback";

@@ -15,6 +15,14 @@ import { createHash } from "node:crypto";
 import { QUEUES } from "../queue/queue.constants";
 
 export const SEND_EMAIL_JOB = "send-email";
+export const SEND_COMPLAINT_EMAIL_JOB = "send-complaint-email";
+
+export interface ComplaintEmailJob {
+  complaintId: string;
+  kind: "RECEIVED" | "UPDATE";
+  /** Language of the request that caused it: a guest has no stored preference. */
+  locale: "en" | "te";
+}
 /** Queue calls never hold up the request that caused the notification. */
 const QUEUE_ADD_TIMEOUT_MS = 3_000;
 
@@ -122,6 +130,27 @@ export class NotificationsService {
       }
     }
     return toNotificationDto(row);
+  }
+
+  /**
+   * Queues an email to the address on a complaint (guests included). One job per complaint, kind
+   * and status, so a retried request never sends the same email twice.
+   */
+  async queueComplaintEmail(job: ComplaintEmailJob, status: string): Promise<void> {
+    if (!this.queue) return;
+    try {
+      await withTimeout(
+        this.queue.add(SEND_COMPLAINT_EMAIL_JOB, job, {
+          jobId: `complaint-${job.complaintId}-${job.kind}-${status}`,
+          attempts: 3,
+          backoff: { type: "exponential", delay: 30_000 },
+          removeOnComplete: true,
+          removeOnFail: 100,
+        }),
+      );
+    } catch (err) {
+      this.logger.warn(`Complaint email for ${job.complaintId} not queued: ${(err as Error).message}`);
+    }
   }
 
   /** Newest first, cursor = the last id of the previous page (docs/06 Pagination). */

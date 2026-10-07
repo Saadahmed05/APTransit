@@ -307,6 +307,7 @@
     "TRIP_NOT_ASSIGNED": "You are not assigned to this trip.",
     "TRIP_NOT_STARTABLE": "This trip cannot be started yet.",
     "BUS_NOT_AVAILABLE": "Selected bus is not available.",
+    "COMPLAINT_STATUS_INVALID": "This status change is not allowed. Move the complaint one step at a time.",
     "NETWORK": "You are offline. Your tickets still open. We will retry when you are back online.",
     "INTERNAL": "Something went wrong on our side. Try again in a moment.",
     "BAD_RESPONSE": "We got an answer we did not understand. Try again in a moment."

@@ -263,8 +263,14 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
   - Reports stream in pages, use names instead of ids, and prefix text that starts with = + - @ with an apostrophe (CSV injection).
 - **Status:** Proposed for the other dev review. Locked docs unchanged.
 
+### D-031: Day 16 feedback and complaints
+- **Date:** 2026-10-07
+- **Decision:** Shared contracts in schemas/feedback.ts (FeedbackInput, FeedbackStatusQuery and Dto, ComplaintDto, OpsComplaintsQuery, UpdateComplaintInput, COMPLAINT_NEXT_STATUS). Status moves one step at a time; a skipped step answers 409 COMPLAINT_STATUS_INVALID (new error code, messages in both web files). POST /feedback is limited to 5 per IP per hour even when logged in; GET /feedback/status to 20 per IP per 10 minutes. Depot comes from the ticket, else the bus (spaces ignored), else the route. Signed in senders get COMPLAINT_UPDATE in app plus account email; guests get an email to the address they gave, in the language of their request (locale cookie, else Accept-Language). Complaints without a depot are visible to statewide roles only. Email copy lives in packages/shared messages (email.complaint).
+- **Offline scanning pack (stretch, ADR 003):** moved to the backlog. Not built in the 20 days; the conductor app keeps online validation.
+- **Status:** Proposed for the other dev review. Locked docs unchanged.
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |
 | --- | --- | --- |
-| | | |
+| Offline scanning pack and batch validation (ADR 003) | Day 16 stretch | 77 |

@@ -61,4 +61,14 @@ export class RateLimitService {
       res,
     );
   }
+
+  /** POST /feedback: 5 per IP per hour, logged in or not (Day 16, docs/12). */
+  async assertFeedbackLimit(ip: string, res?: Response): Promise<void> {
+    await this.enforce(`ratelimit:feedback:ip:${ip}`, 5, 3600, "Too much feedback from this network. Try again later.", res);
+  }
+
+  /** GET /feedback/status: 20 lookups per IP per 10 minutes, so codes cannot be guessed. */
+  async assertFeedbackLookupLimit(ip: string, res?: Response): Promise<void> {
+    await this.enforce(`ratelimit:feedback:status:ip:${ip}`, 20, 600, "Too many lookups. Wait a few minutes and try again.", res);
+  }
 }

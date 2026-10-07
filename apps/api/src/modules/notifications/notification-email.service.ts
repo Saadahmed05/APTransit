@@ -4,7 +4,8 @@ import { ConfigService } from "@nestjs/config";
 import type { Env } from "../../config/env";
 import { PrismaService } from "../../prisma/prisma.service";
 import { EMAIL_PROVIDER, type EmailProvider } from "../auth/email.provider";
-import { renderNotificationEmail } from "./email-template";
+import { renderComplaintEmail, renderNotificationEmail } from "./email-template";
+import type { ComplaintEmailJob } from "./notifications.service";
 
 /** Worker side of a notification: render in the user's language, send, mark emailedAt. */
 @Injectable()
@@ -35,6 +36,19 @@ export class NotificationEmailService {
     await this.email.sendEmail(row.user.email, mail.subject, mail.text, mail.html);
     await this.prisma.notification.updateMany({ where: { id: row.id, emailedAt: null }, data: { emailedAt: now } });
     this.logger.log(`Notification ${row.id} (${row.type}) emailed`);
+    return "SENT";
+  }
+
+  /** Worker side of a complaint email, sent to the address the citizen gave. */
+  async sendComplaint(job: ComplaintEmailJob): Promise<"SENT" | "SKIPPED"> {
+    const complaint = await this.prisma.complaint.findUnique({
+      where: { id: job.complaintId },
+      select: { code: true, email: true, status: true, resolutionNote: true },
+    });
+    if (!complaint) return "SKIPPED";
+    const mail = renderComplaintEmail(job.locale, job.kind, complaint, this.config.get("WEB_ORIGIN", { infer: true }));
+    await this.email.sendEmail(complaint.email, mail.subject, mail.text, mail.html);
+    this.logger.log(`Complaint ${complaint.code} ${job.kind} email sent`);
     return "SENT";
   }
 }
