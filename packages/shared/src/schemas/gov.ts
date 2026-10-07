@@ -93,6 +93,7 @@ export type GovDepotSummaryDto = z.infer<typeof GovDepotSummaryDto>;
 export const GovRouteSummaryDto = z.object({
   id: z.string(),
   code: z.string(),
+  depotId: z.string(),
   nameEn: z.string(),
   nameTe: z.string(),
   tripsToday: z.number().int().nonnegative(),

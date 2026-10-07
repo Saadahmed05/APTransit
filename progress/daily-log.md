@@ -4,6 +4,19 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## Day 16: 2026-10-07, Dev A and Dev B
+
+**Done**
+- Backend: POST /feedback (public, user optional, 5 per IP per hour), GET /feedback/mine, GET /feedback/status (code and email must both match, one generic NOT_FOUND), GET and PATCH /ops/complaints (complaint:manage scope, one step at a time, note required to resolve, assignee checked, audit complaint.update, COMPLAINT_UPDATE in app for users, email for guests). Confirmation and update emails in English and Telugu from packages/shared messages. Complaint counts in daily_stats and /gov/overview were added on Day 15. Offline pack moved to the backlog (D-031).
+- Frontend: /gov command center (KPI row, AP map with district HQ markers sized by active buses and toned by delay level, clustered live buses from one GeoJSON source, incident markers, live incident feed, most delayed routes), "Live, updated N s ago", state or district socket room, below 768 px a note plus the KPI row. Drill down with breadcrumb: /gov/district/[id] (KPIs, zoomed map, depots), /gov/depot/[id] (routes table), /gov/route/[id] (trips table, delay by hour chart, demand chips, buses now), /gov/trip/[id] (trip facts plus the live tracking view). District officers land on their district. Sidebar items can need a permission (Complaints link for complaint:manage).
+- Recharts added (docs/04 lists it) with apps/web/components/charts (chart rules, BarSeriesChart with a data table toggle).
+
+**Verification**
+- API: 16 new feedback tests (input rules, depot lookup, wrong email lookup, transitions, guest email, assignee scope, Telugu email). Web and UI typecheck and lint, i18n check and check:dashes pass.
+
+**Not done**
+- Browser walk with the simulator (markers move, KPIs tick, breakdown in the feed within 3 s): pending, run together with Day 17 screens.
+
 ## Day 15: 2026-10-07, review and fixes (Dev B scope)
 
 **Done**

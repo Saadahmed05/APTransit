@@ -1,6 +1,6 @@
 "use client";
-import { decodePolyline } from "@aptransit/shared";
-import { Bus, LocateFixed } from "lucide-react";
+import { decodePolyline, STATUS_MAP } from "@aptransit/shared";
+import { Bus, LocateFixed, TriangleAlert } from "lucide-react";
 import { useRef, useSyncExternalStore, useState } from "react";
 import Map, { Layer, Marker, Source, type MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -322,5 +322,172 @@ export function OpsMap({ buses, mapStyle, labels, statusLabel, details }: OpsMap
     </section>
   );
 }
+
+const TONES = ["success", "info", "warning", "danger", "maintenance", "neutral"] as const;
+/** Map paint cannot use classes: read the solid tone tokens (and the text on them) from CSS. */
+const toneRead = () => {
+  const css = getComputedStyle(document.documentElement);
+  return [...TONES.map((tone) => css.getPropertyValue(`--${tone}-solid`)), css.getPropertyValue("--on-solid")]
+    .map((v) => v.trim())
+    .join("|");
+};
+
+export interface GovMapDistrict {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  activeBuses: number;
+  delayed: number;
+  incidents: number;
+  /** Tone of the delay level: success when nothing is late, warning or danger as it grows. */
+  tone: "success" | "warning" | "danger";
+  /** Accessible name, for example "Kurnool: 12 active buses, 3 delayed". */
+  label: string;
+}
+
+export interface GovMapIncident {
+  id: string;
+  lat: number;
+  lng: number;
+  label: string;
+}
+
+export interface GovMapProps {
+  districts: GovMapDistrict[];
+  buses: LiveBusDto[];
+  incidents: GovMapIncident[];
+  mapStyle: string;
+  /** Zooms to these districts (drill down); the whole state when not given. */
+  focus?: { lat: number; lng: number; zoom: number };
+  onDistrict?: (id: string) => void;
+  labels: { error: string; retry: string; legend: string };
+}
+
+/**
+ * Government command center map (plan sec 35, docs/13 Gov map). District HQ markers are buttons
+ * (size by active buses, tone by delay level, the delayed count as text). Buses are one clustered
+ * GeoJSON source, so live positions change the source data without rebuilding markers. Incidents
+ * get their own icon. The district list next to the map is the keyboard and screen reader route.
+ */
+export function GovMap({ districts, buses, incidents, mapStyle, focus, onDistrict, labels }: GovMapProps) {
+  const [failed, setFailed] = useState(false),
+    [attempt, setAttempt] = useState(0);
+  const colors = useSyncExternalStore(themeSubscribe, toneRead, () => "||||||").split("|");
+  const onSolid = colors[TONES.length] ?? "";
+  const color = Object.fromEntries(TONES.map((tone, i) => [tone, colors[i] ?? ""])) as Record<(typeof TONES)[number], string>;
+  const most = Math.max(1, ...districts.map((d) => d.activeBuses));
+  const busData = {
+    type: "FeatureCollection" as const,
+    features: buses.map((b) => ({
+      type: "Feature" as const,
+      properties: { tone: TONE_OF[b.displayStatus] ?? "neutral" },
+      geometry: { type: "Point" as const, coordinates: [b.lng, b.lat] },
+    })),
+  };
+  if (failed)
+    return (
+      <div className="flex h-tracking-map flex-col items-center justify-center gap-4 rounded-lg border border-default bg-surface p-4" role="alert">
+        <p>{labels.error}</p>
+        <Button
+          onClick={() => {
+            setFailed(false);
+            setAttempt((a) => a + 1);
+          }}
+        >
+          {labels.retry}
+        </Button>
+      </div>
+    );
+  return (
+    <section aria-label={labels.legend} className="relative h-tracking-map overflow-hidden rounded-lg border border-default bg-surface">
+      <Map
+        key={attempt}
+        mapStyle={mapStyle}
+        initialViewState={
+          focus ? { latitude: focus.lat, longitude: focus.lng, zoom: focus.zoom } : { bounds: [76.7, 12.6, 84.8, 19.95] }
+        }
+        attributionControl={{ compact: true }}
+        onError={() => setFailed(true)}
+      >
+        {color.neutral && (
+          <Source id="gov-buses" type="geojson" data={busData} cluster clusterRadius={40} clusterMaxZoom={11}>
+            <Layer
+              id="gov-bus-clusters"
+              type="circle"
+              filter={["has", "point_count"]}
+              paint={{
+                "circle-color": color.info,
+                "circle-opacity": 0.85,
+                "circle-radius": ["step", ["get", "point_count"], 14, 10, 18, 50, 24],
+              }}
+            />
+            <Layer
+              id="gov-bus-cluster-count"
+              type="symbol"
+              filter={["has", "point_count"]}
+              layout={{ "text-field": ["get", "point_count_abbreviated"], "text-size": 12 }}
+              paint={{ "text-color": onSolid }}
+            />
+            <Layer
+              id="gov-bus-points"
+              type="circle"
+              filter={["!", ["has", "point_count"]]}
+              paint={{
+                "circle-radius": 6,
+                "circle-stroke-width": 2,
+                "circle-stroke-color": onSolid,
+                "circle-color": [
+                  "match",
+                  ["get", "tone"],
+                  "success", color.success,
+                  "warning", color.warning,
+                  "danger", color.danger,
+                  "maintenance", color.maintenance,
+                  "info", color.info,
+                  color.neutral,
+                ],
+              }}
+            />
+          </Source>
+        )}
+        {districts.map((d) => {
+          const size = d.activeBuses / most > 0.66 ? "size-14" : d.activeBuses / most > 0.33 ? "size-12" : "size-11";
+          return (
+            <Marker key={d.id} latitude={d.lat} longitude={d.lng} anchor="center">
+              <button
+                type="button"
+                aria-label={d.label}
+                title={d.label}
+                onClick={() => onDistrict?.(d.id)}
+                className={`flex ${size} items-center justify-center rounded-full border-2 border-surface text-small font-bold tabular-nums shadow-md ${TONE_SOLID[d.tone]}`}
+              >
+                {d.delayed}
+              </button>
+            </Marker>
+          );
+        })}
+        {incidents.map((i) => (
+          <Marker key={i.id} latitude={i.lat} longitude={i.lng} anchor="bottom">
+            <span title={i.label} className="flex size-8 items-center justify-center rounded-md bg-status-danger-solid text-on-solid shadow-md">
+              <TriangleAlert className="size-5" aria-hidden="true" />
+              <span className="sr-only">{i.label}</span>
+            </span>
+          </Marker>
+        ))}
+      </Map>
+    </section>
+  );
+}
+
+const TONE_SOLID = {
+  success: "bg-status-success-solid text-on-solid",
+  warning: "bg-status-warning-solid text-on-solid",
+  danger: "bg-status-danger-solid text-on-solid",
+} as const;
+
+const TONE_OF: Partial<Record<LiveBusDto["displayStatus"], (typeof TONES)[number]>> = Object.fromEntries(
+  Object.entries(STATUS_MAP).map(([key, value]) => [key, value.tone]),
+) as Partial<Record<LiveBusDto["displayStatus"], (typeof TONES)[number]>>;
 
 export default MapView;

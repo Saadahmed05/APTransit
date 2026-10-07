@@ -363,6 +363,7 @@ export class GovService {
     return {
       id: route.id,
       code: route.code,
+      depotId: route.depotId,
       nameEn: route.nameEn,
       nameTe: route.nameTe,
       tripsToday: trips.length,

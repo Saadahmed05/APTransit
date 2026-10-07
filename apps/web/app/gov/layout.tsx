@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
-import { Activity, BarChart3, FileText, Landmark } from "lucide-react";
+import { Activity, BarChart3, FileText, Landmark, MessageSquare } from "lucide-react";
 import { ManagementShell } from "../../components/management-shell";
 import { RequirePermission } from "../../components/require-auth";
 
@@ -18,6 +18,7 @@ export default async function GovLayout({ children }: { children: ReactNode }) {
     { href: "/gov", label: t("nav.commandCenter"), icon: <Activity /> },
     { href: "/gov/analytics", label: t("nav.analytics"), icon: <BarChart3 /> },
     { href: "/gov/reports", label: t("nav.reports"), icon: <FileText /> },
+    { href: "/ops/complaints", label: t("nav.complaints"), icon: <MessageSquare />, permission: "complaint:manage" as const },
   ];
 
   return (
