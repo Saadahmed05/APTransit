@@ -372,7 +372,8 @@ export interface GovMapProps {
  * Government command center map (plan sec 35, docs/13 Gov map). District HQ markers are buttons
  * (size by active buses, tone by delay level, the delayed count as text). Buses are one clustered
  * GeoJSON source, so live positions change the source data without rebuilding markers. Incidents
- * get their own icon. The district list next to the map is the keyboard and screen reader route.
+ * get their own icon. Markers are pointer shortcuts; the district list next to the map is the keyboard
+ * and screen reader route (pass onDistrict and render that list).
  */
 export function GovMap({ districts, buses, incidents, mapStyle, focus, onDistrict, labels }: GovMapProps) {
   const [failed, setFailed] = useState(false),
@@ -459,9 +460,12 @@ export function GovMap({ districts, buses, incidents, mapStyle, focus, onDistric
           const size = d.activeBuses / most > 0.66 ? "size-14" : d.activeBuses / most > 0.33 ? "size-12" : "size-11";
           return (
             <Marker key={d.id} latitude={d.lat} longitude={d.lng} anchor="center">
+              {/* Pointer shortcut only: markers can overlap, so keyboard and screen reader users get the
+                  same links from the district list next to the map (out of the tab order here). */}
               <button
                 type="button"
-                aria-label={d.label}
+                tabIndex={-1}
+                aria-hidden="true"
                 title={d.label}
                 onClick={() => onDistrict?.(d.id)}
                 className={`flex ${size} items-center justify-center rounded-full border-2 border-surface text-small font-bold tabular-nums shadow-md ${TONE_SOLID[d.tone]}`}

@@ -48,7 +48,7 @@ export function BarSeriesChart({ title, data, xLabel, yLabel, format, tone = "in
       <div className="h-64 w-full tabular-nums" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
           {kind === "line" ? (
-            <LineChart data={data} margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
+            <LineChart accessibilityLayer={false} data={data} margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis dataKey="label" tick={axisText} label={{ value: xLabel, position: "insideBottom", offset: -16, ...axisText }} />
               <YAxis tickFormatter={(v: number) => format(v)} tick={axisText} width={56} label={{ value: yLabel, angle: -90, position: "insideLeft", style: { textAnchor: "middle" }, ...axisText }} />
@@ -56,7 +56,7 @@ export function BarSeriesChart({ title, data, xLabel, yLabel, format, tone = "in
               <Line dataKey="value" stroke={color} strokeWidth={2} dot={{ r: 3, fill: color }} isAnimationActive={false} />
             </LineChart>
           ) : horizontal ? (
-            <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
+            <BarChart accessibilityLayer={false} data={data} layout="vertical" margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
               <CartesianGrid horizontal={false} stroke="var(--border)" />
               <XAxis type="number" tickFormatter={(v: number) => format(v)} tick={axisText} label={{ value: yLabel, position: "insideBottom", offset: -16, ...axisText }} />
               <YAxis type="category" dataKey="label" width={96} tick={axisText} />
@@ -64,7 +64,7 @@ export function BarSeriesChart({ title, data, xLabel, yLabel, format, tone = "in
               <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]} isAnimationActive={false} />
             </BarChart>
           ) : (
-            <BarChart data={data} margin={{ top: 8, right: 8, bottom: 24, left: 8 }}>
+            <BarChart accessibilityLayer={false} data={data} margin={{ top: 8, right: 8, bottom: 24, left: 8 }}>
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis dataKey="label" tick={axisText} label={{ value: xLabel, position: "insideBottom", offset: -16, ...axisText }} />
               <YAxis tickFormatter={(v: number) => format(v)} tick={axisText} width={56} label={{ value: yLabel, angle: -90, position: "insideLeft", style: { textAnchor: "middle" }, ...axisText }} />

@@ -194,7 +194,7 @@ export default function TripDetailClient({ id }: { id: string }) {
           <span className="text-body font-semibold">
             {trip.assignment?.busId ? (
               <Link href={`/ops/buses/${trip.assignment.busId}`} className="text-primary hover:underline">
-                {trip.assignment.busId}
+                {trip.assignment.busRegNo}
               </Link>
             ) : (
               t("unassigned")

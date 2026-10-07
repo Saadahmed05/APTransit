@@ -77,7 +77,7 @@ export default function ReplaceBusClient({ id }: { id: string }) {
     );
   }
 
-  const currentBus = trip.assignment?.busId || t("unassigned");
+  const currentBus = trip.assignment?.busRegNo || t("unassigned");
   const selectedBus = availableBuses?.find((b) => b.id === selectedBusId);
 
   const handleConfirmReplace = async () => {

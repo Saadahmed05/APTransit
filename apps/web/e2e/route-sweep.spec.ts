@@ -6,6 +6,7 @@ import { login } from "./helpers";
 // and 1280 px, in English and Telugu: an h1, no horizontal page scroll, no untranslated key paths,
 // and (at 1280 px in English) no serious or critical axe violations. Keyboard, screen reader and
 // dark mode passes stay manual. Run alone: it logs in four accounts (OTP limit 10 per IP per hour).
+// Each route loads once per language and is checked at each width by resizing.
 
 const WIDTHS = [360, 768, 1280] as const;
 const KEY_PATH = /^[a-z][A-Za-z]+(\.[A-Za-z0-9_]+)+$/;
@@ -26,9 +27,17 @@ async function check(page: Page, route: string, width: number, locale: "en" | "t
   const problems: string[] = [];
   const where = `${route} ${width}px ${locale}`;
   await page.setViewportSize({ width, height: 900 });
-  await page.goto(route);
-  await page.waitForLoadState("networkidle");
-  if ((await page.locator("h1").count()) === 0) problems.push(`${where}: no h1`);
+  // One load per route and language, then resize: every full load refreshes the session, and the
+  // API allows 30 refreshes per user per hour (docs/12), which a reload per width would exceed.
+  if (width === WIDTHS[0]) {
+    await page.goto(route);
+    await page.waitForLoadState("networkidle");
+  } else {
+    await page.waitForTimeout(300);
+  }
+  // Staff pages render after the permission check (useMe), so wait for the heading
+  const hasH1 = await page.locator("h1").first().waitFor({ timeout: 10_000 }).then(() => true, () => false);
+  if (!hasH1) problems.push(`${where}: no h1`);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (overflow > 0) problems.push(`${where}: horizontal scroll of ${overflow}px`);
   const keys = (await page.locator("body").innerText())

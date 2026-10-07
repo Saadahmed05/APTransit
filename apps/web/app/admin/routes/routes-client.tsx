@@ -4,7 +4,6 @@ import { useState } from "react";
 import { z } from "zod";
 import { AdminRouteDto } from "@aptransit/shared";
 import {
-  Button,
   DataTable,
   Input,
   Skeleton,
@@ -65,11 +64,12 @@ export default function RoutesClient() {
       id: "actions",
       header: t("actions"),
       cell: (r: AdminRouteDto) => (
-        <Link href={`/admin/routes/${r.id}`}>
-          <Button variant="ghost" className="flex items-center gap-1">
-            <Edit2 className="h-3.5 w-3.5" />
-            <span>{t("editStops")}</span>
-          </Button>
+        <Link
+          href={`/admin/routes/${r.id}`}
+          className="inline-flex min-h-11 items-center gap-1 rounded-md px-3 text-primary hover:bg-surface-raised"
+        >
+          <Edit2 className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>{t("editStops")}</span>
         </Link>
       ),
     },

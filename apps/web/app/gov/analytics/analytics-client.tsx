@@ -60,7 +60,7 @@ export function AnalyticsClient() {
         )}
       </fieldset>
       <Tabs value={p.tab} onValueChange={(v) => p.set({ tab: v })}>
-        <TabsList aria-label={t("title")}>
+        <TabsList aria-label={t("title")} className="max-w-full justify-start overflow-x-auto">
           {TABS.map((tab) => (
             <TabsTrigger key={tab} value={tab}>
               {t(`tabs.${tab}`)}

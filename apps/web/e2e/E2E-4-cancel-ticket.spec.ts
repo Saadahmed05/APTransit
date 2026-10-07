@@ -17,8 +17,9 @@ test.describe("E2E-4: Citizen cancels a ticket", () => {
     await page.getByRole("menuitem", { name: /cancel ticket/i }).click();
     await page.waitForURL(/\/cancel$/);
 
-    const quote = await page.getByText(/^You get ₹[\d,]+ back$/).textContent();
-    const amount = /₹[\d,]+/.exec(quote ?? "")?.[0];
+    // Refunds keep paise (90 percent of a fare is not a whole rupee), for example ₹459.90
+    const quote = await page.getByText(/^You get ₹[\d,]+(\.\d{2})? back$/).textContent();
+    const amount = /₹[\d,]+(\.\d{2})?/.exec(quote ?? "")?.[0];
     expect(amount).toBeTruthy();
 
     await page.getByRole("button", { name: /^cancel ticket$/i }).click();
@@ -28,6 +29,7 @@ test.describe("E2E-4: Citizen cancels a ticket", () => {
 
     await page.waitForURL(/\/tickets\/[a-z0-9]+$/, { timeout: 20_000 });
     await expect(page.getByText(/this ticket is cancelled/i)).toBeVisible();
-    await expect(page.getByText(new RegExp(`(Refund in progress: ${amount}|${amount} refunded)`))).toBeVisible();
+    const escaped = amount!.replace(/[.]/g, "\\.");
+    await expect(page.getByText(new RegExp(`(Refund in progress: ${escaped}|${escaped} refunded)`))).toBeVisible();
   });
 });

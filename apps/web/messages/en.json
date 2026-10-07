@@ -1090,7 +1090,8 @@
       },
       "assignToMe": "Assign to me",
       "saved": "Saved. The citizen is told about status changes."
-    }
+    },
+    "name": "Name"
   },
   "adminApp": {
     "overview": "Admin overview",
@@ -1220,7 +1221,11 @@
     "beforeState": "Before state",
     "afterState": "After state",
     "noBeforeState": "None (created)",
-    "noAfterState": "None (deleted)"
+    "noAfterState": "None (deleted)",
+    "users": "Users",
+    "auditLogs": "Audit logs",
+    "stops": "Stops",
+    "routes": "Routes"
   },
   "govApp": {
     "title": "Command center",
