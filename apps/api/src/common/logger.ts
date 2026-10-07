@@ -19,7 +19,19 @@ export const REDACT_PATHS = [
   "*.razorpaySignature",
   "*.password",
   "*.secret",
+  "*.email",
+  "*.phone",
+  "req.query.email",
+  "req.query.phone",
 ];
+
+/** Query keys whose values are personal data: masked in the logged URL (GET /feedback/status). */
+const SENSITIVE_QUERY = /([?&](?:email|phone|target)=)[^&#]*/gi;
+
+/** The URL with personal query values replaced, for the request log (docs/12, A09). */
+export function maskUrl(url: string | undefined): string | undefined {
+  return url?.replace(SENSITIVE_QUERY, "$1[redacted]");
+}
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
@@ -40,6 +52,9 @@ export function loggerParams(config: ConfigService<Env, true>): Params {
       genReqId: requestId,
       redact: { paths: REDACT_PATHS, censor: "[redacted]" },
       customProps: () => ({ app: "api", env: appEnv }),
+      serializers: {
+        req: (req: { url?: string }) => ({ ...req, url: maskUrl(req.url) }),
+      },
       autoLogging: {
         // Uptime monitors hit /health every few minutes. Keep the logs readable.
         ignore: (req) => req.url === "/api/v1/health",

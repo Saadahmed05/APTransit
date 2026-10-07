@@ -4,6 +4,64 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## Day 17: 2026-10-07, Dev A and Dev B
+
+**Done**
+- Frontend: /gov/analytics (tabs Routes, Buses, Passengers, Delays, Demand in the URL, date range up to 14 days, sortable tables, top routes and utilisation bars, tickets per day line, busy hours, delay by hour, worst routes sentence "KNL-VJA-01: average delay 18 min, mostly 5 PM to 8 PM", demand chips with the planners note), /gov/reports (Daily, Weekly, Monthly cards, CSV download through the API with toast), /feedback (email prefilled, category chips, counter, optional trip details, code with Copy and Track status), /feedback/status (code and email, status timeline, resolution note), /ops/complaints (status filter, drawer, one step status change with required note to resolve, assign to me). Give feedback links on used or expired tickets and in the account page. Chart rules at the top of components/charts/index.ts.
+- API: /analytics/passengers adds daily, /analytics/delays worst routes add peakFromHour and peakToHour (peak hour widened to neighbours at 75 percent or more of it, at most 3 hours).
+- Security headers: CSP per request with a nonce in proxy.ts (script-src self, nonce, strict-dynamic, Razorpay; connect-src self, socket origin, Razorpay API, map tiles; frame-src Razorpay; worker-src self blob; frame-ancestors none), HSTS, nosniff, referrer policy, permissions policy (camera and geolocation self, microphone none) and X-Frame-Options in next.config.ts for every route.
+- Logs: request URLs mask email, phone and target query values; req.query.email, *.email and *.phone redacted.
+- Load scripts: scripts/load/search.ts, scripts/load/validate.ts (autocannon), apps/api/scripts/load-pool.ts (load test conductors on running trips, ACTIVE tickets, 1 hour tokens; never in production). Commands pnpm load:pool, load:search, load:validate. Results land in .local/load.
+
+**docs/12 row by row**
+| Row | Where | Status |
+| --- | --- | --- |
+| A01 access control | common/guards/jwt-auth.guard.ts (global, @Public opt out, @Can); common/services/scope.service.ts depotScopeWhere; ops.service scope(); tickets ownership (404 for others) | done |
+| A02 crypto | auth.service (SHA 256 OTP and refresh hashes), common/crypto/secret-box.ts (AES 256 GCM qrSecret), tickets/qr.service.ts (Ed25519) | done |
+| A03 injection | Prisma; $queryRaw only with Prisma.sql templates (analytics, rollups); zod pipes on every input; no dangerouslySetInnerHTML in apps/web | done |
+| A04 insecure design | shared/fare.ts, tickets/ticket-rules.ts, scan rules, server decides payment, status, eligibility, fare | done |
+| A05 misconfiguration | http-app.ts (helmet, CORS web origin only, 100 kb body), config/env.ts zod boot check, x-powered-by off (API helmet, web poweredByHeader false) | done |
+| A06 components | CI pnpm audit; today pnpm audit --prod: no known vulnerabilities | done |
+| A07 auth | auth.service (6 digits, 5 min, 5 attempts then 15 min lock, refresh rotation with reuse detection, 15 min access) | done |
+| A08 integrity | payments (HMAC verify and webhook raw body, idempotency keys) | done |
+| A09 logging | common/logger.ts (redaction, request id, URL masking added today), audit_logs | fixed today (email in /feedback/status URL was logged) |
+| A10 SSRF | outbound only Razorpay and Resend, no user URLs fetched | done |
+| Rate limits | throttler guard plus RateLimitService (OTP, feedback 5 per IP per hour, feedback status lookups) | done |
+| Web headers | lib/csp.ts, proxy.ts, next.config.ts | done locally, staging check pending |
+| Tokens on the web | lib/session.ts memory only, refresh cookie httpOnly, lib/api.ts single refresh | done |
+| GPS trust | tracking module (approved device, running assignment, bounding box, speed, time) | done |
+| Identity data | eligibility module stores scheme, result, reason, provider ref, times only | done |
+| Payments | server computed amounts, redactPaymentPayload, env rejects non rzp_test keys | done |
+| Audit events | complaint.update and report.export added on Days 15 and 16 | done |
+
+**Attacks (docs/12 hardening pass)**
+| Attack | Result | Regression test |
+| --- | --- | --- |
+| Another user's ticket id | 404 NOT_FOUND (live) | tickets.test.ts "another user gets 404 on someone else's ticket" |
+| Depot manager on another depot | 403 (live, Kurnool manager on a Vijayawada bus) | day13-ops.test.ts "blocks cross-depot reads and writes" |
+| Replayed payment verify | same result, tickets created once | payments.test.ts "verify then webhook creates tickets once" |
+| Replayed webhook | no second refund or status change | tickets.test.ts refund.processed webhook, day13 signed callbacks |
+| Forged QR | BAD_SIGNATURE before any other check | day12-validation.test.ts "parsing and signature precede every other check" |
+| Screenshot QR after 90 s | STALE_CODE | day12-validation.test.ts (code two steps old fails) |
+| GPS ping from an unapproved device | rejected | tracking.test.ts "rejects an unapproved device and a missing key" |
+| OTP brute force | 5 wrong codes lock 15 min | auth.test.ts "5 wrong codes lock the target for 15 minutes" |
+| Oversized body | 413 (live, 150 kb feedback) | http.test.ts "rejects bodies over 100 kb" |
+| SQL like input in search | 200 with an empty list (live) | Prisma parameters; no raw SQL on that path |
+| Extra: forged JWT, citizen on /gov, wrong email on complaint status, 6th feedback in an hour | 401, 403, generic 404, 429 (live) | day16-feedback.test.ts, http tests |
+
+**Load (local Docker, one laptop running API, database and generator; staging run pending)**
+- Validate, 30 rps for 60 s, 20 load conductors: 1711 requests, all 200, client p50 62 ms, p95 1025 ms. Server responseTime at 10 rps p50 69 ms, p95 111 ms; at 30 rps server p95 592 ms (CPU shared with the generator). Target p95 300 ms: to confirm on staging.
+- Search, 50 rps for 10 s from one IP: 60 x 200 then 429 (docs/12 limit 60 per IP per minute), p50 15 ms. A 50 rps search test needs several source IPs on staging.
+- pnpm audit --prod: no known vulnerabilities.
+
+**Bugs found**
+- S2 fixed: complaint lookup email was written to the request log (URL and query).
+- S3: 413 responses carry requestId "unknown" (body parser runs before the request id is attached).
+- S3: one conductor is limited to 120 scans a minute, so validate load needs several conductors (load:pool makes them).
+
+**Not done**
+- Headers, load tests and log check on staging (no staging yet). E2E-10 and E2E-11 written next with the Day 18 browser pass.
+
 ## Day 16: 2026-10-07, Dev A and Dev B
 
 **Done**
