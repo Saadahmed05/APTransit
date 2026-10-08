@@ -15,7 +15,7 @@ export default function GlobalError({
   const t = useTranslations();
 
   return (
-    <main id="main-content" className="flex min-h-[70vh] flex-col items-center justify-center gap-4 p-4">
+    <main id="main-content" className="flex min-h-svh flex-col items-center justify-center gap-4 p-4">
       <ErrorState
         headingLevel="h1"
         title={t("error.title")}

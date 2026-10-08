@@ -189,21 +189,21 @@ export function RouteTimetableClient({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-default pt-4">
             <div className="flex flex-col rounded-md bg-surface p-2.5 border border-default">
               <span className="text-caption text-muted">{t("timetable.firstBus")}</span>
-              <span className="text-body font-bold font-tabular text-fg">
+              <span className="text-body font-bold tabular-nums text-fg">
                 {timetable.firstDepartureLocal ?? t("common.notAvailable")}
               </span>
             </div>
 
             <div className="flex flex-col rounded-md bg-surface p-2.5 border border-default">
               <span className="text-caption text-muted">{t("timetable.lastBus")}</span>
-              <span className="text-body font-bold font-tabular text-fg">
+              <span className="text-body font-bold tabular-nums text-fg">
                 {timetable.lastDepartureLocal ?? t("common.notAvailable")}
               </span>
             </div>
 
             <div className="flex flex-col rounded-md bg-surface p-2.5 border border-default">
               <span className="text-caption text-muted">{t("timetable.nextBus")}</span>
-              <span className="text-body font-bold font-tabular text-primary">
+              <span className="text-body font-bold tabular-nums text-primary">
                 {nextBusFormatted ?? t("common.notAvailable")}
               </span>
             </div>
@@ -299,7 +299,7 @@ export function RouteTimetableClient({
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex flex-col">
-                        <span className="text-h3 font-bold font-tabular text-fg">
+                        <span className="text-h3 font-bold tabular-nums text-fg">
                           {depTime}
                         </span>
                         <span className="text-caption text-muted">
@@ -324,7 +324,7 @@ export function RouteTimetableClient({
                     </div>
 
                     <div className="text-right">
-                      <span className="text-small font-semibold font-tabular text-fg block">
+                      <span className="text-small font-semibold tabular-nums text-fg block">
                         {trip.seatsLeft > 0
                           ? t("common.seatsLeft", { count: trip.seatsLeft })
                           : t("search.full")}

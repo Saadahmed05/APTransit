@@ -141,7 +141,7 @@ export default function TimetablesClient() {
       id: "departure",
       header: t("departure"),
       cell: (tt: AdminTimetableDto) => (
-        <span className="font-mono text-body font-bold text-foreground">
+        <span className="font-mono text-body font-bold text-fg">
           {tt.departureLocal}
         </span>
       ),
@@ -165,7 +165,7 @@ export default function TimetablesClient() {
             return (
               <span
                 key={d.bit}
-                className={`rounded px-1.5 py-0.5 text-xs font-semibold ${
+                className={`rounded-sm px-1.5 py-0.5 text-small font-semibold ${
                   isActive
                     ? "bg-primary/10 text-primary"
                     : "bg-muted/10 text-muted/40"
@@ -308,8 +308,8 @@ export default function TimetablesClient() {
                       onClick={() => toggleDay(d.bit)}
                       className={`rounded-md px-3 py-1.5 text-small font-medium transition-colors ${
                         isSelected
-                          ? "bg-primary text-primary-foreground"
-                          : "border border-border bg-surface text-muted hover:border-foreground/30"
+                          ? "bg-primary text-on-primary"
+                          : "border border-default bg-surface text-muted hover:border-strong"
                       }`}
                     >
                       {d.label}

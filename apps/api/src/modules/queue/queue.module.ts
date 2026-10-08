@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { BullModule } from "@nestjs/bullmq";
 import type { Env } from "../../config/env";
 import { QUEUES } from "./queue.constants";
+import { QueueStatusService } from "./queue-status.service";
 
 export { QUEUES } from "./queue.constants";
 
@@ -38,6 +39,7 @@ export { QUEUES } from "./queue.constants";
       { name: QUEUES.MAINTENANCE },
     ),
   ],
-  exports: [BullModule],
+  providers: [QueueStatusService],
+  exports: [BullModule, QueueStatusService],
 })
 export class QueueModule {}

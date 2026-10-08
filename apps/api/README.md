@@ -30,6 +30,9 @@ Without Neon yet, a local PGlite socket server plus `node scripts/dev-redis.mjs`
 | `db:studio` | Prisma Studio |
 | `db:seed` | deterministic AP demo data (`prisma/seed.ts`, docs/19) |
 | `db:reset` | wipes and reseeds; refuses the Neon `main` branch and production |
+| `db:seed --history 14` | also 14 days of history (trips, bookings, payments, scans, passes, complaints, incidents) and the rollups; reruns replace earlier history |
+| `rollups:backfill --days 14` | recompute daily_stats for the last N days |
+| `demo:window <ticket> [min]` | development only: move a ticket into its activation window |
 
 Run Prisma directly with `pnpm --filter api exec prisma <command>` (not `pnpm --filter api prisma`).
 
@@ -158,3 +161,14 @@ D-027 manual entry requires ticketNumber plus the current eight-character liveCo
 ## Day 14
 
 Day 14 adds the guarded admin module for stops, routes, timetables, date-range trip generation, users and scoped roles, fare/refund policy history, validated settings and cursor audit reads. Admin writes persist before/after audit snapshots in the same transaction. Future policy rows do not take effect early. Scoped operations lookup endpoints supply form options. See D-029 and test/day14-admin.test.ts.
+
+## Days 15 to 19
+
+- Analytics, gov and reports read `daily_stats` for past days and compute today with the same code (`RollupsService.rowsForDate`). Levels: route rows have routeId, depot rows depotId, district rows districtId only, one state row has none. Revenue is captured payments minus processed refunds (D-030).
+- Scope for staff data: `depotScopeWhere(user, permission)` in `common/services/scope.service.ts`. Only roles that hold the permission count; district officers get the depots of their district.
+- Reports stream (`ReportsService.lines` is an async generator); CSV has a BOM, ISO dates, IST times and formula injection protection (`reports/csv-helper.ts`).
+- Feedback and complaints: `modules/feedback` (public intake with per IP limits, one step status moves, guest emails through the `send-complaint-email` job).
+- Worker jobs on the maintenance queue: generate trips 00:30 IST, retention 02:00 IST (10,000 row batches), failed jobs summary 07:00 IST. `GET /health` adds `workerAgeSec` and queue depth; `GET /admin/jobs/failed` lists the last 50 failures.
+- Load tests (repo root): `pnpm load:pool` (load conductors on running trips, never production), `pnpm load:validate`, `pnpm load:search`; results in `.local/load`.
+- Contract check (repo root): `pnpm check:endpoints` compares controllers with docs/06.
+- Bulk inserts in the history seed use `INSERT ... SELECT FROM unnest` (`bulkInsert` in `prisma/seed-history.ts`): createMany manages about 1,000 rows a second.

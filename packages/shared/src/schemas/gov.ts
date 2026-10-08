@@ -11,6 +11,10 @@ export const GovOverviewDto = z.object({
   onTimePct: z.number().min(0).max(100),
   ticketsToday: z.number().int().nonnegative(),
   revenueTodayPaise: z.number().int().nonnegative(),
+  /** Complaints created on the date, complaints not yet resolved or closed, and mean hours from created to resolved over the last 30 days (null when none). */
+  complaintsToday: z.number().int().nonnegative(),
+  openComplaints: z.number().int().nonnegative(),
+  avgHoursToResolve: z.number().nonnegative().nullable(),
 });
 export type GovOverviewDto = z.infer<typeof GovOverviewDto>;
 
@@ -22,6 +26,9 @@ export const GovDistrictMapItem = z.object({
   activeBuses: z.number().int().nonnegative(),
   delayed: z.number().int().nonnegative(),
   incidents: z.number().int().nonnegative(),
+  /** District headquarters bus stand, for the command center marker. */
+  lat: z.number().nullable(),
+  lng: z.number().nullable(),
 });
 export type GovDistrictMapItem = z.infer<typeof GovDistrictMapItem>;
 
@@ -86,6 +93,7 @@ export type GovDepotSummaryDto = z.infer<typeof GovDepotSummaryDto>;
 export const GovRouteSummaryDto = z.object({
   id: z.string(),
   code: z.string(),
+  depotId: z.string(),
   nameEn: z.string(),
   nameTe: z.string(),
   tripsToday: z.number().int().nonnegative(),

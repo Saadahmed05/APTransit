@@ -23,10 +23,17 @@
     "simulate": "pnpm --filter api exec tsx ../../scripts/simulate-trip.ts",
     "watch:live": "pnpm --filter api exec tsx scripts/watch-live.ts",
     "rollups:backfill": "pnpm --filter api exec tsx scripts/backfill-rollups.ts",
-    "e2e": "pnpm --filter web e2e"
+    "e2e": "pnpm --filter web e2e",
+    "load:pool": "pnpm --filter api exec tsx scripts/load-pool.ts",
+    "load:search": "pnpm --filter api exec tsx ../../scripts/load/search.ts",
+    "load:validate": "pnpm --filter api exec tsx ../../scripts/load/validate.ts",
+    "check:classes": "node scripts/check-classes.cjs",
+    "check:endpoints": "node scripts/check-endpoints.cjs"
   },
   "devDependencies": {
     "@aptransit/config": "workspace:*",
+    "@types/autocannon": "^7.12.7",
+    "autocannon": "^8.0.0",
     "prettier": "3.9.9",
     "turbo": "2.11.3"
   }

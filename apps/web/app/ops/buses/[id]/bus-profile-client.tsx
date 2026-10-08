@@ -135,7 +135,7 @@ export default function BusProfileClient({ id }: { id: string }) {
       <div>
         <Link
           href="/ops/buses"
-          className="inline-flex items-center gap-2 text-small font-medium text-muted hover:text-foreground"
+          className="inline-flex items-center gap-2 text-small font-medium text-muted hover:text-fg"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>{t("buses")}</span>

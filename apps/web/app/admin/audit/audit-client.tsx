@@ -78,7 +78,7 @@ export default function AuditClient() {
       cell: (a: AdminAuditDto) => (
         <div className="flex flex-col text-small">
           <span className="font-semibold">{a.actorRole || t("systemActor")}</span>
-          <span className="text-xs text-muted">{a.actorUserId || ""}</span>
+          <span className="text-small text-muted">{a.actorUserId || ""}</span>
         </div>
       ),
     },
@@ -192,15 +192,15 @@ export default function AuditClient() {
               </div>
               <div>
                 <span className="text-muted">User Agent:</span>{" "}
-                <span className="truncate text-xs">{selectedLog?.userAgent || common("notAvailable")}</span>
+                <span className="truncate text-small">{selectedLog?.userAgent || common("notAvailable")}</span>
               </div>
             </div>
 
             {/* Before and After JSON Diff */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
-                <span className="text-small font-semibold text-danger">{t("beforeState")}</span>
-                <pre className="h-64 overflow-auto rounded-md border border-border bg-neutral-900 p-3 font-mono text-xs text-neutral-100">
+                <span className="text-small font-semibold text-status-danger">{t("beforeState")}</span>
+                <pre className="h-64 overflow-auto rounded-md border border-default bg-surface-raised p-3 font-mono text-small text-fg">
                   {selectedLog?.before
                     ? JSON.stringify(selectedLog.before, null, 2)
                     : t("noBeforeState")}
@@ -208,8 +208,8 @@ export default function AuditClient() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <span className="text-small font-semibold text-success">{t("afterState")}</span>
-                <pre className="h-64 overflow-auto rounded-md border border-border bg-neutral-900 p-3 font-mono text-xs text-neutral-100">
+                <span className="text-small font-semibold text-status-success">{t("afterState")}</span>
+                <pre className="h-64 overflow-auto rounded-md border border-default bg-surface-raised p-3 font-mono text-small text-fg">
                   {selectedLog?.after
                     ? JSON.stringify(selectedLog.after, null, 2)
                     : t("noAfterState")}

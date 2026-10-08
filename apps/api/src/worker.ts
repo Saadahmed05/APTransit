@@ -5,6 +5,7 @@ import type { Queue } from "bullmq";
 import { Logger } from "nestjs-pino";
 import { WORKER_HEARTBEAT_EVERY_MS, writeHeartbeat } from "./modules/lifecycle/worker-heartbeat";
 import { EXPIRE_STATUSES_JOB } from "./modules/queue/processors/expiry.processor";
+import { FAILED_JOBS_SUMMARY_JOB, RETENTION_JOB } from "./modules/queue/processors/maintenance.processor";
 import { QUEUES } from "./modules/queue/queue.constants";
 import { RedisService } from "./redis/redis.service";
 import { bullmqDrainDelaySec } from "./modules/queue/worker-options";
@@ -52,6 +53,16 @@ async function bootstrap(): Promise<void> {
     logger.log("Scheduled repeatable daily-rollups job at 00:15 IST daily", "Worker");
   } catch (err) {
     logger.warn(`Could not schedule repeatable job on rollups queue: ${(err as Error).message}`, "Worker");
+  }
+
+  // Retention 02:00 IST and the failed jobs summary 07:00 IST (Day 18)
+  try {
+    const maintenanceQueue = app.get<Queue>(getQueueToken(QUEUES.MAINTENANCE));
+    await maintenanceQueue.upsertJobScheduler(RETENTION_JOB, { pattern: "0 2 * * *", tz: "Asia/Kolkata" }, { name: RETENTION_JOB });
+    await maintenanceQueue.upsertJobScheduler(FAILED_JOBS_SUMMARY_JOB, { pattern: "0 7 * * *", tz: "Asia/Kolkata" }, { name: FAILED_JOBS_SUMMARY_JOB });
+    logger.log("Scheduled retention at 02:00 IST and the failed jobs summary at 07:00 IST", "Worker");
+  } catch (err) {
+    logger.warn(`Could not schedule retention jobs: ${(err as Error).message}`, "Worker");
   }
 
   // Ticket and pass expiry every 5 min (Day 9), upserted so restarts never stack schedules

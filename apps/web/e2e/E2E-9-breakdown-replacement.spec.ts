@@ -179,7 +179,10 @@ test("E2E-9 Driver reports breakdown, ops sees incident, assigns replacement bus
   // 1. Ops sees incident live on /ops/incidents
   await page.goto("/ops/incidents");
   await expect(page.getByText("INC-2026-0099")).toBeVisible();
+  // The note is shown in the incident drawer, not in the list
+  await page.getByRole("row", { name: /INC-2026-0099/ }).click();
   await expect(page.getByText("Engine breakdown near Kurnool bypass road")).toBeVisible();
+  await page.keyboard.press("Escape");
 
   // 2. Navigate to trip detail and initiate replacement
   await page.goto(`/ops/trips/${tripId}`);
@@ -194,8 +197,9 @@ test("E2E-9 Driver reports breakdown, ops sees incident, assigns replacement bus
   // Select replacement bus card
   await page.getByRole("button", { name: replacementBus.regNo }).click();
 
-  // Submit and open confirm consequence dialog
-  await page.getByRole("button", { name: en.opsApp.replaceBus }).click();
+  // A reason is required before the confirm step (prefilled only when coming from the incident)
+  await page.getByRole("textbox", { name: en.opsApp.reasonLabel }).fill("Engine breakdown near Kurnool bypass road");
+  await page.getByRole("button", { name: en.opsApp.proceedToConfirm }).click();
 
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();

@@ -227,6 +227,15 @@ export function TicketView({ id }: { id: string }) {
         {ticket.status === "USED" && (
           <EndedPanel icon={BadgeCheck} tone="neutral" title={t("ticketDetail.used.title")} hint={t("ticketDetail.used.hint")} />
         )}
+        {(ticket.status === "USED" || ticket.status === "EXPIRED") && (
+          <Link
+            href={`/feedback?ticket=${encodeURIComponent(ticket.code)}`}
+            className="inline-flex min-h-11 items-center gap-2 text-primary underline-offset-4 hover:underline"
+          >
+            <MessageSquare className="size-5" aria-hidden="true" />
+            {t("feedbackPage.giveFeedback")}
+          </Link>
+        )}
         {ticket.status === "EXPIRED" && (
           <EndedPanel
             icon={Clock}

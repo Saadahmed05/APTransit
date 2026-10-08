@@ -225,7 +225,7 @@ export function BusDetailClient({
         <div className="mt-2 rounded-md bg-surface p-4 border border-default flex items-center justify-between gap-4 flex-wrap">
           <div className="flex flex-col">
             <span className="text-caption text-subtle">{t("common.departure")}</span>
-            <span className="text-h2 font-bold font-tabular text-fg">{depTimeFormatted}</span>
+            <span className="text-h2 font-bold tabular-nums text-fg">{depTimeFormatted}</span>
             <span className="text-small font-medium text-muted">{originName}</span>
           </div>
 
@@ -243,7 +243,7 @@ export function BusDetailClient({
             <span className="text-caption text-subtle">
               {t("common.arrival")} ({t("bus.approx")})
             </span>
-            <span className="text-h2 font-bold font-tabular text-fg">{arrTimeFormatted}</span>
+            <span className="text-h2 font-bold tabular-nums text-fg">{arrTimeFormatted}</span>
             <span className="text-small font-medium text-muted">{destName}</span>
           </div>
         </div>
@@ -255,7 +255,7 @@ export function BusDetailClient({
               {t("common.seat")}
             </span>
             <span
-              className={`text-body font-semibold font-tabular ${
+              className={`text-body font-semibold tabular-nums ${
                 isFull
                   ? "text-status-danger"
                   : trip.seatsLeft <= 5
@@ -272,7 +272,7 @@ export function BusDetailClient({
               <span className="text-caption text-muted block">
                 {t("bus.totalFare")}
               </span>
-              <span className="text-h2 font-bold font-tabular text-fg">
+              <span className="text-h2 font-bold tabular-nums text-fg">
                 {formatMoney(totalFarePaise, locale)}
               </span>
             </div>
@@ -329,21 +329,21 @@ export function BusDetailClient({
           <div className="divide-y divide-default rounded-md border border-default bg-surface">
             <div className="flex items-center justify-between p-3 text-small">
               <span className="text-muted">{t("bus.baseFare")}</span>
-              <span className="font-medium font-tabular text-fg">
+              <span className="font-medium tabular-nums text-fg">
                 {formatMoney(fareData.basePaise, locale)}
               </span>
             </div>
             {fareData.reservationFeePaise > 0 && (
               <div className="flex items-center justify-between p-3 text-small">
                 <span className="text-muted">{t("bus.reservationFee")}</span>
-                <span className="font-medium font-tabular text-fg">
+                <span className="font-medium tabular-nums text-fg">
                   {formatMoney(fareData.reservationFeePaise, locale)}
                 </span>
               </div>
             )}
             <div className="flex items-center justify-between p-3 text-body font-semibold bg-surface-raised">
               <span>{t("bus.totalFare")}</span>
-              <span className="font-tabular text-fg">
+              <span className="tabular-nums text-fg">
                 {formatMoney(fareData.totalPaise, locale)}
               </span>
             </div>
@@ -395,7 +395,7 @@ export function BusDetailClient({
                       {formatDistance(bp.kmFromOrigin, locale)}
                     </span>
                   </div>
-                  <span className="text-small font-semibold font-tabular text-fg">
+                  <span className="text-small font-semibold tabular-nums text-fg">
                     {depTime}
                   </span>
                 </div>
@@ -425,7 +425,7 @@ export function BusDetailClient({
                       {formatDistance(dp.kmFromOrigin, locale)}
                     </span>
                   </div>
-                  <span className="text-small font-semibold font-tabular text-fg">
+                  <span className="text-small font-semibold tabular-nums text-fg">
                     {arrTime}
                   </span>
                 </div>
@@ -484,7 +484,7 @@ export function BusDetailClient({
                 </div>
 
                 <div className="text-right shrink-0">
-                  <span className="text-small font-semibold font-tabular text-fg">
+                  <span className="text-small font-semibold tabular-nums text-fg">
                     {time}
                   </span>
                 </div>

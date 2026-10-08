@@ -75,7 +75,7 @@ export const TripCard = React.forwardRef<HTMLElement, TripCardProps>(
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <div className="flex flex-col">
-              <span className="text-h2 font-semibold font-tabular text-fg tracking-tight">
+              <span className="text-h2 font-semibold tabular-nums text-fg tracking-tight">
                 {departureTime}
               </span>
             </div>
@@ -86,7 +86,7 @@ export const TripCard = React.forwardRef<HTMLElement, TripCardProps>(
             </div>
 
             <div className="flex flex-col">
-              <span className="text-body-lg font-medium font-tabular text-fg">
+              <span className="text-body-lg font-medium tabular-nums text-fg">
                 {arrivalTime}
               </span>
               <span className="text-caption text-subtle">{approxLabel}</span>
@@ -94,7 +94,7 @@ export const TripCard = React.forwardRef<HTMLElement, TripCardProps>(
           </div>
 
           <div className="text-right shrink-0">
-            <span className="text-h3 font-semibold font-tabular text-fg block">
+            <span className="text-h3 font-semibold tabular-nums text-fg block">
               {fareFormatted}
             </span>
           </div>
@@ -132,7 +132,7 @@ export const TripCard = React.forwardRef<HTMLElement, TripCardProps>(
           <div className="ml-auto text-right">
             <span
               className={cn(
-                "text-small font-medium font-tabular",
+                "text-small font-medium tabular-nums",
                 isFull
                   ? "text-status-danger"
                   : isLowSeats

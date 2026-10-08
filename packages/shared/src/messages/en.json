@@ -57,6 +57,23 @@
     "layout": {
       "open": "Open in AP TransitOS",
       "footer": "You get this email because you have an AP TransitOS account. Manage updates in the app."
+    },
+    "complaint": {
+      "received": {
+        "subject": "We received your feedback: {code}",
+        "body": "Thank you. Your complaint code is {code}. Keep it to check the status with this email address."
+      },
+      "update": {
+        "subject": "Update on your complaint {code}",
+        "body": "Your complaint {code} is now: {status}."
+      },
+      "note": "Note from the depot: {note}",
+      "status": {
+        "RECEIVED": "Received",
+        "IN_REVIEW": "In review",
+        "RESOLVED": "Resolved",
+        "CLOSED": "Closed"
+      }
     }
   }
 }

@@ -150,12 +150,12 @@ export default function StaffClient() {
       header: t("status"),
       cell: (d: DeviceDto) => {
         if (d.revokedAt) {
-          return <span className="rounded bg-danger/10 px-2 py-0.5 text-small font-semibold text-danger">{t("revoked")}</span>;
+          return <span className="rounded-sm bg-status-danger-soft px-2 py-0.5 text-small font-semibold text-status-danger">{t("revoked")}</span>;
         }
         if (d.approvedAt) {
-          return <span className="rounded bg-success/10 px-2 py-0.5 text-small font-semibold text-success">{t("approved")}</span>;
+          return <span className="rounded-sm bg-status-success-soft px-2 py-0.5 text-small font-semibold text-status-success">{t("approved")}</span>;
         }
-        return <span className="rounded bg-warning/10 px-2 py-0.5 text-small font-semibold text-warning">{t("pending")}</span>;
+        return <span className="rounded-sm bg-status-warning-soft px-2 py-0.5 text-small font-semibold text-status-warning">{t("pending")}</span>;
       },
     },
     {
@@ -166,7 +166,7 @@ export default function StaffClient() {
           {!d.approvedAt && !d.revokedAt && (
             <Button
               variant="secondary"
-              className="flex items-center gap-1 text-success"
+              className="flex items-center gap-1 text-status-success"
               onClick={() => handleApproveDevice(d.id)}
               loading={approveDeviceMutation.isPending}
             >

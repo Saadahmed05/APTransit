@@ -8,13 +8,21 @@ import { Can } from "../../common/decorators/can.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { auditActorFromRequest } from "../audit/audit.service";
+import { QueueStatusService } from "../queue/queue-status.service";
 import { AdminService } from "./admin.service";
 const idPipe = new ZodValidationPipe(S.PublicId),
   queryPipe = new ZodValidationPipe(S.AdminQuery);
 @Controller("admin")
 @Throttle({ default: { limit: 120, ttl: 60_000 } })
 export class AdminController {
-  constructor(private readonly service: AdminService) {}
+  constructor(
+    private readonly service: AdminService,
+    private readonly queues: QueueStatusService,
+  ) {}
+  /** Last 50 failed background jobs, newest first (STATE_ADMIN and up: policy:write). */
+  @Get("jobs/failed") @Can("policy:write") async failedJobs() {
+    return z.array(S.FailedJobDto).parse(await this.queues.failed(50));
+  }
   @Get("stops/:id") @Can("network:write") async getStop(@Param("id",idPipe) id:string) {return S.AdminStopDto.parse(await this.service.getStop(id));}
   @Get("routes/:id") @Can("network:write") async getRoute(@Param("id",idPipe) id:string) {return S.AdminRouteDto.parse(await this.service.getRoute(id));}
   @Get("timetables/:id") @Can("network:write") async getTimetable(@Param("id",idPipe) id:string) {return S.AdminTimetableDto.parse(await this.service.getTimetable(id));}

@@ -16,7 +16,7 @@ pnpm dev                        # from the repo root: web on http://localhost:30
 | `dev`, `build`, `start` | Next on port 3000 (Turbopack) |
 | `lint` | ESLint: Next core web vitals, Next TypeScript, full jsx-a11y recommended, our shared rules |
 | `test` | Vitest for `lib/` and `proxy.ts` |
-| `e2e` | Playwright E2E-1. Locally start API and web first; in CI (`CI=1`) Playwright starts the built apps. First run: `pnpm exec playwright install chromium` |
+| `e2e` | Playwright E2E-1 to E2E-12. Locally start API and web first (production build with `NEXT_PUBLIC_PAYMENTS_FAKE=1`) and run with `--workers=1`; in CI (`CI=1`) Playwright starts the built apps. First run: `pnpm exec playwright install chromium` |
 | `typecheck` | `next typegen` (route types) then `tsc --noEmit` |
 
 ## How it is wired
@@ -97,3 +97,23 @@ E2E-8 injects decoded text through apt:test-scan when NEXT_PUBLIC_PAYMENTS_FAKE=
 ## Day 14
 
 Day 14 adds /ops, /ops/buses, /ops/trips and /ops/incidents with live query updates, a depot URL scope, fleet creation, assignment and incident acknowledgement/resolution. Ops tables use shared DataTable and KPIs use KpiTile. Browser coverage lives in e2e/operations.spec.ts. MapLibre stays behind the lazy UI map-view import.
+
+## Days 15 to 18
+
+- Government screens live in `app/gov`: command center (`command-center.tsx`), drill down views (`drill-down.tsx`), analytics tabs in the URL, reports with `apiBlob` downloads. Live updates through `useGovLive` (state or district room) in `lib/gov.ts`.
+- Charts: `components/charts` (Recharts, rules at the top of `index.ts`, every chart has a data table toggle).
+- Feedback: `app/(citizen)/feedback` (public) and `app/ops/complaints`.
+- Security headers: per request CSP with a nonce in `proxy.ts` (`lib/csp.ts`), static headers in `next.config.ts`. The proxy runs on every page now; the login redirect is unchanged.
+- MapLibre worker: `scripts/copy-map-worker.mjs` copies the worker files into `public/` before dev and build; `map-view.tsx` calls `setWorkerUrl`. Without it the map fails in production builds.
+- Class check: `pnpm check:classes` after a build lists classes Tailwind dropped (styles that never apply).
+
+## How to add a screen
+
+1. Route folder under `app/` with a server `page.tsx` (metadata title from i18n) and a client component for data.
+2. Strings in `messages/en.json` and `messages/te.json` in the same commit (`pnpm i18n:check`).
+3. Four states: loading skeleton, empty, error with retry (`OpsError`, `ErrorState`), success.
+4. Data through `api()` with a zod schema from `@aptransit/shared`; never `fetch` directly.
+5. Tokens only (no hex, no arbitrary values, no inline styles), StatusBadge for statuses, formatMoney and formatTime for values.
+6. An E2E or unit test, and an axe check for a new journey.
+
+New shared components go in `packages/ui/src/components`, exported from `index.ts`, with a test. Design rules: docs/09 and docs/10.

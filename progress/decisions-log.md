@@ -250,8 +250,39 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
 - **Contracts:** Scoped GET /ops/depots, /ops/bus-types and /ops/routes support the dashboard forms. Bus responses add optional current bilingual route and driver names. Incident status labels, icons and tones are centralized in shared/status.ts. Depot audit reads use the audited entity's depot in before/after snapshots, not the actor's current roles, which may span several depots. State roles retain global audit access.
 - **Status:** Proposed for the other dev's shared contract review. Locked docs unchanged.
 
+### D-030: Day 15 review fixes, indexes and analytics definitions
+- **Date:** 2026-10-07
+- **Raised by:** Day 15 review before Day 16
+- **Docs affected:** docs/05-data-model.md (indexes beyond the minimum), docs/06-api-contract.md (gov and analytics shapes, additive)
+- **Decision:**
+  - Indexes (migration 20261007000000_query_indexes): foreign key and range indexes on bookings(tripId), booking_passengers(bookingId), tickets(bookingId), tickets(passengerId), ticket_scans(tripId, scannedAt), ticket_scans(ticketId), ticket_scans(passId), ticket_transfers(ticketId), payments(bookingId), payments(passId), refunds(paymentId), refunds(ticketId), trip_assignments(tripId), trip_assignments(busId, startedAt), incidents(tripId), maintenance_records(busId, startAt), complaints(depotId, createdAt), daily_stats(date, routeId). Without them cascade deletes and per trip joins scanned whole tables.
+  - daily_stats levels: route rows carry routeId (plus depot and district), depot rows depotId and districtId, district rows districtId only, and one state row has no ids. revenuePaise = captured payments minus processed refunds of the trips of that date. passengers = valid tickets plus valid pass scans; ticketsSold = valid tickets. passesActive only on the state row (a pass has no place). complaints counted by route code, depot and district.
+  - Analytics definitions (no doc defines them): load factor = valid tickets over seats of trips that were not cancelled. Bus utilisation = hours on completed trips over the hours in the range that were not downtime; downtime = maintenance records plus breakdown incidents (report to resolution) clipped to the range. Hours and demand bands use IST departure time; bands match search (05:00, 12:00, 17:00, 21:00). Delayed = 5 minutes or more (DELAY_DISPLAY_THRESHOLD_MIN); on the live map delayed means running late now. Ranges are at most 92 days.
+  - Scope: gov, analytics and reports use depotScopeWhere(user, permission): only roles holding the permission count; district officers see their district, depot managers their depot for reports.
+  - Shared contracts (additive): demandBandOfHour and demandLevelOf in schemas/analytics.ts; GovOverviewDto adds complaintsToday, openComplaints, avgHoursToResolve; GovDistrictMapItem adds lat and lng (district HQ bus stand).
+  - Reports stream in pages, use names instead of ids, and prefix text that starts with = + - @ with an apostrophe (CSV injection).
+- **Status:** Proposed for the other dev review. Locked docs unchanged.
+
+### D-031: Day 16 feedback and complaints
+- **Date:** 2026-10-07
+- **Decision:** Shared contracts in schemas/feedback.ts (FeedbackInput, FeedbackStatusQuery and Dto, ComplaintDto, OpsComplaintsQuery, UpdateComplaintInput, COMPLAINT_NEXT_STATUS). Status moves one step at a time; a skipped step answers 409 COMPLAINT_STATUS_INVALID (new error code, messages in both web files). POST /feedback is limited to 5 per IP per hour even when logged in; GET /feedback/status to 20 per IP per 10 minutes. Depot comes from the ticket, else the bus (spaces ignored), else the route. Signed in senders get COMPLAINT_UPDATE in app plus account email; guests get an email to the address they gave, in the language of their request (locale cookie, else Accept-Language). Complaints without a depot are visible to statewide roles only. Email copy lives in packages/shared messages (email.complaint).
+- **Offline scanning pack (stretch, ADR 003):** moved to the backlog. Not built in the 20 days; the conductor app keeps online validation.
+- **Status:** Proposed for the other dev review. Locked docs unchanged.
+
+### D-032: Day 17 and 18 security, operations and UI fixes
+- **Date:** 2026-10-07
+- **Decision:**
+  - CSP is built per request in apps/web/proxy.ts with a nonce and strict-dynamic (Next 16 CSP guide). style-src allows unsafe-inline because MapLibre, Recharts and Radix set style attributes. The proxy now runs on every page (not only protected ones); the login redirect is unchanged.
+  - MapLibre 6 worker: apps/web/scripts/copy-map-worker.mjs copies maplibre-gl-worker.mjs and maplibre-gl-shared.mjs into public/ before dev and build, and map-view.tsx calls setWorkerUrl. Before this the bundled map never loaded in production builds ("Worker failed to load").
+  - Load tests: apps/api/scripts/load-pool.ts creates load test conductors (loadtest+NN@aptransit.test) on running trips and signs 1 hour tokens with JWT_SECRET, because one conductor is limited to 120 scans a minute. Never in production. Search load from one IP hits the 60 per minute limit by design.
+  - Sentry (optional on Day 18): skipped. Not in docs/04; pino logs with request ids, the failed jobs summary and /health cover the demo.
+  - /health adds workerAgeSec and queues (waiting, active, delayed, failed per queue). GET /admin/jobs/failed returns queue, id, name, reason, attempts, failedAt, never job data (policy:write, STATE_ADMIN and up).
+  - Retention runs on the maintenance queue at 02:00 IST in batches of 10,000 rows; the failed jobs summary logs one line at 07:00 IST.
+  - Class names that Tailwind silently dropped (bg-success/10, text-danger, border-border, text-xs, text-foreground and others in admin and ops screens) were mapped to theme classes; pnpm check:classes (scripts/check-classes.cjs) compares used classes with the built CSS.
+- **Status:** Proposed for the other dev review. Locked docs unchanged.
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |
 | --- | --- | --- |
-| | | |
+| Offline scanning pack and batch validation (ADR 003) | Day 16 stretch | 77 |

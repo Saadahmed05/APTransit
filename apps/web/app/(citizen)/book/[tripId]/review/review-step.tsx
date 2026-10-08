@@ -196,7 +196,7 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
             <p className="text-caption text-muted">{t("common.boardingPoint")}</p>
             <p className="break-words text-body text-fg">{name(boarding)}</p>
             {boarding && (
-              <p className="text-h3 font-tabular text-fg">
+              <p className="text-h3 tabular-nums text-fg">
                 {formatTime(boarding.departureAt, locale)}
               </p>
             )}
@@ -205,7 +205,7 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
             <p className="text-caption text-muted">{t("common.destination")}</p>
             <p className="break-words text-body text-fg">{name(dropping)}</p>
             {dropping && (
-              <p className="text-h3 font-tabular text-fg">
+              <p className="text-h3 tabular-nums text-fg">
                 {formatTime(dropping.arrivalAt, locale)}{" "}
                 <span className="text-caption font-normal text-muted">({t("bus.approx")})</span>
               </p>
@@ -236,12 +236,12 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
           <dl className="divide-y divide-default rounded-md border border-default">
             <div className="flex justify-between gap-3 p-3 text-small">
               <dt className="text-muted">{t("bus.baseFare")}</dt>
-              <dd className="font-tabular text-fg">{formatMoney(fare.basePaise, locale)}</dd>
+              <dd className="tabular-nums text-fg">{formatMoney(fare.basePaise, locale)}</dd>
             </div>
             {fare.reservationFeePaise > 0 && (
               <div className="flex justify-between gap-3 p-3 text-small">
                 <dt className="text-muted">{t("bus.reservationFee")}</dt>
-                <dd className="font-tabular text-fg">
+                <dd className="tabular-nums text-fg">
                   {formatMoney(fare.reservationFeePaise, locale)}
                 </dd>
               </div>
@@ -253,7 +253,7 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
                   fare: formatMoney(fare.totalPaise, locale),
                 })}
               </dt>
-              <dd className="font-tabular text-body font-semibold text-fg">{total}</dd>
+              <dd className="tabular-nums text-body font-semibold text-fg">{total}</dd>
             </div>
           </dl>
           <div className="flex flex-col gap-1 text-small text-muted">
@@ -347,7 +347,7 @@ function HoldTimer({ secondsLeft }: { secondsLeft: number }) {
         <Clock className="size-5 shrink-0" aria-hidden="true" />
         {t("holdLabel")}
       </span>
-      <span role="timer" aria-live="off" className="text-h2 font-tabular">
+      <span role="timer" aria-live="off" className="text-h2 tabular-nums">
         {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
       </span>
       <span className="sr-only" aria-live="polite">

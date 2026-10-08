@@ -7,7 +7,7 @@ export default function NotFound() {
   const t = useTranslations();
 
   return (
-    <main id="main-content" className="flex min-h-[70vh] items-center justify-center p-4">
+    <main id="main-content" className="flex min-h-svh items-center justify-center p-4">
       <EmptyState
         headingLevel="h1"
         icon={FileQuestion}

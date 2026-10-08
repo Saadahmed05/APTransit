@@ -92,6 +92,18 @@ function AccountDetails({ me }: { me: MeDto }) {
 
       <InstallApp />
 
+      <Section id="account-feedback" title={t("feedbackPage.title")}>
+        <p className="text-body text-muted">{t("feedbackPage.accountHint")}</p>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/feedback" className="inline-flex min-h-11 items-center gap-2 text-primary underline-offset-4 hover:underline">
+            {t("feedbackPage.giveFeedback")}
+          </Link>
+          <Link href="/feedback/status" className="inline-flex min-h-11 items-center gap-2 text-primary underline-offset-4 hover:underline">
+            {t("feedbackPage.haveCode")}
+          </Link>
+        </div>
+      </Section>
+
       {roles.length > 1 ? (
         <Section id="account-roles" title={t("account.roles.title")}>
           <p className="text-body text-muted">{t("account.roles.hint")}</p>

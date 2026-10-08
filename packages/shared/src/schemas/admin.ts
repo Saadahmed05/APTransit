@@ -226,6 +226,17 @@ export const AdminAuditPage = z.object({
   items: z.array(AdminAuditDto),
   nextCursor: PublicId.nullable(),
 });
+/** GET /admin/jobs/failed (docs/06 Admin, Day 18). Job data is never returned. */
+export const FailedJobDto = z.object({
+  queue: z.string(),
+  id: z.string(),
+  name: z.string(),
+  reason: z.string(),
+  attempts: z.number().int().nonnegative(),
+  failedAt: z.string().datetime().nullable(),
+});
+export type FailedJobDto = z.infer<typeof FailedJobDto>;
+
 export const OpsDepotDto = z.object({
   id: PublicId,
   code: z.string(),

@@ -31,6 +31,8 @@ export const PassengerAnalyticsDto = z.object({
   ticketsSold: z.number().int().nonnegative(),
   passUsage: z.number().int().nonnegative(),
   busyHours: z.array(z.number().int().nonnegative()),
+  /** One entry per date of the range (IST), for the tickets sold per day line. */
+  daily: z.array(z.object({ date: z.string(), ticketsSold: z.number().int().nonnegative(), passengers: z.number().int().nonnegative() })),
   topRoutes: z.array(
     z.object({
       routeId: z.string(),
@@ -53,6 +55,9 @@ export const DelayAnalyticsDto = z.object({
       routeId: z.string(),
       routeCode: z.string(),
       avgDelayMin: z.number().nonnegative(),
+      /** The 3 hour window of departures (IST) with the highest average delay, for "mostly 5 PM to 8 PM". */
+      peakFromHour: z.number().int().min(0).max(23).nullable(),
+      peakToHour: z.number().int().min(0).max(24).nullable(),
     }),
   ),
 });
@@ -63,6 +68,24 @@ export type DemandBand = z.infer<typeof DemandBand>;
 
 export const DemandLevel = z.enum(["LOW", "MEDIUM", "HIGH"]);
 export type DemandLevel = z.infer<typeof DemandLevel>;
+
+/**
+ * Band of an IST departure hour, same bands as search: morning 05:00 to 11:59, afternoon 12:00
+ * to 16:59, evening 17:00 to 20:59, night 21:00 to 04:59.
+ */
+export function demandBandOfHour(istHour: number): DemandBand {
+  if (istHour >= 5 && istHour < 12) return "MORNING";
+  if (istHour >= 12 && istHour < 17) return "AFTERNOON";
+  if (istHour >= 17 && istHour < 21) return "EVENING";
+  return "NIGHT";
+}
+
+/** Fixed demand thresholds on load factor (Day 15): under 50 LOW, 50 to 80 MEDIUM, over 80 HIGH. */
+export function demandLevelOf(loadFactorPct: number): DemandLevel {
+  if (loadFactorPct < 50) return "LOW";
+  if (loadFactorPct <= 80) return "MEDIUM";
+  return "HIGH";
+}
 
 export const DemandBandDto = z.object({
   band: DemandBand,
