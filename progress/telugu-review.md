@@ -205,3 +205,5 @@ For a native Telugu speaker (docs/18 item I1). Please read each line in context 
 | packages/shared/src/messages | email.complaint.status.IN_REVIEW | In review | పరిశీలనలో ఉంది | |
 | packages/shared/src/messages | email.complaint.status.RESOLVED | Resolved | పరిష్కరించబడింది | |
 | packages/shared/src/messages | email.complaint.status.CLOSED | Closed | మూసివేయబడింది | |
+| apps/web/messages | errors.EMAIL_DELIVERY_FAILED | We could not send the email. Check the address or try again. | మేము ఇమెయిల్ పంపలేకపోయాము. చిరునామాను సరిచూడండి లేదా మళ్లీ ప్రయత్నించండి. | |
+| apps/web/messages | login.codeSentTest | Test version: no email is sent. The code works for {minutes} minutes. | టెస్ట్ వెర్షన్: ఇమెయిల్ పంపబడదు. కోడ్ {minutes} నిమిషాలు పని చేస్తుంది. | |

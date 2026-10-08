@@ -171,10 +171,12 @@ export function LoginForm({ next }: { next: string | null }) {
         <div className="flex flex-col gap-2">
           <h1 className="text-h1 text-fg">{t("auth.enterOtp")}</h1>
           <p className="text-body text-muted">
-            {t("login.codeSent", {
-              target: shownTarget,
-              minutes: Math.round(sent.expiresInSec / 60),
-            })}
+            {sent.devCode
+              ? t("login.codeSentTest", { minutes: Math.round(sent.expiresInSec / 60) })
+              : t("login.codeSent", {
+                  target: shownTarget,
+                  minutes: Math.round(sent.expiresInSec / 60),
+                })}
           </p>
           {sent.devCode ? (
             <p className="flex items-start gap-2 rounded-md bg-status-info-soft p-3 text-small text-fg">

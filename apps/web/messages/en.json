@@ -308,6 +308,7 @@
     "TRIP_NOT_STARTABLE": "This trip cannot be started yet.",
     "BUS_NOT_AVAILABLE": "Selected bus is not available.",
     "COMPLAINT_STATUS_INVALID": "This status change is not allowed. Move the complaint one step at a time.",
+    "EMAIL_DELIVERY_FAILED": "We could not send the email. Check the address or try again.",
     "NETWORK": "You are offline. Your tickets still open. We will retry when you are back online.",
     "INTERNAL": "Something went wrong on our side. Try again in a moment.",
     "BAD_RESPONSE": "We got an answer we did not understand. Try again in a moment."
@@ -337,6 +338,7 @@
     "phoneNote": "SMS codes work only in the test version for now. Use email if you do not get a code.",
     "sendCode": "Send code",
     "codeSent": "We sent a code to {target}. It works for {minutes} minutes.",
+    "codeSentTest": "Test version: no email is sent. The code works for {minutes} minutes.",
     "devCode": "Test version: your login code is {code}. Codes are not emailed yet.",
     "digit": "Digit {position} of {total}",
     "resendIn": "You can ask for a new code in {seconds} s.",
