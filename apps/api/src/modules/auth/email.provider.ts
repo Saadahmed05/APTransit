@@ -52,13 +52,13 @@ export class ResendEmailProvider implements EmailProvider {
       });
     } catch (err) {
       this.logger.error({ err }, "Resend request failed");
-      throw new AppError("INTERNAL", "Email delivery failed");
+      throw new AppError("EMAIL_DELIVERY_FAILED", "Email delivery failed");
     }
 
     if (!response.ok) {
       // Status only: the Resend error body can echo the recipient.
       this.logger.error(`Resend email delivery failed with status ${response.status}`);
-      throw new AppError("INTERNAL", "Email delivery failed");
+      throw new AppError("EMAIL_DELIVERY_FAILED", "Email delivery failed");
     }
   }
 }
