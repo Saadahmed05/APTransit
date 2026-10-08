@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { MinimalShowcase } from "../_token-check/minimal-showcase";
 import { PrimitivesShowcase } from "../_token-check/primitives-showcase";
 import { TokenCheck } from "../_token-check/token-check";
 
@@ -18,6 +19,7 @@ export default async function DesignPage() {
       </div>
 
       <PrimitivesShowcase />
+      <MinimalShowcase />
       <div className="border-t border-default pt-12">
         <h2 className="mb-6 text-h1 text-fg">{t("tokens")}</h2>
         <TokenCheck />
