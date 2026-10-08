@@ -39,8 +39,8 @@ export const ErrorState = React.forwardRef<HTMLDivElement, ErrorStateProps>(
         )}
         {...props}
       >
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-status-danger-soft text-status-danger mb-4">
-          <AlertTriangle className="h-7 w-7" aria-hidden="true" />
+        <div className="flex size-16 items-center justify-center rounded-full bg-status-danger-soft text-status-danger mb-4">
+          <AlertTriangle className="size-10" strokeWidth={1.75} aria-hidden="true" />
         </div>
         {title && <HeadingTag className="text-h3 font-semibold text-fg">{title}</HeadingTag>}
         <p className="mt-1.5 max-w-md text-body text-muted">{message}</p>

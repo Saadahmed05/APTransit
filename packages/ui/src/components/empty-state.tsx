@@ -22,12 +22,12 @@ export const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
         )}
         {...props}
       >
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface text-muted mb-4">
-          <Icon className="h-7 w-7" aria-hidden="true" />
+        <div className="flex size-16 items-center justify-center rounded-full bg-surface text-muted mb-4">
+          <Icon className="size-10" strokeWidth={1.75} aria-hidden="true" />
         </div>
         <HeadingTag className="text-h3 font-semibold text-fg">{title}</HeadingTag>
         {hint && (
-          <p className="mt-1.5 max-w-sm text-small text-subtle">{hint}</p>
+          <p className="mt-1.5 max-w-xs text-small text-subtle">{hint}</p>
         )}
         {action && <div className="mt-5">{action}</div>}
       </div>

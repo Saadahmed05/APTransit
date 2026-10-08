@@ -7,22 +7,23 @@ import { cn } from "../cn";
 import { Spinner } from "./spinner";
 
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 font-medium transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 font-medium transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40",
   {
     variants: {
       variant: {
         primary:
-          "bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-hover",
+          "press-scale bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-hover",
         secondary:
-          "bg-surface text-fg border border-strong hover:bg-surface-raised active:bg-surface",
+          "press-scale bg-surface-raised text-fg border border-strong hover:bg-surface active:bg-surface",
         ghost:
-          "bg-transparent text-fg hover:bg-surface active:bg-surface-raised",
+          "press-scale bg-transparent text-fg hover:bg-surface active:bg-surface",
         danger:
-          "bg-status-danger-solid text-on-solid hover:opacity-90 active:opacity-100",
+          "press-scale bg-status-danger-solid text-on-solid hover:opacity-90 active:opacity-100",
         link:
           "bg-transparent text-primary hover:underline underline-offset-4 p-0 h-auto font-normal",
       },
       size: {
+        sm: "h-9 px-3 text-small rounded-md min-h-9",
         md: "h-11 px-4 text-body rounded-md min-h-11",
         lg: "h-13 px-5 text-body-lg rounded-md min-h-13",
         xl: "h-14 px-6 text-body-lg rounded-md min-h-14",

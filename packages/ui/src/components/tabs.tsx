@@ -6,14 +6,24 @@ import { cn } from "../cn";
 
 export const Tabs = TabsPrimitive.Root;
 
+export interface TabsListProps
+  extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> {
+  /** segmented: sunken track with a raised pill (mobile). underline: 2 px indicator (desktop). */
+  variant?: "segmented" | "underline";
+}
+
 export const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ className, ...props }, ref) => (
+  TabsListProps
+>(({ className, variant = "segmented", ...props }, ref) => (
   <TabsPrimitive.List
     ref={ref}
+    data-variant={variant}
     className={cn(
-      "inline-flex h-11 items-center justify-center rounded-md bg-surface p-1 text-muted select-none",
+      "group/tabs inline-flex items-center text-muted select-none",
+      variant === "segmented"
+        ? "h-11 justify-center rounded-md bg-surface-sunken p-1"
+        : "h-11 gap-4 border-b border-default",
       className
     )}
     {...props}
@@ -28,10 +38,16 @@ export const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3.5 py-1.5 text-body font-medium transition-all",
+      "inline-flex items-center justify-center whitespace-nowrap px-3.5 py-1.5 text-body font-medium transition-colors",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-      "disabled:pointer-events-none disabled:opacity-50",
-      "data-[state=active]:bg-surface-raised data-[state=active]:text-fg data-[state=active]:shadow-sm",
+      "disabled:pointer-events-none disabled:opacity-40",
+      // segmented: the selected pill sits on the sunken track, outlined by a hairline
+      "group-data-[variant=segmented]/tabs:rounded-md group-data-[variant=segmented]/tabs:border group-data-[variant=segmented]/tabs:border-transparent",
+      "group-data-[variant=segmented]/tabs:data-[state=active]:border-default group-data-[variant=segmented]/tabs:data-[state=active]:bg-surface-raised",
+      // underline: a 2 px accent under the selected tab
+      "group-data-[variant=underline]/tabs:h-full group-data-[variant=underline]/tabs:border-b-2 group-data-[variant=underline]/tabs:border-transparent group-data-[variant=underline]/tabs:px-1",
+      "group-data-[variant=underline]/tabs:data-[state=active]:border-primary",
+      "data-[state=active]:text-fg",
       className
     )}
     {...props}

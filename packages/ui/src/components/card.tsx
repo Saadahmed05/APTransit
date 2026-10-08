@@ -10,13 +10,13 @@ export const cardVariants = cva(
       variant: {
         plain: "bg-surface-raised border-default",
         interactive:
-          "bg-surface-raised border-default hover:border-strong cursor-pointer active:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 select-none",
+          "press-scale bg-surface-raised border-default hover:border-strong cursor-pointer active:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 select-none",
         selected: "bg-primary-soft border-primary border-2",
       },
       padding: {
         none: "p-0",
         sm: "p-3",
-        md: "p-4",
+        md: "p-4 md:p-5",
         lg: "p-6",
       },
     },

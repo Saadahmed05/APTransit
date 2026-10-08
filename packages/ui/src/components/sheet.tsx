@@ -27,7 +27,7 @@ export const SheetOverlay = React.forwardRef<
   <DrawerPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-sheet bg-scrim backdrop-blur-xs",
+      "fixed inset-0 z-sheet bg-scrim",
       className
     )}
     {...props}
@@ -50,13 +50,13 @@ export const SheetContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-sheet mt-24 flex max-h-[85vh] flex-col rounded-t-xl border-t border-default bg-surface-raised focus-visible:outline-none",
+        "fixed inset-x-0 bottom-0 z-sheet mt-24 flex max-h-[90svh] flex-col rounded-t-xl border-t border-default bg-surface-raised focus-visible:outline-none",
         className
       )}
       {...props}
     >
       {/* Drag handle */}
-      <div className="mx-auto my-3 h-1.5 w-12 rounded-full bg-strong shrink-0" />
+      <div className="mx-auto my-3 h-1 w-9 rounded-full bg-strong shrink-0" />
 
       {!hideCloseButton && (
         <DrawerPrimitive.Close
@@ -106,7 +106,7 @@ export const SheetTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DrawerPrimitive.Title
     ref={ref}
-    className={cn("text-h2 font-semibold text-fg tracking-tight", className)}
+    className={cn("text-h2 font-semibold text-fg", className)}
     {...props}
   />
 ));

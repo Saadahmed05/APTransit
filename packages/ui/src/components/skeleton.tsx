@@ -8,7 +8,7 @@ export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
   ({ className, shape = "line", ...props }, ref) => {
     const basePulse =
-      "bg-surface animate-pulse motion-reduce:animate-none";
+      "bg-surface-sunken animate-pulse motion-reduce:animate-none";
 
     if (shape === "circle") {
       return (

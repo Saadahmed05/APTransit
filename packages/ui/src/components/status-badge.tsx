@@ -41,32 +41,32 @@ const TONE_CLASSES: Record<
   { soft: string; solid: string; text: string }
 > = {
   success: {
-    soft: "bg-status-success-soft text-status-success border-status-success-soft",
+    soft: "bg-status-success-soft text-status-success",
     solid: "bg-status-success-solid text-on-solid",
     text: "text-status-success",
   },
   info: {
-    soft: "bg-status-info-soft text-status-info border-status-info-soft",
+    soft: "bg-status-info-soft text-status-info",
     solid: "bg-status-info-solid text-on-solid",
     text: "text-status-info",
   },
   warning: {
-    soft: "bg-status-warning-soft text-status-warning border-status-warning-soft",
+    soft: "bg-status-warning-soft text-status-warning",
     solid: "bg-status-warning-solid text-on-solid",
     text: "text-status-warning",
   },
   danger: {
-    soft: "bg-status-danger-soft text-status-danger border-status-danger-soft",
+    soft: "bg-status-danger-soft text-status-danger",
     solid: "bg-status-danger-solid text-on-solid",
     text: "text-status-danger",
   },
   maintenance: {
-    soft: "bg-status-maintenance-soft text-status-maintenance border-status-maintenance-soft",
+    soft: "bg-status-maintenance-soft text-status-maintenance",
     solid: "bg-status-maintenance-solid text-on-solid",
     text: "text-status-maintenance",
   },
   neutral: {
-    soft: "bg-status-neutral-soft text-status-neutral border-status-neutral-soft",
+    soft: "bg-status-neutral-soft text-status-neutral",
     solid: "bg-status-neutral-solid text-on-solid",
     text: "text-status-neutral",
   },
@@ -96,8 +96,8 @@ export const ToneChip = React.forwardRef<HTMLSpanElement, ToneChipProps>(
     const toneStyles = TONE_CLASSES[tone];
     const sizeClasses =
       size === "sm"
-        ? "h-6 px-2 text-caption gap-1 rounded-sm font-medium"
-        : "h-7 px-2.5 text-small gap-1.5 rounded-sm font-medium";
+        ? "h-6 px-2 text-caption gap-1 rounded-full font-medium"
+        : "h-7 px-2.5 text-small gap-1.5 rounded-full font-medium";
 
     const iconSize = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
 
@@ -105,7 +105,7 @@ export const ToneChip = React.forwardRef<HTMLSpanElement, ToneChipProps>(
       <span
         ref={ref}
         className={cn(
-          "inline-flex items-center select-none border",
+          "inline-flex items-center select-none",
           sizeClasses,
           solid ? toneStyles.solid : toneStyles.soft,
           className

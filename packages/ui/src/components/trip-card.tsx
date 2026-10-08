@@ -65,6 +65,7 @@ export const TripCard = React.forwardRef<HTMLElement, TripCardProps>(
       <div
         className={cn(
           "rounded-lg border p-4 transition-colors relative",
+          isLink && "press-scale",
           isFull
             ? "bg-surface border-default opacity-80 cursor-not-allowed"
             : "bg-surface-raised border-default hover:border-strong active:bg-surface",
@@ -75,7 +76,7 @@ export const TripCard = React.forwardRef<HTMLElement, TripCardProps>(
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <div className="flex flex-col">
-              <span className="text-h2 font-semibold tabular-nums text-fg tracking-tight">
+              <span className="text-h2 font-semibold tabular-nums text-fg">
                 {departureTime}
               </span>
             </div>
@@ -116,13 +117,13 @@ export const TripCard = React.forwardRef<HTMLElement, TripCardProps>(
         </div>
 
         {/* Bottom row: Badges, seats left, free travel chip */}
-        <div className="mt-3 pt-3 border-t border-default flex items-center justify-between gap-2 flex-wrap min-w-0">
+        <div className="mt-3 flex items-center justify-between gap-2 flex-wrap min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             {isNonUpcoming && statusLabel && (
               <StatusBadge status={status} label={statusLabel} size="sm" />
             )}
             {freeTravelEligible && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-caption font-medium bg-status-success-soft text-status-success border border-status-success-soft">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-medium bg-status-success-soft text-status-success">
                 <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" />
                 <span>{freeTravelLabel}</span>
               </span>

@@ -73,7 +73,7 @@ export const TicketCard = React.forwardRef<HTMLElement, TicketCardProps>(
             </Heading>
             {status}
           </div>
-          <p className="text-h3 tabular-nums text-fg">{when}</p>
+          <p className="text-display tabular-nums text-fg">{when}</p>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
             {details.map((detail) => (
               <div key={detail.label} className={cn("min-w-0", detail.wide && "col-span-2 sm:col-span-1")}>
