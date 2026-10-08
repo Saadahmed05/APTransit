@@ -16,7 +16,8 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 - S2: five message keys used by staff and admin screens did not exist in either language (opsApp.name, adminApp.users, adminApp.auditLogs, adminApp.stops, adminApp.routes); next-intl showed the key path. pnpm i18n:check only compares the two files, so the route sweep now catches this.
 - S2: login tabs had no tab panel (axe aria-valid-attr-value, critical); the form is now the active tab's panel.
 - S3: /gov/analytics scrolled sideways at 360 and 768 px (tab list), charts were focusable inside an aria-hidden container (Recharts accessibility layer), gov map markers overlapped as small targets (now pointer shortcuts; the district list is the keyboard route), admin route links were a button inside a link.
-- Final run: Desktop Chrome 16 passed, Pixel 7 16 passed (E2E-3 once ran out of far trips tomorrow after many runs; the helper now falls back to the day after), route sweep 5 of 5. One driver spec skips itself when no trip of driver.knl is due at run time.
+- Final run (commit ed249bd): Desktop Chrome 17 of 17, Pixel 7 17 of 17, route sweep 5 of 5. Unit tests: API 419 (6 database tests skipped), shared 121, ui 47, web 44, scripts 6; lint, typecheck, i18n, dashes, check:endpoints pass.
+- E2E-3 used up tomorrow's Kurnool to Vijayawada trips over many runs (demo:window moves a trip to now); `demo:window <ticket> reset` puts it back and E2E-3 runs it at the end. Lint now ignores the MapLibre worker files copied into public/.
 - Test fixes: E2E-9 expected the incident note in the list (it is in the drawer) and an old button name; E2E-4 did not allow paise in refunds (docs/07 has no rounding rule, refunds keep paise); E2E-12 booked in Telugu with English selectors and left the shared citizen in Telugu.
 
 ## Day 18: 2026-10-07 and 08, polish and operations

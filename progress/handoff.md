@@ -29,10 +29,10 @@ Read order for a new session:
 - Day 16: feedback and ops complaints API (D-031), command center and drill down (state, district, depot, route, trip), live with the simulator.
 - Day 17: analytics tabs, reports, feedback screens, complaint handling; CSP with nonce and security headers; log masking; load scripts; docs/12 row map and attacks in the daily log.
 - Day 18: retention jobs, health with worker age and queue depth, failed jobs endpoint and summary, MapLibre worker fix (maps were broken in production builds), dropped Tailwind classes fixed, E2E-12 (D-032).
-- Day 19: `pnpm check:endpoints` (docs/06 fully matched), E2E-1 to E2E-12 and the route sweep (26 routes, en and te, 360, 768, 1280 px). Final run: Desktop Chrome 16 passed, Pixel 7 16 passed, route sweep 5 of 5 (one driver spec skips itself when no trip is due).
+- Day 19: `pnpm check:endpoints` (docs/06 fully matched), E2E-1 to E2E-12 and the route sweep (26 routes, en and te, 360, 768, 1280 px). Final run: Desktop Chrome 17 of 17, Pixel 7 17 of 17, route sweep 5 of 5.
 - Neon staging database (project cool-smoke-27052649): migrations applied, base seed and 14 days of history loaded.
 - Day 20 docs: progress/demo-script.md, progress/handover.md, progress/phase-2-backlog.md, both app READMEs.
-- Checks: API 419 tests (6 database tests skipped), shared 121, web 44, lint, typecheck, i18n, dashes.
+- Checks: API 419 tests (6 database tests skipped), shared 121, ui 47, web 44, lint, typecheck, i18n, dashes.
 
 ### Run the whole stack locally
 
@@ -59,7 +59,7 @@ Read order for a new session:
 | Validate load gets 429 | 120 scans per conductor per minute (docs/12) | `pnpm load:pool` makes several load conductors |
 | Search load gets 429 | 60 per IP per minute | Load from several IPs |
 | `createMany` seeds are slow | About 1,000 rows a second | `bulkInsert` with unnest in seed-history.ts |
-| E2E-3 cannot find a far trip after many runs | Each run moves one trip tomorrow into its activation window | `pickTrip` falls back to the day after; reseed if both run out |
+| E2E-3 cannot find a far trip after many runs | Each run moves one trip tomorrow into its activation window | E2E-3 now runs `demo:window <ticket> reset` at the end; `pickTrip` also falls back to the day after |
 
 ---
 
