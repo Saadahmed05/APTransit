@@ -23,7 +23,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Info, Mail, Phone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { type FormEvent, type Ref, useEffect, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, type Ref, useEffect, useRef, useState } from "react";
 import { useAuth, useMe } from "../../../components/auth-provider";
 import { api, type ApiError, errorKey, isApiError } from "../../../lib/api";
 import { writePreferenceCookie } from "../../../lib/preferences";
@@ -253,68 +253,86 @@ export function LoginForm({ next }: { next: string | null }) {
         <p className="text-body text-muted">{t("login.intro")}</p>
       </div>
 
-      <Tabs
-        value={channel}
-        onValueChange={(value) => {
-          setChannel(value as OtpChannel);
+      <ChannelTabs
+        channel={channel}
+        onChannel={(value) => {
+          setChannel(value);
           setTargetError(null);
         }}
       >
-        <TabsList aria-label={t("login.method")} className="grid w-full grid-cols-2">
-          <TabsTrigger value="EMAIL" className="min-h-11 gap-2">
-            <Mail className="size-4" aria-hidden="true" />
-            {t("login.email")}
-          </TabsTrigger>
-          <TabsTrigger value="PHONE" className="min-h-11 gap-2">
-            <Phone className="size-4" aria-hidden="true" />
-            {t("login.phone")}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* The active tab owns the form, so its aria-controls points at a real panel */}
-        <TabsContent value={channel} className="mt-6">
-          <form noValidate onSubmit={sendCode} className="flex flex-col gap-4">
-            {channel === "EMAIL" ? (
+        <form noValidate onSubmit={sendCode} className="flex flex-col gap-4">
+          {channel === "EMAIL" ? (
+            <Field id="login-email" label={t("login.emailLabel")} error={targetError ?? undefined}>
+              <Input
+                ref={targetInput}
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                placeholder={t("login.emailPlaceholder")}
+                value={email}
+                onChange={(event) => setEmail(event.currentTarget.value)}
+              />
+            </Field>
+          ) : (
+            <>
               <Field
-                id="login-email"
-                label={t("login.emailLabel")}
+                id="login-phone"
+                label={t("login.phoneLabel")}
+                hint={t("login.phoneHint")}
                 error={targetError ?? undefined}
               >
-                <Input
-                  ref={targetInput}
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  placeholder={t("login.emailPlaceholder")}
-                  value={email}
-                  onChange={(event) => setEmail(event.currentTarget.value)}
-                />
+                <PhoneInput ref={targetInput} value={phone} onChange={setPhone} />
               </Field>
-            ) : (
-              <>
-                <Field
-                  id="login-phone"
-                  label={t("login.phoneLabel")}
-                  hint={t("login.phoneHint")}
-                  error={targetError ?? undefined}
-                >
-                  <PhoneInput ref={targetInput} value={phone} onChange={setPhone} />
-                </Field>
-                <p className="flex items-start gap-2 rounded-md bg-status-info-soft p-3 text-small text-fg">
-                  <Info className="mt-0.5 size-4 shrink-0 text-status-info" aria-hidden="true" />
-                  {t("login.phoneNote")}
-                </p>
-              </>
-            )}
-            <Button type="submit" size="xl" loading={request.isPending}>
-              {t("login.sendCode")}
-            </Button>
-          </form>
-        </TabsContent>
-      </Tabs>
+              <p className="flex items-start gap-2 rounded-md bg-status-info-soft p-3 text-small text-fg">
+                <Info className="mt-0.5 size-4 shrink-0 text-status-info" aria-hidden="true" />
+                {t("login.phoneNote")}
+              </p>
+            </>
+          )}
+          <Button type="submit" size="xl" loading={request.isPending}>
+            {t("login.sendCode")}
+          </Button>
+        </form>
+      </ChannelTabs>
     </Card>
+  );
+}
+
+/**
+ * Email and phone tabs. No SMS provider exists yet (docs/18), so the phone tab stays hidden and the
+ * email form shows alone, until the build sets NEXT_PUBLIC_PHONE_LOGIN=1.
+ */
+function ChannelTabs({
+  channel,
+  onChannel,
+  children,
+}: {
+  channel: OtpChannel;
+  onChannel: (channel: OtpChannel) => void;
+  children: ReactNode;
+}) {
+  const t = useTranslations();
+  if (process.env.NEXT_PUBLIC_PHONE_LOGIN !== "1") return <>{children}</>;
+  return (
+    <Tabs value={channel} onValueChange={(value) => onChannel(value as OtpChannel)}>
+      <TabsList aria-label={t("login.method")} className="grid w-full grid-cols-2">
+        <TabsTrigger value="EMAIL" className="min-h-11 gap-2">
+          <Mail className="size-4" aria-hidden="true" />
+          {t("login.email")}
+        </TabsTrigger>
+        <TabsTrigger value="PHONE" className="min-h-11 gap-2">
+          <Phone className="size-4" aria-hidden="true" />
+          {t("login.phone")}
+        </TabsTrigger>
+      </TabsList>
+
+      {/* The active tab owns the form, so its aria-controls points at a real panel */}
+      <TabsContent value={channel} className="mt-6">
+        {children}
+      </TabsContent>
+    </Tabs>
   );
 }
 

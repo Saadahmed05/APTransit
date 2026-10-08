@@ -10,7 +10,7 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 - L1: new error code `EMAIL_DELIVERY_FAILED` (HTTP 502) in packages/shared. `ResendEmailProvider` throws it instead of `INTERNAL` when Resend refuses the mail or the request fails. `/login` shows the en and te message through the existing `errors.*` lookup. New `email.provider.test.ts` (4 tests).
 - L2: when the API returns `devCode`, the code step shows `login.codeSentTest` ("no email is sent") instead of "We sent a code to {target}". `login.devCode` and the E2E helper (reads `devCode` from the response) are unchanged.
 - L3: `PROBE_TIMEOUT_MS` 1000 to 3000 ms. Tests: a 1.5 s database is ok, a 10 s one is down after 3 s.
-- L4: not changed. Proposal sent to the owner: hide the Phone tab while no SMS provider exists.
+- L4 (owner said go): the Phone tab is hidden and the email form shows alone, unless the web build sets `NEXT_PUBLIC_PHONE_LOGIN=1` (new line in apps/web/.env.example, default 0). Turn it on when an SMS provider exists.
 - L5: three login and health gotchas added to handoff.md.
 - docs/04: Next.js version updated to 16.3.8 (the bump is already in package.json).
 
