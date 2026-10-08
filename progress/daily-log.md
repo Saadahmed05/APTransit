@@ -4,6 +4,26 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## v2 Task L: 2026-10-08, login fixes (branch b/login-fixes)
+
+**Done**
+- L1: new error code `EMAIL_DELIVERY_FAILED` (HTTP 502) in packages/shared. `ResendEmailProvider` throws it instead of `INTERNAL` when Resend refuses the mail or the request fails. `/login` shows the en and te message through the existing `errors.*` lookup. New `email.provider.test.ts` (4 tests).
+- L2: when the API returns `devCode`, the code step shows `login.codeSentTest` ("no email is sent") instead of "We sent a code to {target}". `login.devCode` and the E2E helper (reads `devCode` from the response) are unchanged.
+- L3: `PROBE_TIMEOUT_MS` 1000 to 3000 ms. Tests: a 1.5 s database is ok, a 10 s one is down after 3 s.
+- L4: not changed. Proposal sent to the owner: hide the Phone tab while no SMS provider exists.
+- L5: three login and health gotchas added to handoff.md.
+- docs/04: Next.js version updated to 16.3.8 (the bump is already in package.json).
+
+**Contract changes (packages/shared)**
+- New `ErrorCode.EMAIL_DELIVERY_FAILED` with status 502. docs/06 lists the core codes; it is not edited here (locked, no phase owns it). Add the code there with the next docs/06 change.
+
+**Telugu review:** two new strings (`errors.EMAIL_DELIVERY_FAILED`, `login.codeSentTest`) need a native speaker.
+
+**Human tasks (cannot be done in code)**
+- Verify a domain in Resend and set `EMAIL_FROM` to it.
+- Set `APP_ENV=staging` on Render, then `OTP_DEV_ECHO=0`.
+- Check the Render worker service is running (health shows `worker: stale` without it).
+
 ## Day 19: 2026-10-08, release checks (local and Neon)
 
 **Done**

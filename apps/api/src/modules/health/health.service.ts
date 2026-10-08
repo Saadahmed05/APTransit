@@ -5,7 +5,7 @@ import { RedisService } from "../../redis/redis.service";
 import { readWorkerState, WORKER_HEARTBEAT_KEY } from "../lifecycle/worker-heartbeat";
 import { QueueStatusService } from "../queue/queue-status.service";
 
-export const PROBE_TIMEOUT_MS = 1_000;
+export const PROBE_TIMEOUT_MS = 3_000;
 
 /** Runs a check and reports ok or down. Never throws, never waits longer than the timeout. */
 export async function probe(check: () => Promise<unknown>, timeoutMs = PROBE_TIMEOUT_MS): Promise<ProbeState> {

@@ -59,6 +59,9 @@ Read order for a new session:
 | Validate load gets 429 | 120 scans per conductor per minute (docs/12) | `pnpm load:pool` makes several load conductors |
 | Search load gets 429 | 60 per IP per minute | Load from several IPs |
 | `createMany` seeds are slow | About 1,000 rows a second | `bulkInsert` with unnest in seed-history.ts |
+| Login says "We could not send the email" | Resend refused the mail: the test sender onboarding@resend.dev only delivers to the Resend account owner (error `EMAIL_DELIVERY_FAILED`, 502) | Verify a domain in Resend and set `EMAIL_FROM` to it; check `RESEND_API_KEY` and `APP_ENV` (development never sends mail) |
+| Local API or login fails right after `pnpm dev` | Postgres and Redis are not running; Prisma and Redis connect lazily so the API still boots | Start Postgres and Redis first, then open `/api/v1/health`: `db` and `redis` must both say `ok` before you test anything |
+| Health says `db: down` on Render for a working Neon database | The probe timed out (Render to Neon latency, cold start) | `PROBE_TIMEOUT_MS` is 3000 ms; a database that is really down still reports `down` |
 | E2E-3 cannot find a far trip after many runs | Each run moves one trip tomorrow into its activation window | E2E-3 now runs `demo:window <ticket> reset` at the end; `pickTrip` also falls back to the day after |
 
 ---
