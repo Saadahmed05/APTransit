@@ -11,36 +11,38 @@
 :root {
   --map-line-width: 4px;
   /* surfaces and borders */
-  --bg: #ffffff;
-  --surface: #f6f7f9;
+  --bg: #f8f9fb;
+  --surface: #f1f3f6;
   --surface-raised: #ffffff;
-  --border: #e4e7ec;
-  --border-strong: #7c8799;
+  --surface-sunken: #eceff3;
+  --border: #e3e6eb;
+  --border-subtle: #eceef2;
+  --border-strong: #7a8495;
 
   /* text */
-  --text: #0e1621;
-  --text-muted: #475467;
-  --text-subtle: #667085;
+  --text: #0f1729;
+  --text-muted: #475265;
+  --text-subtle: #5d6778;
 
   /* brand */
   --primary: #1d4ed8;
   --primary-hover: #1e40af;
-  --primary-soft: #eef3ff;
+  --primary-soft: #edf2ff;
   --on-primary: #ffffff;
 
   /* status tones: text colour, soft background, solid background (white text on solid) */
-  --success: #15803d;
-  --success-soft: #eef8f2;
+  --success: #157a3c;
+  --success-soft: #ecf7f0;
   --info: #1d4ed8;
-  --info-soft: #eef3ff;
-  --warning: #b45309;
-  --warning-soft: #fef6ea;
-  --danger: #b91c1c;
-  --danger-soft: #fef0f0;
-  --maintenance: #6d28d9;
-  --maintenance-soft: #f4f0fe;
-  --neutral: #475467;
-  --neutral-soft: #f2f4f7;
+  --info-soft: #edf2ff;
+  --warning: #a14a06;
+  --warning-soft: #fdf3e7;
+  --danger: #b42318;
+  --danger-soft: #fdeeec;
+  --maintenance: #6941c6;
+  --maintenance-soft: #f3effc;
+  --neutral: #475265;
+  --neutral-soft: #eef0f4;
   --on-solid: #ffffff;
 
   /* elevation (cards use a border, not a shadow) */
@@ -57,30 +59,32 @@
 /* ---------- Dark: system preference unless the user picked light ---------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0b1118;
-    --surface: #121a24;
-    --surface-raised: #1a2431;
-    --border: #2a3645;
-    --border-strong: #6b7a90;
-    --text: #e9eef4;
-    --text-muted: #a9b4c2;
-    --text-subtle: #8a96a6;
-    --primary: #7aa2ff;
-    --primary-hover: #9dbbff;
-    --primary-soft: #15244a;
-    --on-primary: #0b1118;
-    --success: #4ade80;
-    --success-soft: #12301f;
-    --info: #8ab0ff;
-    --info-soft: #15244a;
-    --warning: #fbbf24;
-    --warning-soft: #33260a;
-    --danger: #fb8a8a;
-    --danger-soft: #3a1515;
-    --maintenance: #c4b5fd;
-    --maintenance-soft: #271d45;
-    --neutral: #a9b4c2;
-    --neutral-soft: #1e2733;
+    --bg: #0a0d12;
+    --surface: #10141b;
+    --surface-raised: #161b23;
+    --surface-sunken: #0d1117;
+    --border: #242c37;
+    --border-subtle: #1b222b;
+    --border-strong: #6b7685;
+    --text: #e8ecf2;
+    --text-muted: #a7b0bd;
+    --text-subtle: #8c96a4;
+    --primary: #86a8ff;
+    --primary-hover: #a5bfff;
+    --primary-soft: #16224a;
+    --on-primary: #0a0d12;
+    --success: #4fd18b;
+    --success-soft: #10291b;
+    --info: #86a8ff;
+    --info-soft: #16224a;
+    --warning: #f5b83d;
+    --warning-soft: #2e220b;
+    --danger: #ff8f87;
+    --danger-soft: #3a1714;
+    --maintenance: #b9a5fb;
+    --maintenance-soft: #231b40;
+    --neutral: #a7b0bd;
+    --neutral-soft: #1c222c;
     --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
     --elevation-md: 0 4px 12px -2px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
     --elevation-lg: 0 16px 32px -8px rgb(0 0 0 / 0.6), 0 4px 8px -4px rgb(0 0 0 / 0.4);
@@ -93,30 +97,32 @@
 
 /* ---------- Dark: user picked dark ---------- */
 :root[data-theme="dark"] {
-  --bg: #0b1118;
-  --surface: #121a24;
-  --surface-raised: #1a2431;
-  --border: #2a3645;
-  --border-strong: #6b7a90;
-  --text: #e9eef4;
-  --text-muted: #a9b4c2;
-  --text-subtle: #8a96a6;
-  --primary: #7aa2ff;
-  --primary-hover: #9dbbff;
-  --primary-soft: #15244a;
-  --on-primary: #0b1118;
-  --success: #4ade80;
-  --success-soft: #12301f;
-  --info: #8ab0ff;
-  --info-soft: #15244a;
-  --warning: #fbbf24;
-  --warning-soft: #33260a;
-  --danger: #fb8a8a;
-  --danger-soft: #3a1515;
-  --maintenance: #c4b5fd;
-  --maintenance-soft: #271d45;
-  --neutral: #a9b4c2;
-  --neutral-soft: #1e2733;
+  --bg: #0a0d12;
+  --surface: #10141b;
+  --surface-raised: #161b23;
+  --surface-sunken: #0d1117;
+  --border: #242c37;
+  --border-subtle: #1b222b;
+  --border-strong: #6b7685;
+  --text: #e8ecf2;
+  --text-muted: #a7b0bd;
+  --text-subtle: #8c96a4;
+  --primary: #86a8ff;
+  --primary-hover: #a5bfff;
+  --primary-soft: #16224a;
+  --on-primary: #0a0d12;
+  --success: #4fd18b;
+  --success-soft: #10291b;
+  --info: #86a8ff;
+  --info-soft: #16224a;
+  --warning: #f5b83d;
+  --warning-soft: #2e220b;
+  --danger: #ff8f87;
+  --danger-soft: #3a1714;
+  --maintenance: #b9a5fb;
+  --maintenance-soft: #231b40;
+  --neutral: #a7b0bd;
+  --neutral-soft: #1c222c;
   --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
   --elevation-md: 0 4px 12px -2px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
   --elevation-lg: 0 16px 32px -8px rgb(0 0 0 / 0.6), 0 4px 8px -4px rgb(0 0 0 / 0.4);
@@ -129,12 +135,12 @@
 /* ---------- Theme independent tokens ---------- */
 :root {
   /* Solid status backgrounds use the light text colour in both themes (docs/09), white text on top. */
-  --success-solid: #15803d;
+  --success-solid: #157a3c;
   --info-solid: #1d4ed8;
-  --warning-solid: #b45309;
-  --danger-solid: #b91c1c;
-  --maintenance-solid: #6d28d9;
-  --neutral-solid: #475467;
+  --warning-solid: #a14a06;
+  --danger-solid: #b42318;
+  --maintenance-solid: #6941c6;
+  --neutral-solid: #475265;
 
   /* Colour of the day for the ticket anti fraud band. Shown with its name in text too. */
   --day-mon: #1d4ed8;
@@ -166,6 +172,8 @@
   --dur-fast: 120ms;
   --dur-base: 200ms;
   --dur-slow: 320ms;
+  /* Press and hold (SOS) and the scan result auto reset both take 3 seconds */
+  --dur-hold: 3s;
 
   /* Telugu glyphs are taller: line heights go up by this factor when lang is te */
   --leading-te: 1.15;
@@ -195,18 +203,25 @@
   --font-sans: var(--font-inter), var(--font-telugu), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
-  /* Type scale (size / line height / weight) */
-  --text-display: 2.25rem;
-  --text-display--line-height: 2.75rem;
+  /* Type scale (size / line height / weight / tracking), docs/09 and prompts/v2-design-spec.md */
+  --text-display-lg: 2.5rem;
+  --text-display-lg--line-height: 3rem;
+  --text-display-lg--font-weight: 600;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display: 2rem;
+  --text-display--line-height: 2.5rem;
   --text-display--font-weight: 600;
-  --text-h1: 1.75rem;
-  --text-h1--line-height: 2.25rem;
+  --text-display--letter-spacing: -0.02em;
+  --text-h1: 1.5rem;
+  --text-h1--line-height: 2rem;
   --text-h1--font-weight: 600;
-  --text-h2: 1.375rem;
-  --text-h2--line-height: 1.875rem;
+  --text-h1--letter-spacing: -0.015em;
+  --text-h2: 1.25rem;
+  --text-h2--line-height: 1.75rem;
   --text-h2--font-weight: 600;
-  --text-h3: 1.125rem;
-  --text-h3--line-height: 1.625rem;
+  --text-h2--letter-spacing: -0.01em;
+  --text-h3: 1.0625rem;
+  --text-h3--line-height: 1.5rem;
   --text-h3--font-weight: 600;
   --text-body-lg: 1.0625rem;
   --text-body-lg--line-height: 1.625rem;
@@ -217,12 +232,13 @@
   --text-caption: 0.75rem;
   --text-caption--line-height: 1rem;
   --text-caption--font-weight: 500;
+  --text-caption--letter-spacing: 0.01em;
 
   /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-full: 9999px;
 
   /* Easing */
@@ -234,7 +250,9 @@
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
   --color-default: var(--border);
+  --color-hairline: var(--border-subtle);
   --color-strong: var(--border-strong);
   --color-fg: var(--text);
   --color-muted: var(--text-muted);
@@ -310,6 +328,9 @@
 @utility duration-slow {
   transition-duration: var(--dur-slow);
 }
+@utility duration-hold {
+  transition-duration: var(--dur-hold);
+}
 
 /* Live ticket band: a soft light sweeps across the colour of the day. Transform only (docs/09,
    Motion); the reduced motion block below stops it and keeps the colour. */
@@ -334,6 +355,42 @@
 }
 @utility animate-fade-in {
   animation: fade-in var(--dur-slow) var(--ease-out) both;
+}
+/* Enter: fade plus an 8 px rise (docs/09, Motion). Transform and opacity only. */
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility animate-enter {
+  animation: enter var(--dur-base) var(--ease-out) both;
+}
+/* Scan result auto reset: a bar drains from full to empty over the hold duration. Transform only. */
+@keyframes drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+@utility animate-drain {
+  animation: drain var(--dur-hold) linear both;
+  transform-origin: left;
+}
+/* Press: tappable things shrink to 0.98 while pressed. The reduced motion block drops it. */
+@utility press-scale {
+  transition-property: transform;
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-out);
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 /* ---------- Base layer ---------- */
@@ -375,14 +432,21 @@
 
   /* Telugu: taller line heights for every type token */
   :lang(te) {
-    --text-display--line-height: calc(2.75rem * var(--leading-te));
-    --text-h1--line-height: calc(2.25rem * var(--leading-te));
-    --text-h2--line-height: calc(1.875rem * var(--leading-te));
-    --text-h3--line-height: calc(1.625rem * var(--leading-te));
+    --text-display-lg--line-height: calc(3rem * var(--leading-te));
+    --text-display--line-height: calc(2.5rem * var(--leading-te));
+    --text-h1--line-height: calc(2rem * var(--leading-te));
+    --text-h2--line-height: calc(1.75rem * var(--leading-te));
+    --text-h3--line-height: calc(1.5rem * var(--leading-te));
     --text-body-lg--line-height: calc(1.625rem * var(--leading-te));
     --text-body--line-height: calc(1.5rem * var(--leading-te));
     --text-small--line-height: calc(1.25rem * var(--leading-te));
     --text-caption--line-height: calc(1rem * var(--leading-te));
+    /* Telugu conjuncts must not be squeezed: no tracking on any type token */
+    --text-display-lg--letter-spacing: 0;
+    --text-display--letter-spacing: 0;
+    --text-h1--letter-spacing: 0;
+    --text-h2--letter-spacing: 0;
+    --text-caption--letter-spacing: 0;
   }
 }
 

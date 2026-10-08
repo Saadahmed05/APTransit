@@ -6,12 +6,12 @@ import { extendTailwindMerge } from "tailwind-merge";
 const twMerge = extendTailwindMerge({
   extend: {
     theme: {
-      text: ["display", "h1", "h2", "h3", "body-lg", "body", "small", "caption"],
+      text: ["display-lg", "display", "h1", "h2", "h3", "body-lg", "body", "small", "caption"],
       spacing: ["gutter"],
     },
     classGroups: {
       z: [{ z: ["sticky", "header", "overlay", "sheet", "dialog", "toast"] }],
-      duration: [{ duration: ["fast", "base", "slow"] }],
+      duration: [{ duration: ["fast", "base", "slow", "hold"] }],
     },
   },
 });
