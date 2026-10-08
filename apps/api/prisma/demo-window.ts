@@ -5,6 +5,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
 // Dev only demo helper (Day 7 sync decision): moves a ticket's trip so its boarding stop departs
 // in N minutes (default 30), which puts the ticket inside its activation window.
 //   pnpm --filter api demo:window <ticket code or id> [minutes]
+//   pnpm --filter api demo:window <ticket code or id> reset   (back to the timetable time; E2E-3 runs it after)
 // Refuses to run when APP_ENV is staging or production.
 
 try {
@@ -14,9 +15,10 @@ try {
 }
 
 const [ticketRef, minutesArg] = process.argv.slice(2);
-const minutes = Number.parseInt(minutesArg ?? "30", 10);
+const reset = minutesArg === "reset";
+const minutes = reset ? 0 : Number.parseInt(minutesArg ?? "30", 10);
 if (!ticketRef || !Number.isFinite(minutes)) {
-  console.error("Usage: pnpm --filter api demo:window <ticket code or id> [minutes]");
+  console.error("Usage: pnpm --filter api demo:window <ticket code or id> [minutes | reset]");
   process.exit(1);
 }
 if (process.env.APP_ENV !== "development") {
@@ -37,6 +39,21 @@ async function main(): Promise<void> {
     include: { trip: { include: { route: { include: { routeStops: true } } } } },
   });
   if (!ticket) throw new Error(`No ticket ${ticketRef}`);
+
+  if (reset) {
+    // Timetable departure (IST wall clock) on the trip's service date, stored as UTC
+    const shifted = await prisma.$executeRaw`
+      WITH m AS (
+        SELECT t.id, (((t."serviceDate"::date + tt."departureLocal"::time) AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'UTC') - t."scheduledDepartureAt" AS shift
+        FROM trips t JOIN timetables tt ON tt.id = t."timetableId" WHERE t.id = ${ticket.tripId}
+      ), trip AS (
+        UPDATE trips t SET "scheduledDepartureAt" = t."scheduledDepartureAt" + m.shift, "scheduledArrivalAt" = t."scheduledArrivalAt" + m.shift, "updatedAt" = now()
+        FROM m WHERE t.id = m.id RETURNING t.id
+      )
+      UPDATE tickets k SET "expiresAt" = k."expiresAt" + m.shift FROM m WHERE k."tripId" = m.id AND k.status = 'BOOKED'`;
+    console.log(`Trip ${ticket.trip.code}: back on its timetable time (${shifted} booked tickets updated).`);
+    return;
+  }
 
   const boardingMinutes = ticket.trip.route.routeStops.find((rs) => rs.stopId === ticket.boardingStopId)?.minutesFromOrigin ?? 0;
   const departure = new Date(Date.now() + (minutes - boardingMinutes) * 60_000);

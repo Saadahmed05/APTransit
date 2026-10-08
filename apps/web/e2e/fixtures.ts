@@ -60,6 +60,12 @@ export function openActivationWindow(ticketCode: string, minutes = 30): void {
   execSync(`pnpm --filter api demo:window ${ticketCode} ${minutes}`, { cwd: resolve(__dirname, "../../.."), stdio: "pipe" });
 }
 
+/** Puts the ticket's trip back on its timetable time, so repeated runs do not use up tomorrow's trips. */
+export function resetActivationWindow(ticketCode: string): void {
+  if (!/^APT-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(ticketCode)) throw new Error(`Bad ticket code ${ticketCode}`);
+  execSync(`pnpm --filter api demo:window ${ticketCode} reset`, { cwd: resolve(__dirname, "../../.."), stdio: "pipe" });
+}
+
 /** From the booking confirmation, open the first ticket of the booking. Returns its code. */
 export async function openFirstTicket(page: Page): Promise<string> {
   const card = page.getByRole("link", { name: /not active/i }).first();
