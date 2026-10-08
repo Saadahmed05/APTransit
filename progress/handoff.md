@@ -14,14 +14,14 @@ Read order for a new session:
 
 ---
 
-## Current state (Days 15 to 20 code done, 2026-10-07)
+## Current state (Days 15 to 20 code done and tested, 2026-10-08)
 
 ### Git
 
 | Branch | Contains | Status |
 | --- | --- | --- |
 | `main` (upstream) | Day 1 to Day 15 (PRs #1 to #6) | Baseline |
-| `days-15-16` | Day 15 fixes, Days 16 to 20 code and docs | Needs review and PR to main |
+| `days-15-16` (fork Saadahmed05/APTransit) | Day 15 fixes, Days 16 to 20 code and docs | Pushed; PR to main and review by the other dev pending |
 
 ### Works today (verified locally, Docker Postgres 16 and Redis 7)
 
@@ -29,9 +29,10 @@ Read order for a new session:
 - Day 16: feedback and ops complaints API (D-031), command center and drill down (state, district, depot, route, trip), live with the simulator.
 - Day 17: analytics tabs, reports, feedback screens, complaint handling; CSP with nonce and security headers; log masking; load scripts; docs/12 row map and attacks in the daily log.
 - Day 18: retention jobs, health with worker age and queue depth, failed jobs endpoint and summary, MapLibre worker fix (maps were broken in production builds), dropped Tailwind classes fixed, E2E-12 (D-032).
-- Day 19: `pnpm check:endpoints` (docs/06 fully matched), E2E-1 to E2E-12.
+- Day 19: `pnpm check:endpoints` (docs/06 fully matched), E2E-1 to E2E-12 and the route sweep (26 routes, en and te, 360, 768, 1280 px). Final run: Desktop Chrome 16 passed, Pixel 7 16 passed, route sweep 5 of 5 (one driver spec skips itself when no trip is due).
+- Neon staging database (project cool-smoke-27052649): migrations applied, base seed and 14 days of history loaded.
 - Day 20 docs: progress/demo-script.md, progress/handover.md, progress/phase-2-backlog.md, both app READMEs.
-- Checks: API 419 tests (6 database tests skipped), shared 121, lint, typecheck, i18n, dashes.
+- Checks: API 419 tests (6 database tests skipped), shared 121, web 44, lint, typecheck, i18n, dashes.
 
 ### Run the whole stack locally
 
@@ -44,7 +45,7 @@ Read order for a new session:
 
 | Item | Why | When |
 | --- | --- | --- |
-| Staging (Render api and worker, Vercel, Neon, Upstash), smoke test, v0.2.0 and v1.0.0-demo tags | Upstash, Razorpay, Resend, Render and Vercel accounts pending; Neon connected but not migrated | After the branch is merged |
+| Staging (Render api and worker, Vercel, Neon, Upstash), smoke test, v0.2.0 and v1.0.0-demo tags | Upstash, Razorpay, Resend, Render and Vercel accounts pending; Neon is migrated and seeded | After the branch is merged |
 | Load tests, headers check, uptime monitor, restore drill, Lighthouse on staging | Need staging | Day 19 on staging |
 | Manual QA on real phones, TalkBack and NVDA, native Telugu review, live demo, screenshots | Need people and devices | Day 19 and 20 |
 
@@ -58,6 +59,7 @@ Read order for a new session:
 | Validate load gets 429 | 120 scans per conductor per minute (docs/12) | `pnpm load:pool` makes several load conductors |
 | Search load gets 429 | 60 per IP per minute | Load from several IPs |
 | `createMany` seeds are slow | About 1,000 rows a second | `bulkInsert` with unnest in seed-history.ts |
+| E2E-3 cannot find a far trip after many runs | Each run moves one trip tomorrow into its activation window | `pickTrip` falls back to the day after; reseed if both run out |
 
 ---
 
