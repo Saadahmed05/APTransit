@@ -22,7 +22,9 @@ Design tokens and React components for AP TransitOS. Owner: Dev A. Rules: `docs/
 | `bg-bg` | `--bg` | page background |
 | `bg-surface` | `--surface` | grey areas, table header, subtle fills |
 | `bg-surface-raised` | `--surface-raised` | cards, sheets, popovers |
+| `bg-surface-sunken` | `--surface-sunken` | wells, the segmented tab track, skeletons |
 | `border-default` | `--border` | dividers, card borders (decorative) |
+| `border-hairline` | `--border-subtle` | list dividers inside cards (not `border-subtle`: `subtle` is the text colour) |
 | `border-strong` | `--border-strong` | input, checkbox and control borders (3:1 contrast) |
 | `text-fg` | `--text` | main text |
 | `text-muted` | `--text-muted` | secondary text, labels |
@@ -45,16 +47,17 @@ Every colour works in light and dark automatically (tokens switch on `data-theme
 
 | Class | Size / line height / weight | Use |
 | --- | --- | --- |
-| `text-display` | 36 / 44 / 600 | scanner result, KPI numbers |
-| `text-h1` | 28 / 36 / 600 | page title, one per page |
-| `text-h2` | 22 / 30 / 600 | section title |
-| `text-h3` | 18 / 26 / 600 | card title |
+| `text-display-lg` | 40 / 48 / 600 | KPI numbers, kiosk scan result |
+| `text-display` | 32 / 40 / 600 | one per page: greeting, big ticket time |
+| `text-h1` | 24 / 32 / 600 | page title, one per page |
+| `text-h2` | 20 / 28 / 600 | section title |
+| `text-h3` | 17 / 24 / 600 | card title |
 | `text-body-lg` | 17 / 26 | driver and conductor body |
 | `text-body` | 16 / 24 | default (inputs never smaller) |
 | `text-small` | 14 / 20 | secondary info |
 | `text-caption` | 12 / 16 / 500 | meta, timestamps |
 
-Also: `font-sans` (Inter, then Noto Sans Telugu), `font-mono`, `tabular-nums` for times, money and counts. Elements with `lang="te"` get 15 percent taller line heights automatically.
+Also: `font-sans` (Inter, then Noto Sans Telugu), `font-mono`, `tabular-nums` for times, money and counts. Elements with `lang="te"` get 15 percent taller line heights and no letter spacing automatically. Display and heading sizes carry their own tracking.
 
 ### Space, shape, depth, motion
 
@@ -62,10 +65,11 @@ Also: `font-sans` (Inter, then Noto Sans Telugu), `font-mono`, `tabular-nums` fo
 | --- | --- |
 | `p-*`, `gap-*`, `w-*` and friends | 4 px grid (`p-4` is 16 px). Stay on the docs/09 scale: 1, 2, 3, 4, 5, 6, 8, 10, 12, 16 |
 | `px-gutter` | page gutter: 16 px mobile, 24 px tablet, 32 px desktop |
-| `rounded-sm`, `rounded-md`, `rounded-lg`, `rounded-xl`, `rounded-full` | 6, 10, 14, 20 px, pill |
+| `rounded-sm`, `rounded-md`, `rounded-lg`, `rounded-xl`, `rounded-full` | 8, 12, 16, 24 px, pill |
 | `shadow-sm`, `shadow-md`, `shadow-lg` | sticky bars, popovers and sheets, dialogs. Cards use a border, not a shadow |
 | `z-sticky`, `z-header`, `z-overlay`, `z-sheet`, `z-dialog`, `z-toast` | 10, 20, 40, 50, 60, 70 |
-| `duration-fast`, `duration-base`, `duration-slow` | 120, 200, 320 ms |
+| `duration-fast`, `duration-base`, `duration-slow`, `duration-hold` | 120, 200, 320 ms, 3 s |
+| `animate-enter`, `press-scale`, `animate-drain` | fade plus 8 px rise, press to 0.98, 3 s draining bar (all transform and opacity, dropped by reduced motion) |
 | `ease-out`, `ease-in` | docs/09 curves |
 
 Breakpoints are Tailwind's defaults (`sm` 640, `md` 768, `lg` 1024, `xl` 1280), which match docs/09.
@@ -125,3 +129,12 @@ RouteProgress is exported from the main entry and announces the current stop pol
 ## Day 14
 
 Day 14 adds typed DataTable (sorting, aria-sort, keyboard row actions, filter slot, skeleton/empty and cursor controls), KpiTile (delta icon/tone, optional link and skeleton), IncidentStatusBadge and the lazy OpsMap with multiple bus markers and detail popups. Component tests cover the new table and KPI behavior.
+
+## v2 minimal system (D-033)
+
+Values changed, names did not (a colour edit never renames a token). The spec is `docs/09-design-system.md`.
+
+- `tokens.test.ts` reads `tokens.css` and fails when a text pair drops under 4.5:1 or a border under 3:1, in light and both dark blocks, and when the two dark blocks differ.
+- `Button` has a `sm` size (36 px, desktop tables only). `Tabs` list has `variant="segmented"` (default) or `"underline"`.
+- New components: `BottomNav` (field apps, 4 items, 56 px), `StatusChip` (soft chip for device state), `ResultSplash` (full screen scan result, drains 3 s then `onReset`), `HoldButton` (press and hold 3 s, Space or Enter on a keyboard). All four are on `/design` in light and dark.
+- jsdom has no `PointerEvent`: in tests send a `MouseEvent` named `pointerdown` when you need a real `button` value.

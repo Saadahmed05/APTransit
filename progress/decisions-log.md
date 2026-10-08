@@ -281,6 +281,18 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
   - Class names that Tailwind silently dropped (bg-success/10, text-danger, border-border, text-xs, text-foreground and others in admin and ops screens) were mapped to theme classes; pnpm check:classes (scripts/check-classes.cjs) compares used classes with the built CSS.
 - **Status:** Proposed for the other dev review. Locked docs unchanged.
 
+### D-033: v2 minimal visual refresh
+- **Date:** 2026-10-08
+- **Raised by:** Dev A (v2 phase P1)
+- **Doc affected:** docs/09-design-system.md (rewritten from prompts/v2-design-spec.md)
+- **Decision:**
+  - Token values change for light and both dark blocks; every token name stays, so one edit restyles every screen and E2E selectors survive. New tokens: `--surface-sunken`, `--border-subtle` (class `border-hairline`, because `border-subtle` would clash with the `text-subtle` colour), `--dur-hold`.
+  - Type scale: display 32 / 40, new display-lg 40 / 48, h1 24 / 32, h2 20 / 28, h3 17 / 24, with tracking (0 in Telugu). Radius 8, 12, 16, 24. Cards and tabs lose their shadows; shadow is for floating layers only. Blur is removed from sheet and dialog scrims.
+  - No new dependency. Four new components in packages/ui: BottomNav, StatusChip, ResultSplash, HoldButton. The field apps adopt BottomNav in P6.
+  - A contrast test (`packages/ui/src/tokens.test.ts`) reads tokens.css and asserts AA (text 4.5, borders 3) in all three theme blocks.
+  - Two small deviations from the spec: the scan result auto reset is a draining bar (transform only) instead of a ring, because the spec limits motion to transform and opacity; the dialog max width stays `max-w-lg` (512 px) instead of 480 px, to avoid an arbitrary value.
+- **Status:** Proposed for the other dev review. docs/09 updated in the same PR (P1).
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |

@@ -59,6 +59,8 @@ Read order for a new session:
 | Validate load gets 429 | 120 scans per conductor per minute (docs/12) | `pnpm load:pool` makes several load conductors |
 | Search load gets 429 | 60 per IP per minute | Load from several IPs |
 | `createMany` seeds are slow | About 1,000 rows a second | `bulkInsert` with unnest in seed-history.ts |
+| A new class does nothing after the P1 refresh | New names: `bg-surface-sunken`, `border-hairline` (not `border-subtle`, that is the text colour), `text-display-lg`, `press-scale`, `animate-enter` | They are in `packages/ui/README.md`; run `pnpm check:classes` after a build |
+| `tokens.test.ts` fails after a colour edit | A text pair fell under 4.5:1 or a border under 3:1, or the two dark blocks differ | Fix the value; edit light, dark by system and dark by choice together |
 | E2E-3 cannot find a far trip after many runs | Each run moves one trip tomorrow into its activation window | E2E-3 now runs `demo:window <ticket> reset` at the end; `pickTrip` also falls back to the day after |
 
 ---
