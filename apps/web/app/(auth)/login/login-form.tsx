@@ -36,6 +36,8 @@ interface Sent {
   target: string;
   expiresInSec: number;
   resendAt: number;
+  /** Only sent by a non production API with OTP_DEV_ECHO=1, when codes are not emailed. */
+  devCode?: string;
 }
 
 function useNow(active: boolean): number {
@@ -98,6 +100,7 @@ export function LoginForm({ next }: { next: string | null }) {
         target: input.target,
         expiresInSec: res.expiresInSec,
         resendAt: Date.now() + res.resendInSec * 1000,
+        devCode: res.devCode,
       });
       setCode("");
       setCodeError(null);
@@ -173,6 +176,12 @@ export function LoginForm({ next }: { next: string | null }) {
               minutes: Math.round(sent.expiresInSec / 60),
             })}
           </p>
+          {sent.devCode ? (
+            <p className="flex items-start gap-2 rounded-md bg-status-info-soft p-3 text-small text-fg">
+              <Info className="mt-0.5 size-4 shrink-0 text-status-info" aria-hidden="true" />
+              {t("login.devCode", { code: sent.devCode })}
+            </p>
+          ) : null}
         </div>
 
         <form
