@@ -8,7 +8,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import type { AuthenticatedUser } from "../../common/auth/auth.types";
 import { AppError } from "../../common/errors/app-error";
 import { DomainEventsService } from "../../common/events/domain-events.service";
-import { ScopeService } from "../../common/services/scope.service";
+import { depotScopeWhere, ScopeService } from "../../common/services/scope.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { hashDeviceKey } from "../driver/driver.service";
@@ -27,30 +27,44 @@ import { TripNotificationsService } from "./trip-notifications.service";
 import {
   displayStatusOf,
   roomsOf,
+  type StateGeo,
   type TripContext,
   TripContextService,
 } from "./trip-context.service";
 
-/** docs/12 GPS trust: AP bounding box [76.7, 12.6, 84.8, 19.95] plus about 50 km. */
-const AP_BOX = {
-  minLng: 76.7 - 0.5,
-  minLat: 12.6 - 0.45,
-  maxLng: 84.8 + 0.5,
-  maxLat: 19.95 + 0.45,
-};
+/** docs/12 GPS trust: the trip's state bounding box plus about 50 km (D-034). */
+const BOX_MARGIN_LNG = 0.5;
+const BOX_MARGIN_LAT = 0.45;
+
+export interface GpsBox {
+  minLat: number;
+  minLng: number;
+  maxLat: number;
+  maxLng: number;
+}
+
+/** The box a GPS point of a trip in this state must fall in. */
+export function gpsBoxOf(state: Pick<StateGeo, "minLat" | "minLng" | "maxLat" | "maxLng">): GpsBox {
+  return {
+    minLng: state.minLng - BOX_MARGIN_LNG,
+    minLat: state.minLat - BOX_MARGIN_LAT,
+    maxLng: state.maxLng + BOX_MARGIN_LNG,
+    maxLat: state.maxLat + BOX_MARGIN_LAT,
+  };
+}
 const MAX_SPEED_KMH = 120;
 const MAX_CLOCK_SKEW_MS = 2 * 60_000;
 const MS_PER_MIN = 60_000;
 
 export type PointProblem = "OUT_OF_BOUNDS" | "TOO_FAST" | "STALE_OR_FUTURE";
 
-/** Sanity of one point (docs/12): inside AP plus 50 km, under 120 km/h, within 2 min of server time. */
-export function checkPoint(point: GpsPointInput, now: Date): PointProblem | null {
+/** Sanity of one point (docs/12): inside the state plus 50 km, under 120 km/h, within 2 min of server time. */
+export function checkPoint(point: GpsPointInput, now: Date, box: GpsBox): PointProblem | null {
   if (
-    point.lat < AP_BOX.minLat ||
-    point.lat > AP_BOX.maxLat ||
-    point.lng < AP_BOX.minLng ||
-    point.lng > AP_BOX.maxLng
+    point.lat < box.minLat ||
+    point.lat > box.maxLat ||
+    point.lng < box.minLng ||
+    point.lng > box.maxLng
   )
     return "OUT_OF_BOUNDS";
   if (point.speedKmh !== undefined && point.speedKmh >= MAX_SPEED_KMH) return "TOO_FAST";
@@ -108,8 +122,9 @@ export class TrackingService {
       await this.countRejected(input.tripId);
       throw new AppError("TRIP_NOT_STARTABLE", "The trip is not running");
     }
+    const box = gpsBoxOf(context.state);
     for (const point of input.points) {
-      const problem = checkPoint(point, now);
+      const problem = checkPoint(point, now, box);
       if (problem) {
         await this.countRejected(input.tripId);
         throw new AppError("VALIDATION_FAILED", "A GPS point failed the sanity checks", {
@@ -270,8 +285,8 @@ export class TrackingService {
   }
 
   /**
-   * GET /tracking/live (ops roles). A depot needs a role on that depot (or its district, or the
-   * state); a district needs that district or the state. Without filters: the caller's own depots.
+   * GET /tracking/live (ops roles). A depot needs a role on that depot (or its district, or its
+   * state); a district needs that district or its state. Without filters: every depot in scope.
    */
   async liveBuses(
     user: AuthenticatedUser,
@@ -283,24 +298,14 @@ export class TrackingService {
       await this.assertDepotScope(user, depotId);
       depotIds = [depotId];
     } else if (districtId) {
-      this.scope.assertDistrictAccess(user, districtId);
+      await this.scope.assertDistrictAccess(user, districtId);
       depotIds = (
         await this.prisma.depot.findMany({ where: { districtId }, select: { id: true } })
       ).map((d) => d.id);
     } else {
-      const own = user.roles.map((r) => r.depotId).filter((id): id is string => Boolean(id));
-      const statewide = user.roles.some((r) =>
-        ["TRANSPORT_OFFICER", "STATE_ADMIN", "SUPER_ADMIN"].includes(r.role),
-      );
-      const districts = user.roles
-        .map((r) => r.districtId)
-        .filter((id): id is string => Boolean(id));
-      const rows = statewide
-        ? await this.prisma.depot.findMany({ select: { id: true } })
-        : await this.prisma.depot.findMany({
-            where: { OR: [{ id: { in: own } }, { districtId: { in: districts } }] },
-            select: { id: true },
-          });
+      // Same scope as every other ops read, so a state role sees only its own state
+      const where = depotScopeWhere(user, "ops:read");
+      const rows = await this.prisma.depot.findMany({ where, select: { id: true } });
       depotIds = rows.map((d) => d.id);
     }
 
@@ -351,19 +356,9 @@ export class TrackingService {
     return out;
   }
 
-  /** Depot access: a role on the depot, the depot's district, or statewide. */
+  /** Depot access: a role on the depot, its district, its state, or platform wide. */
   async assertDepotScope(user: AuthenticatedUser, depotId: string): Promise<void> {
-    try {
-      this.scope.assertDepotAccess(user, depotId);
-      return;
-    } catch (err) {
-      const depot = await this.prisma.depot.findUnique({
-        where: { id: depotId },
-        select: { districtId: true },
-      });
-      if (depot && user.roles.some((r) => r.districtId === depot.districtId)) return;
-      throw err;
-    }
+    await this.scope.assertDepotAccess(user, depotId);
   }
 
   private liveStateFor(context: TripContext, point: GpsPointInput, now: Date): LiveState {

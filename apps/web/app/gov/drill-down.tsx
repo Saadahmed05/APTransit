@@ -14,7 +14,7 @@ import { useLocale, useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { z } from "zod";
-import { delayTone, istDate, useGovLive, useGovPlaces, useGovQuery, useGovScope } from "../../lib/gov";
+import { delayTone, istDate, useGovLive, useGovPlaces, useGovQuery, useGovScope, useStates } from "../../lib/gov";
 import { TrackTrip } from "../(citizen)/track/[tripId]/track-trip";
 import { BarSeriesChart } from "../../components/charts";
 import { OpsEmpty, OpsError } from "../ops/ops-common";
@@ -26,16 +26,23 @@ const GovMap = dynamic(() => import("@aptransit/ui/map-view").then((m) => m.GovM
 });
 const MAP_STYLE = process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/liberty";
 
-/** Breadcrumb from the state down to the given level; officers start at their district. */
+/**
+ * Breadcrumb from the state down to the given level (D-034: the state name comes from the API).
+ * SUPER_ADMIN starts at all states; officers start at their district.
+ */
 function useCrumbs(level: { districtId?: string; depotId?: string; route?: { id: string; code: string }; trip?: string }): Crumb[] {
   const t = useTranslations("govApp"),
     locale = useLocale(),
     scope = useGovScope(),
-    places = useGovPlaces();
+    places = useGovPlaces(),
+    { states } = useStates();
   const depot = places.depots.find((d) => d.id === level.depotId);
   const districtId = level.districtId ?? depot?.districtId;
   const district = places.districts.find((d) => d.id === districtId);
-  const crumbs: Crumb[] = scope.statewide ? [{ href: "/gov", label: t("state") }] : [];
+  const state = states.find((s) => s.id === district?.stateId);
+  const crumbs: Crumb[] = scope.platform ? [{ href: "/gov", label: t("allStates") }] : [];
+  if (scope.statewide)
+    crumbs.push({ href: scope.platform && state ? `/gov/state/${state.id}` : "/gov", label: placeName(locale, state) || t("state") });
   if (districtId) crumbs.push({ href: `/gov/district/${districtId}`, label: placeName(locale, district) || t("district") });
   if (level.depotId) crumbs.push({ href: `/gov/depot/${level.depotId}`, label: placeName(locale, depot) || t("depot") });
   if (level.route) crumbs.push({ href: `/gov/route/${level.route.id}`, label: level.route.code });

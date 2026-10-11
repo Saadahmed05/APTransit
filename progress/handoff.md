@@ -14,7 +14,51 @@ Read order for a new session:
 
 ---
 
-## Current state (Days 15 to 20 code done and tested, 2026-10-08)
+## Current state (v3 owner feedback round, 2026-10-11)
+
+Branch `a/v3-transit-ux`, merged with upstream main (states, boarding record, pass catalog) on 2026-10-11. My zone passes use the upstream `DAY` and `MONTHLY` kinds; my DAILY kind was dropped. D-042 and D-043 in the decisions log; docs 02, 05, 06, 07, 09, 11, 12, 15, 18, 19 updated.
+
+| New | Where |
+| --- | --- |
+| Light blue tokens, splash utilities, `h-home-map` | `packages/ui/src/tokens.css` |
+| Bus splash (root layout) | `apps/web/components/bus-splash.tsx` |
+| Login first (`/` protected) | `apps/web/proxy.ts` |
+| Map picker home | `apps/web/app/(citizen)/map-picker.tsx`, `GET /places/nearby` |
+| Google sign in | `apps/web/components/google-sign-in.tsx`, `POST /auth/google`, env `GOOGLE_CLIENT_ID` and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` |
+| Village service fit | `villageFit` in `apps/api/src/modules/network/network.service.ts` |
+| Child fares | `groupFare`, `splitGroupTotal` in `packages/shared/src/fare.ts` |
+| Zone and child passes, CHILD_BOARDED | passes service, `validate.service.ts`, notifications subscriber, migration `20261011000000_v3_passes_children` |
+| QR 3 s | `QR_PERIOD_SEC` in `packages/shared/src/qr.ts`, seed setting |
+| Stage counts | `OpsService.tripProfile`, ops trip page |
+| Terms | `apps/web/app/(citizen)/terms/page.tsx` |
+
+New gotchas: Python on Windows writes CRLF (breaks `tokens.test.ts` parsing): write with newline set to LF. Headless Chromium does not paint MapLibre tiles. PGlite 0.0.20 crashes during seed; `@electric-sql/pglite-socket@latest --max-connections=1` works.
+## Current state (v2 P2 state model and login email error on main, 2026-10-09)
+
+Work follows `prompts/v2-journey-plan.md`. P1 (minimal UI, D-033) is on main. P2 (State > District, multi state scope, D-034) and the login email error (503 `EMAIL_DELIVERY_FAILED`, D-041) were pushed straight to main on 2026-10-09 at the owner's request, without a PR; the other dev should still review D-034 and D-041 (shared contract changes). Run `pnpm --filter api exec prisma migrate deploy` on every database (two new migrations). Real Gmail login still needs a verified Resend domain, `EMAIL_FROM` and `APP_ENV=staging` on Render, then `OTP_DEV_ECHO=0`. P3 (boarding record and segment validation, D-035) followed the same way: every scan is a boarding record with bus, stop, source, position and validator; ValidateService takes a ValidatorContext so P5 door scanners reuse it; stop checks are skipped when the stop source is NONE. P4 (pass catalog, D-036) followed: seven pass kinds with DEMO prices, a purchase time copy on every pass so admin edits never change sold passes, group passes (Family boards 4 per trip), the school pass with a STUDENT check and route restriction, and /admin/policies/pass-types. Next: P6 (field shell), then P5, P7, P8, P9.
+
+**What P2 changed (patterns to copy)**
+
+- A state is data: `states` table, `districts.stateId` required. AP has the fixed id `stateap000000000000000000` (migration and seed agree). `pnpm db:seed --with-tg` adds a Telangana stub and `admin.tg@aptransit.test`.
+- Scope lives in one place: `depotScopeWhere`, `isPlatformWide`, `wholeStates` and `ScopeService` (async now) in `apps/api/src/common/services/scope.service.ts`. SUPER_ADMIN is the only platform wide role; STATE_ADMIN and TRANSPORT_OFFICER carry `stateId` on the role and in the JWT. Never write `["STATE_ADMIN", "SUPER_ADMIN", "TRANSPORT_OFFICER"].includes(...)` again.
+- Socket room `state:{id}` (the bare `state` room is refused). `LiveRooms` and `TripContext` carry the state; web and API deploy together.
+- `PLATFORM_TIME_ZONE` from `@aptransit/shared` everywhere; `rg "Asia/Kolkata" apps packages --glob "!**/generated/**"` should only hit time.ts, schema.prisma defaults, migrations, env and CI config, test names, and `scripts/load/search.ts` (root scripts cannot import the shared package).
+- `GET /states` (public) feeds the gov state picker, `/gov/state/[id]`, the breadcrumb root and map `bounds` (MapView, GovMap, OpsMap take `bounds`).
+- Checks on this branch: API 434 tests (6 database tests skipped), shared 125, ui 106, web 44; lint, typecheck, i18n, dashes, check:endpoints pass. E2E Desktop Chrome 22 of 22, Pixel 7 22 of 22. Migrations tested as an upgrade on a seeded local database (PGlite): no drift, backfill verified.
+
+**P2 gotchas**
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| A state admin sees nothing | The role has no `stateId` (state roles need one now) | Grant with `stateId`, or rerun the seed; the backfill migration set AP on existing rows |
+| Memory Prisma test fails with "reading 'stateId'" | `TripContext` loads `district.state`, ops reads `route.depot.district.stateId` | Give the fixture `state` and `district` tables and relations (see `test/tracking.test.ts`, `test/day13-ops.test.ts`) |
+| `pnpm test` in apps/api times out on a slow laptop | All files in parallel | `pnpm exec vitest run --maxWorkers=2` |
+| `next dev` answered 404 for every page during the P2 check (Windows, "slow filesystem" warning) | Not found; the production build of the same code works | Use `pnpm --filter web build` and `start` for browser checks |
+| Local API logs "Connection terminated unexpectedly" and health says db down | PGlite socket server allows `--max-connections` (was 10); `nest start --watch` restarts leak pool connections | Start PGlite with `--max-connections=20` and run the API from `dist` (`node apps/api/dist/main.js`) |
+| `operations.spec.ts` sometimes fails at the bilingual loop on a slow laptop | The 5 s expect timeout while the page is still loading | Rerun; it passed in the full runs on both projects |
+| Map stays on AP for a TG user for a moment | Bounds arrive with `GET /states` | Expected; maps remount when the bounds change |
+
+## Previous state (Days 15 to 20 code done and tested, 2026-10-08)
 
 ### Git
 
@@ -61,6 +105,8 @@ Read order for a new session:
 | `createMany` seeds are slow | About 1,000 rows a second | `bulkInsert` with unnest in seed-history.ts |
 | A new class does nothing after the P1 refresh | New names: `bg-surface-sunken`, `border-hairline` (not `border-subtle`, that is the text colour), `text-display-lg`, `press-scale`, `animate-enter` | They are in `packages/ui/README.md`; run `pnpm check:classes` after a build |
 | `tokens.test.ts` fails after a colour edit | A text pair fell under 4.5:1 or a border under 3:1, or the two dark blocks differ | Fix the value; edit light, dark by system and dark by choice together |
+| Every page loads about 290 KB (gzip) of MapLibre | `export * from "./components/map-view"` in `packages/ui/src/index.ts` pulled it into the shared bundle | Import maps only through `next/dynamic(() => import("@aptransit/ui/map-view"))`; never from the `@aptransit/ui` index |
+| Every page ships all zod schemas (admin, gov, reports) | Web read the CommonJS build of `@aptransit/shared`, which cannot be tree shaken | `next.config.ts` aliases `@aptransit/shared` to its `src` and the package is `sideEffects: false`; the API still uses `dist` |
 | E2E-3 cannot find a far trip after many runs | Each run moves one trip tomorrow into its activation window | E2E-3 now runs `demo:window <ticket> reset` at the end; `pickTrip` also falls back to the day after |
 
 ---

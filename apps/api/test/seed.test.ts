@@ -4,6 +4,8 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { runSeed } from "../prisma/seed";
 
 const testDbUrl = process.env.TEST_DATABASE_URL;
+// The Telangana stub (`--with-tg`, D-034) may be in the same database: count AP only
+const AP_ONLY = { where: { state: { code: "AP" } } };
 
 describe.skipIf(!testDbUrl)("Database seed", () => {
   it(
@@ -16,10 +18,10 @@ describe.skipIf(!testDbUrl)("Database seed", () => {
       try {
         await runSeed();
 
-        const districtCount = await prisma.district.count();
+        const districtCount = await prisma.district.count(AP_ONLY);
         expect(districtCount).toBe(10);
 
-        const depotCount = await prisma.depot.count();
+        const depotCount = await prisma.depot.count({ where: { district: AP_ONLY.where } });
         expect(depotCount).toBe(6);
 
         const routeCount = await prisma.route.count();
@@ -43,7 +45,7 @@ describe.skipIf(!testDbUrl)("Database seed", () => {
 
         // Idempotency: running seed a second time should not alter counts
         await runSeed();
-        const secondDistrictCount = await prisma.district.count();
+        const secondDistrictCount = await prisma.district.count(AP_ONLY);
         const secondRouteCount = await prisma.route.count();
         const secondTripCount = await prisma.trip.count();
 

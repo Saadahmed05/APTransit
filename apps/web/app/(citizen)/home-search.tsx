@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState, useSyncExternalStore } from "react";
 import { PlaceCombobox } from "../../components/place-combobox";
+import { MapPicker } from "./map-picker";
 import {
   MAX_DAYS_AHEAD,
   readSavedSearch as readSaved,
@@ -88,66 +89,80 @@ function SearchForm() {
   };
 
   return (
-    <Card padding="lg" className="flex flex-col gap-5">
-      <form onSubmit={onSubmit} noValidate aria-label={t("home.question")} className="flex flex-col gap-5">
-        <div className="flex items-end gap-2">
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <PlaceCombobox
-              id="home-from"
-              icon="from"
-              label={t("common.from")}
-              placeholder={t("home.fromPlaceholder")}
-              value={from}
-              onChange={(place) => update({ from: place })}
-              error={errors.from}
-            />
-            <PlaceCombobox
-              id="home-to"
-              icon="to"
-              label={t("common.to")}
-              placeholder={t("home.toPlaceholder")}
-              value={to}
-              onChange={(place) => update({ to: place })}
-              error={errors.to}
+    <div className="flex flex-col gap-6">
+      <Card padding="lg" className="flex flex-col gap-5 shadow-md">
+        <form
+          onSubmit={onSubmit}
+          noValidate
+          aria-label={t("home.question")}
+          className="flex flex-col gap-5"
+        >
+          <div className="flex items-end gap-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-4">
+              <PlaceCombobox
+                id="home-from"
+                icon="from"
+                label={t("common.from")}
+                placeholder={t("home.fromPlaceholder")}
+                value={from}
+                onChange={(place) => update({ from: place })}
+                error={errors.from}
+              />
+              <PlaceCombobox
+                id="home-to"
+                icon="to"
+                label={t("common.to")}
+                placeholder={t("home.toPlaceholder")}
+                value={to}
+                onChange={(place) => update({ to: place })}
+                error={errors.to}
+              />
+            </div>
+            <IconButton
+              variant="secondary"
+              size="lg"
+              aria-label={t("home.swap")}
+              className="mb-10 shrink-0"
+              onClick={() => update({ from: to, to: from })}
+            >
+              <ArrowUpDown className="size-5" aria-hidden="true" />
+            </IconButton>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span id="home-date-label" className="text-body font-medium text-fg">
+              {t("common.date")}
+            </span>
+            <DatePicker
+              value={date}
+              onChange={(next) => update({ date: next })}
+              today={today}
+              maxDaysAhead={MAX_DAYS_AHEAD}
+              locale={locale === "te" ? "te-IN" : "en-IN"}
+              groupLabel={t("common.date")}
+              labels={{
+                today: t("home.date.today"),
+                tomorrow: t("home.date.tomorrow"),
+                pickDate: t("home.date.pick"),
+                close: t("common.close"),
+                previousMonth: t("home.date.previousMonth"),
+                nextMonth: t("home.date.nextMonth"),
+              }}
             />
           </div>
-          <IconButton
-            variant="secondary"
-            size="lg"
-            aria-label={t("home.swap")}
-            className="mb-10 shrink-0"
-            onClick={() => update({ from: to, to: from })}
+
+          <Button
+            type="submit"
+            size="xl"
+            loading={submitting}
+            leftIcon={<Search className="size-5" aria-hidden="true" />}
           >
-            <ArrowUpDown className="size-5" aria-hidden="true" />
-          </IconButton>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <span id="home-date-label" className="text-body font-medium text-fg">
-            {t("common.date")}
-          </span>
-          <DatePicker
-            value={date}
-            onChange={(next) => update({ date: next })}
-            today={today}
-            maxDaysAhead={MAX_DAYS_AHEAD}
-            locale={locale === "te" ? "te-IN" : "en-IN"}
-            groupLabel={t("common.date")}
-            labels={{
-              today: t("home.date.today"),
-              tomorrow: t("home.date.tomorrow"),
-              pickDate: t("home.date.pick"),
-              close: t("common.close"),
-              previousMonth: t("home.date.previousMonth"),
-              nextMonth: t("home.date.nextMonth"),
-            }}
-          />
-        </div>
-
-        <Button type="submit" size="xl" loading={submitting} leftIcon={<Search className="size-5" aria-hidden="true" />}>
-          {t("search.cta")}
-        </Button>
-      </form>
-    </Card>
+            {t("search.cta")}
+          </Button>
+        </form>
+      </Card>
+      {/* D-042: pick From and To on the map, like Google Maps */}
+      <MapPicker from={from} to={to} onPick={(field, place) => update({ [field]: place })} />
+    </div>
   );
 }

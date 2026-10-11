@@ -11,6 +11,11 @@ export interface EmailProvider {
 
 export const EMAIL_PROVIDER = "EMAIL_PROVIDER";
 
+/** 503 EMAIL_DELIVERY_FAILED: the client shows a clear "try again" message instead of a 500. */
+export function deliveryFailed(): AppError {
+  return new AppError("EMAIL_DELIVERY_FAILED", "The email could not be sent. Try again in a few minutes.");
+}
+
 @Injectable()
 export class ResendEmailProvider implements EmailProvider {
   private readonly logger = new Logger(ResendEmailProvider.name);
@@ -38,6 +43,8 @@ export class ResendEmailProvider implements EmailProvider {
     try {
       response = await fetch("https://api.resend.com/emails", {
         method: "POST",
+        // A hung provider must not hold the login request open: fail fast and let the user retry.
+        signal: AbortSignal.timeout(8_000),
         headers: {
           Authorization: `Bearer ${this.config.get("RESEND_API_KEY", { infer: true })}`,
           "Content-Type": "application/json",
@@ -52,13 +59,14 @@ export class ResendEmailProvider implements EmailProvider {
       });
     } catch (err) {
       this.logger.error({ err }, "Resend request failed");
-      throw new AppError("INTERNAL", "Email delivery failed");
+      throw deliveryFailed();
     }
 
     if (!response.ok) {
-      // Status only: the Resend error body can echo the recipient.
+      // Status only: the Resend error body can echo the recipient. A 403 usually means the sender
+      // domain is not verified (the onboarding@resend.dev test sender only reaches the account owner).
       this.logger.error(`Resend email delivery failed with status ${response.status}`);
-      throw new AppError("INTERNAL", "Email delivery failed");
+      throw deliveryFailed();
     }
   }
 }

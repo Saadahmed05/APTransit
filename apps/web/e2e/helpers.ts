@@ -1,11 +1,12 @@
 import { expect, type Page } from "@playwright/test";
+import { PLATFORM_TIME_ZONE } from "@aptransit/shared";
 
 // Shared steps for the citizen journeys (docs/14). Needs the API with OTP_DEV_ECHO=1 and
 // PAYMENTS_FAKE=1, the web built with NEXT_PUBLIC_PAYMENTS_FAKE=1, and a seeded database.
 
-/** Tomorrow (or `days` from now) as YYYY-MM-DD in Asia/Kolkata. */
+/** Tomorrow (or `days` from now) as YYYY-MM-DD in IST. */
 export function tomorrowIst(days = 1): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(
+  return new Intl.DateTimeFormat("en-CA", { timeZone: PLATFORM_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(
     new Date(Date.now() + days * 24 * 3_600_000),
   );
 }

@@ -31,6 +31,7 @@ export const ErrorCode = {
   TRIP_NOT_STARTABLE: "TRIP_NOT_STARTABLE",
   BUS_NOT_AVAILABLE: "BUS_NOT_AVAILABLE",
   COMPLAINT_STATUS_INVALID: "COMPLAINT_STATUS_INVALID",
+  EMAIL_DELIVERY_FAILED: "EMAIL_DELIVERY_FAILED",
   INTERNAL: "INTERNAL",
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -38,7 +39,8 @@ export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 /**
  * HTTP status per code, following the rules in docs/06:
  * 400 validation, 401 no or bad token, 403 role or scope, 404 not found,
- * 409 state conflict, 410 expired, 422 business rule, 429 rate limit, 500 server.
+ * 409 state conflict, 410 expired, 422 business rule, 429 rate limit, 500 server,
+ * 503 an outside service (email) is unavailable, try again later.
  */
 export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   VALIDATION_FAILED: 400,
@@ -69,6 +71,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   TRIP_NOT_STARTABLE: 409,
   BUS_NOT_AVAILABLE: 409,
   COMPLAINT_STATUS_INVALID: 409,
+  EMAIL_DELIVERY_FAILED: 503,
   INTERNAL: 500,
 };
 

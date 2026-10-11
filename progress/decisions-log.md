@@ -293,6 +293,86 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
   - Two small deviations from the spec: the scan result auto reset is a draining bar (transform only) instead of a ring, because the spec limits motion to transform and opacity; the dialog max width stays `max-w-lg` (512 px) instead of 480 px, to avoid an arbitrary value.
 - **Status:** Proposed for the other dev review. docs/09 updated in the same PR (P1).
 
+### D-034: v2 state model and multi state scope
+- **Date:** 2026-10-09
+- **Raised by:** Dev B (v2 phase P2)
+- **Doc affected:** docs/05 (states, stateId columns), 06 (GET /states, stateId on gov reads and role grants, state:<id> room), 08 (state scope), 12 (GPS box per state), 13 (rooms, map view), 19 (AP state, `--with-tg`), 18 (G15), 04 (Next 16.3.8 housekeeping)
+- **Problem:** District was the top level and AP was hardcoded (GPS box, map centre, time zone literals, the single `state` room, gov breadcrumb). A second state needed a rebuild.
+- **Decision:**
+  - Network is State > District > Depot > Route > Bus > Trip. New `states` table (code, names, timezone, codePrefix, bounds, centre, zoom, isActive). `districts.stateId` required; `user_roles.stateId`, `pass_types.stateId` (null = every state) and `daily_stats.stateId` nullable. Two migrations: `20261009000000_states` (table and nullable columns), `20261009000100_states_backfill_ap` (AP with the fixed id `stateap000000000000000000`, backfill, then districts.stateId NOT NULL). No enum change.
+  - Scope: SUPER_ADMIN is the only platform wide role. STATE_ADMIN and TRANSPORT_OFFICER see their state (`depot.district.stateId`); without a stateId they see nothing. `depotScopeWhere`, `isPlatformWide`, `wholeStates` and `ScopeService.assertStateAccess / assertDistrictAccess / assertDepotAccess` (now async, state aware) are the one implementation; ops, tracking, gov, analytics, reports, feedback and admin all use them. A STATE_ADMIN grants roles only inside their state. Complaints without a depot have no place: state and platform roles see them, and they count in every state row.
+  - Sockets: the `state` room is now `state:{id}`; the trip's state comes from route > depot > district (cached 5 min per district in TripContextService). Web and API must deploy together.
+  - GPS trust box is the trip's state bounds plus 0.5 degrees longitude and 0.45 latitude (the old AP box exactly).
+  - `GET /states` (public). The plan said `/network/states`; network endpoints live at the root (`/districts`), so it is `/states`. The web called `/network/districts` (a 404, so breadcrumbs showed "District"); fixed to `/districts`.
+  - `/gov/overview` and `/gov/map` take `stateId?` (403 outside the caller's scope). Rollups write one state row per active state and stateId on every row. `/gov` shows a state picker for SUPER_ADMIN; `/gov/state/[id]` is one state's command center; the breadcrumb root is the state name from the API. Maps take `bounds` (state from the API, AP as the fallback).
+  - `PLATFORM_TIME_ZONE = "Asia/Kolkata"` in packages/shared time.ts; no other literal in code (SQL uses it through `Prisma.raw` or a parameter). `State.timezone` must equal it until per state zones exist (backlog). There is no admin screen for states yet (states arrive by migration or seed); whoever builds one must refuse a different zone.
+  - The `APT-` ticket and `APT1` QR prefixes stay platform wide. Generic copy no longer says "Andhra Pradesh" (app description, admin stops, gov map legend); free travel copy keeps it because the scheme is AP's.
+  - Seed: AP state row; `pnpm db:seed --with-tg` adds a Telangana stub (2 districts, bus stands, depots, `admin.tg@aptransit.test`).
+  - Test note: the plan's "TG point rejected for an AP trip" cannot hold with real bounds, because AP's rectangle contains all of Telangana. The test instead checks a Hyderabad point accepted for TG, and Visakhapatnam and Tirupati accepted for AP but rejected for TG.
+  - Housekeeping: docs/04 now lists Next 16.3.8 (advisory GHSA-cjq9-62q9-8jv4, already on main).
+- **Status:** Proposed for the other dev review. Docs updated in the same PR (P2).
+
+### D-035: v2 boarding record and segment validation
+- **Date:** 2026-10-09
+- **Raised by:** Dev B (v2 phase P3)
+- **Doc affected:** docs/05 (ticket_scans, enums), 06 (POST /tickets/validate), 07 section 5
+- **Problem:** a scan stored only ticket, trip, conductor and result. No bus, stop, location or device, and no check that the passenger boards inside the ticket's segment.
+- **Decision:**
+  - `ticket_scans` gains busId, stopId, stopSource (BUS_GPS, DEVICE_GPS, NONE), lat, lng, deviceId and validatorKind (CONDUCTOR, DOOR_SCANNER); conductorId becomes optional for door scanners (P5). Indexes (stopId, scannedAt) and (busId, scannedAt). The four new ScanReason values ship in their own migration before anything uses them. Old rows were backfilled with CONDUCTOR and the bus assigned at scan time (26,438 of 26,438 local rows got a bus).
+  - One validation path: `ValidateService.validate(ctx: ValidatorContext, input, actor)`. The conductor endpoint builds the context from the running assignment (`validateAsConductor`); P5 builds it from the paired scanner.
+  - Boarding stop rule (pure `resolveBoardingStop`): bus GPS newer than 60 s, nearest route stop within 400 m with seq not past the next stop (BUS_GPS); else the device `position` inside the state box, bounded by the trip's last stop plus one (DEVICE_GPS); else NONE. NONE skips every stop check.
+  - New checks in docs/07 section 5 order: 10a PAST_DESTINATION (at or after the dropping stop), 10b BEFORE_BOARDING_STOP (more than 1 stop before the boarding stop), 10c NOT_YET_VALID (pass before validFrom), 11a ROUTE_NOT_COVERED (route restricted pass). 11a is wired but always passes until P4 adds route restricted passes.
+  - `ValidateTicketInput.position` (optional) and `context.boardingStop`, `ticketFrom`, `ticketTo`, `validFrom` in the result; scanner helpers say "This ticket ends at Nandyal". The conductor web app does not send its own position yet (it would need a location prompt; P5 and P6 decide).
+  - The plan also named SCAN_RESULT_MAP in status.ts: result level tone and icon are unchanged, so it was left as is; reasons are copy only.
+- **Status:** Proposed for the other dev review. Docs updated in the same change (P3).
+
+### D-036: v2 pass catalog
+- **Date:** 2026-10-09
+- **Raised by:** Dev B then Dev A (v2 phase P4)
+- **Doc affected:** docs/05 (enums, pass_types, passes), 06 (POST /passes stops, POST /eligibility/student, /admin/pass-types), 07 section 8, 18 (G16 to G18), 19 (pass types)
+- **Problem:** only Weekly, Monthly and Free travel existed; validity was always activation plus N days; a pass boarded one person per trip; a price edit on the type would have changed sold passes.
+- **Decision:**
+  - New kinds DAY, FAMILY, SCHOOL, ANNUAL and scheme STUDENT in their own migration. `PassValidityMode` ROLLING_DAYS or UNTIL_DAY_END (23:59:59 IST of the activation day). Pass types gain validityMode, groupSize, routeRestricted, isDemo, sortOrder.
+  - Every pass copies price, duration, mode, services and group size at purchase (plus home and destination stops for SCHOOL); payments, validation and the pass screens read the copy. Existing passes were backfilled from their type (139 of 139 locally). So "changes apply to new sales only" holds by construction.
+  - Group rule replaces "once per trip": at most groupSize VALID scans of a pass on one trip, counted under the existing pass row lock; the result carries `group: { boarded, size }` and the scanner shows "2 of 4 boarded".
+  - SCHOOL: a STUDENT eligibility check (consent, student declaration, institution name sent to the mock provider and never stored, no ID number); purchase needs both stops; valid only on routes holding both (check 11a ROUTE_NOT_COVERED, wired in D-035).
+  - Admin: GET and POST /admin/pass-types, PATCH /admin/pass-types/:id (policy:write, zod, the admin rate limit, audit pass_type.create and pass_type.update). Kind, scheme and state cannot change after creation. Screen /admin/policies/pass-types.
+  - **Prices are DEMO values pending client confirmation** (docs/18 G16 to G18): Day 120, Weekly 450, Monthly 1,600, Family 1,000, School 600, Annual 15,000 rupees, in paise, `isDemo = true`, shown with a "Demo price" chip.
+  - Web: /passes/buy is a list of cards with one Buy button each; /passes/school clones the free travel flow; pass cards show "Covers up to 4 people" and the school route.
+- **Status:** Proposed for the other dev review. Prices pending client confirmation. Docs updated in the same change (P4).
+
+### D-041: Login email failure answers 503 EMAIL_DELIVERY_FAILED
+- **Date:** 2026-10-09
+- **Raised by:** Dev B (v2 plan, section 1 "Login")
+- **Doc affected:** docs/06 (status rules, error codes, POST /auth/otp/request)
+- **Problem:** when Resend refuses a login email (the `onboarding@resend.dev` test sender only reaches the Resend account owner, so most Gmail addresses fail), the API answered 500 INTERNAL and the screen said "something went wrong".
+- **Decision:**
+  - New error code `EMAIL_DELIVERY_FAILED` with HTTP 503 (an outside service is unavailable, try again). Messages in both web files; the login form shows it through the existing `errors.<CODE>` lookup. Logs keep the Resend status only, never the body or the address.
+  - With `OTP_DEV_ECHO` on (never in production) a failed email does not block login: the request answers 202 with `devCode`, the screen shows the test code, and a warning is logged. Other errors are never hidden.
+  - Numbered D-041 because D-034 to D-040 are reserved for the v2 phases in prompts/v2-journey-plan.md.
+  - Still needed outside the code (owner's accounts): verify a sending domain in Resend, set `EMAIL_FROM` on that domain and `APP_ENV=staging` on Render, then `OTP_DEV_ECHO=0`.
+- **Status:** Proposed for the other dev review.
+### D-042: v3 citizen features (owner request)
+- **Date:** 2026-10-11
+- **Raised by:** Product owner (field feedback), built on branch `a/v3-transit-ux`
+- **Docs affected:** 02, 05, 06, 07, 09, 11, 12, 15, 18, 19
+- **Decision:**
+  - Theme: light blue and white (token values only, names unchanged, AA test passes). Bus opening animation on every full load (pure CSS, aria hidden, reduced motion aware).
+  - Login first: `/` is in `PROTECTED_PREFIXES`; search, track and timetable stay public. E2E-1 and a11y now log in before home.
+  - Home: Google Maps style From and To plus a MapLibre stop picker, "use my location", keyboard list. New public `GET /places/nearby`; `PlaceDto` gains optional `lat`, `lng`.
+  - Search service fit (`villageFit`): a village end lists only `VILLAGE_SERVICE_TYPES` when any exist, else everything.
+  - Group tickets: children under 12 pay 50 percent (`groupFare`, `splitGroupTotal`). Day pass, zone day and zone monthly passes (`zoneScoped`, `zoneDistrictId`). Child cards (`holderName`, `holderAge`) send `CHILD_BOARDED` to the parent on each valid scan. Migration `20261011000000_v3_passes_children`.
+  - QR period 3 s (was 30), window plus or minus one step.
+  - Passengers per stage on `GET /ops/trips/:id` (`stages`, `passBoardings`). Pass scans carry no stop yet.
+  - Long journey route VJA-VSP-01 (overnight). Search shows "next day" arrivals. Terms page `/terms`; account links to passes, help and terms.
+  - Prices and ages are assumptions **(A)**, listed in docs/18.
+- **Status:** Built and tested locally. Needs the other dev review and owner confirmation of the (A) values.
+
+### D-043: Sign in with Google
+- **Date:** 2026-10-11
+- **Decision:** Google Identity Services button on `/login` (popup). `POST /auth/google { credential }` verifies the ID token with Google tokeninfo (no new dependency), checks aud, issuer, expiry and verified email, finds or creates the user by email, issues the normal session. Optional env `GOOGLE_CLIENT_ID` (API) and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (web); unset hides the button and the API answers 403. CSP allows accounts.google.com/gsi. 10 per IP per minute.
+- **Status:** Built. Needs a Google Cloud OAuth client id (docs/15) before it shows.
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |

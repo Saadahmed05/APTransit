@@ -38,6 +38,7 @@ export interface TripFact {
   routeCode: string;
   depotId: string;
   districtId: string;
+  stateId: string;
   status: string;
   delayMinutes: number;
   /** Tickets on the trip that were not cancelled or refunded (single and free travel). */
@@ -54,12 +55,20 @@ export interface DayExtras {
   complaints: Array<{ depotId: string | null; routeCode: string | null }>;
   /** depotId to districtId, so complaints of a depot without trips that day still count. */
   depotDistrict: ReadonlyMap<string, string>;
-  /** Passes valid for at least part of the day. Statewide only: a pass is not tied to a place. */
-  passesActive: number;
+  /** districtId to stateId (D-034). */
+  districtState: ReadonlyMap<string, string>;
+  /** Every active state: each gets a state row, even on a day without trips. */
+  stateIds: readonly string[];
+  /**
+   * Passes valid for at least part of the day, per state of the pass type. State rows only: a pass
+   * is not tied to a place. Key null is a pass type sold in every state; it counts in every state.
+   */
+  passesActive: ReadonlyMap<string | null, number>;
 }
 
 export interface DailyStatsRow {
   date: Date;
+  stateId: string | null;
   routeId: string | null;
   depotId: string | null;
   districtId: string | null;
@@ -76,7 +85,7 @@ export interface DailyStatsRow {
   complaints: number;
 }
 
-type Totals = Omit<DailyStatsRow, "date" | "routeId" | "depotId" | "districtId" | "passesActive" | "complaints">;
+type Totals = Omit<DailyStatsRow, "date" | "stateId" | "routeId" | "depotId" | "districtId" | "passesActive" | "complaints">;
 
 function totals(trips: readonly TripFact[]): Totals {
   const completed = trips.filter((t) => t.status === "COMPLETED");
@@ -118,28 +127,36 @@ function groupBy<K>(trips: readonly TripFact[], key: (t: TripFact) => K): Map<K,
 }
 
 /**
- * Builds the daily_stats rows for one IST date. Levels are told apart by which ids are set:
- * route rows have routeId (plus their depot and district), depot rows have depotId and districtId,
- * district rows only districtId, and one state row has none.
+ * Builds the daily_stats rows for one IST date. Every row has its stateId (D-034). Levels are told
+ * apart by which other ids are set: route rows have routeId (plus their depot and district), depot
+ * rows have depotId and districtId, district rows only districtId, and each state row has none.
+ * Complaints without a depot have no place, so they count in every state row (like null state passes).
  */
 export function buildDailyStats(date: Date, trips: readonly TripFact[], extras: DayExtras): DailyStatsRow[] {
   const complaintsByRoute = new Map<string, number>();
   const complaintsByDepot = new Map<string, number>();
   const complaintsByDistrict = new Map<string, number>();
+  const complaintsByState = new Map<string, number>();
+  let placeless = 0;
   for (const c of extras.complaints) {
+    if (!c.depotId) placeless++;
     if (c.routeCode) complaintsByRoute.set(c.routeCode, (complaintsByRoute.get(c.routeCode) ?? 0) + 1);
     if (c.depotId) {
       complaintsByDepot.set(c.depotId, (complaintsByDepot.get(c.depotId) ?? 0) + 1);
       const districtId = extras.depotDistrict.get(c.depotId);
       if (districtId) complaintsByDistrict.set(districtId, (complaintsByDistrict.get(districtId) ?? 0) + 1);
+      const stateId = districtId ? extras.districtState.get(districtId) : undefined;
+      if (stateId) complaintsByState.set(stateId, (complaintsByState.get(stateId) ?? 0) + 1);
     }
   }
+  const stateOf = (districtId: string | null) => (districtId ? (extras.districtState.get(districtId) ?? null) : null);
 
   const rows: DailyStatsRow[] = [];
   for (const [routeId, group] of groupBy(trips, (t) => t.routeId)) {
     const first = group[0]!;
     rows.push({
       date,
+      stateId: first.stateId,
       routeId,
       depotId: first.depotId,
       districtId: first.districtId,
@@ -155,6 +172,7 @@ export function buildDailyStats(date: Date, trips: readonly TripFact[], extras: 
     const districtId = group[0]?.districtId ?? extras.depotDistrict.get(depotId) ?? null;
     rows.push({
       date,
+      stateId: group[0]?.stateId ?? stateOf(districtId),
       routeId: null,
       depotId,
       districtId,
@@ -169,6 +187,7 @@ export function buildDailyStats(date: Date, trips: readonly TripFact[], extras: 
   for (const [districtId, group] of districts) {
     rows.push({
       date,
+      stateId: group[0]?.stateId ?? stateOf(districtId),
       routeId: null,
       depotId: null,
       districtId,
@@ -178,15 +197,20 @@ export function buildDailyStats(date: Date, trips: readonly TripFact[], extras: 
     });
   }
 
-  rows.push({
-    date,
-    routeId: null,
-    depotId: null,
-    districtId: null,
-    ...totals(trips),
-    passesActive: extras.passesActive,
-    complaints: extras.complaints.length,
-  });
+  const states = groupBy(trips, (t) => t.stateId);
+  for (const stateId of extras.stateIds) if (!states.has(stateId)) states.set(stateId, []);
+  for (const [stateId, group] of states) {
+    rows.push({
+      date,
+      stateId,
+      routeId: null,
+      depotId: null,
+      districtId: null,
+      ...totals(group),
+      passesActive: (extras.passesActive.get(stateId) ?? 0) + (extras.passesActive.get(null) ?? 0),
+      complaints: (complaintsByState.get(stateId) ?? 0) + placeless,
+    });
+  }
   return rows;
 }
 
@@ -234,7 +258,7 @@ export class RollupsService {
     });
     const ids = trips.map((t) => t.id);
 
-    const [tickets, passScans, incidents, money, refunds, complaints, depots, passesActive] = await Promise.all([
+    const [tickets, passScans, incidents, money, refunds, complaints, depots, districts, states, passesActive] = await Promise.all([
       this.prisma.ticket.groupBy({
         by: ["tripId"],
         where: { tripId: { in: ids }, status: { notIn: ["CANCELLED", "REFUNDED"] } },
@@ -265,14 +289,22 @@ export class RollupsService {
         select: { depotId: true, routeCode: true },
       }),
       this.prisma.depot.findMany({ select: { id: true, districtId: true } }),
-      this.prisma.pass.count({
-        where: {
-          status: { in: ["ACTIVE", "EXPIRED"] },
-          validFrom: { lt: dayEnd },
-          validUntil: { gte: dayStart },
+      this.prisma.district.findMany({ select: { id: true, stateId: true } }),
+      this.prisma.state.findMany({ where: { isActive: true }, select: { id: true } }),
+      this.prisma.passType.findMany({
+        select: {
+          stateId: true,
+          _count: {
+            select: {
+              passes: {
+                where: { status: { in: ["ACTIVE", "EXPIRED"] }, validFrom: { lt: dayEnd }, validUntil: { gte: dayStart } },
+              },
+            },
+          },
         },
       }),
     ]);
+    const districtState = new Map(districts.map((d) => [d.id, d.stateId]));
 
     const count = (rows: Array<{ tripId: string; _count: { _all: number } }>) =>
       new Map(rows.map((r) => [r.tripId, r._count._all]));
@@ -287,6 +319,7 @@ export class RollupsService {
       routeCode: t.route.code,
       depotId: t.route.depotId,
       districtId: t.route.depot.districtId,
+      stateId: districtState.get(t.route.depot.districtId) ?? "",
       status: t.status,
       delayMinutes: t.delayMinutes,
       tickets: ticketMap.get(t.id) ?? 0,
@@ -299,7 +332,12 @@ export class RollupsService {
     return buildDailyStats(date, facts, {
       complaints,
       depotDistrict: new Map(depots.map((d) => [d.id, d.districtId])),
-      passesActive,
+      districtState,
+      stateIds: states.map((s) => s.id),
+      passesActive: passesActive.reduce(
+        (m, t) => m.set(t.stateId, (m.get(t.stateId) ?? 0) + t._count.passes),
+        new Map<string | null, number>(),
+      ),
     });
   }
 

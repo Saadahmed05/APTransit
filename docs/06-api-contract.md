@@ -30,9 +30,9 @@
 ```
 
 - `code` is a stable UPPER_SNAKE value from `packages/shared/src/errors.ts`. The web app shows `t('errors.' + code)`, never `message`.
-- HTTP status: 400 validation, 401 no or bad token, 403 role or scope, 404 not found, 409 state conflict, 410 expired, 422 business rule, 429 rate limit, 500 server.
+- HTTP status: 400 validation, 401 no or bad token, 403 role or scope, 404 not found, 409 state conflict, 410 expired, 422 business rule, 429 rate limit, 500 server, 503 outside service unavailable (email; D-041).
 
-Core error codes: `VALIDATION_FAILED, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, RATE_LIMITED, OTP_INVALID, OTP_EXPIRED, OTP_TOO_MANY_ATTEMPTS, SEAT_TAKEN, HOLD_EXPIRED, BOOKING_NOT_PAYABLE, PAYMENT_SIGNATURE_INVALID, PAYMENT_AMOUNT_MISMATCH, TICKET_NOT_ACTIVATABLE, TICKET_ALREADY_ACTIVE, ACTIVATION_WINDOW_CLOSED, TICKET_NOT_CANCELLABLE, TICKET_NOT_GIFTABLE, RECIPIENT_NOT_FOUND, GIFT_TO_SELF, PASS_NOT_ELIGIBLE, PASS_ALREADY_ACTIVE, ELIGIBILITY_REQUIRED, DEVICE_NOT_APPROVED, TRIP_NOT_ASSIGNED, TRIP_NOT_STARTABLE, BUS_NOT_AVAILABLE, INTERNAL`.
+Core error codes: `VALIDATION_FAILED, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, RATE_LIMITED, OTP_INVALID, OTP_EXPIRED, OTP_TOO_MANY_ATTEMPTS, SEAT_TAKEN, HOLD_EXPIRED, BOOKING_NOT_PAYABLE, PAYMENT_SIGNATURE_INVALID, PAYMENT_AMOUNT_MISMATCH, TICKET_NOT_ACTIVATABLE, TICKET_ALREADY_ACTIVE, ACTIVATION_WINDOW_CLOSED, TICKET_NOT_CANCELLABLE, TICKET_NOT_GIFTABLE, RECIPIENT_NOT_FOUND, GIFT_TO_SELF, PASS_NOT_ELIGIBLE, PASS_ALREADY_ACTIVE, ELIGIBILITY_REQUIRED, DEVICE_NOT_APPROVED, TRIP_NOT_ASSIGNED, TRIP_NOT_STARTABLE, BUS_NOT_AVAILABLE, EMAIL_DELIVERY_FAILED (503, D-041), INTERNAL`.
 
 ## Endpoints
 
@@ -43,19 +43,22 @@ Auth column: `public`, `user` (any logged in), or role names from [08](08-roles-
 | Method | Path | Auth | Body or query | Returns | Day |
 | --- | --- | --- | --- | --- | --- |
 | GET | /health | public | | `{ status, db, redis, version, time }`. HTTP 200 when db and redis are ok, 503 when degraded (decision D-006) | 1 |
-| POST | /auth/otp/request | public | `{ channel: EMAIL or PHONE, target }` | 202 `{ expiresInSec: 300, resendInSec: 30 }`. Dev only: `devCode` when `OTP_DEV_ECHO=1` | 3 |
+| POST | /auth/otp/request | public | `{ channel: EMAIL or PHONE, target }` | 202 `{ expiresInSec: 300, resendInSec: 30 }`. Dev only: `devCode` when `OTP_DEV_ECHO=1` (then a failed email still answers 202). Email not sent: 503 `EMAIL_DELIVERY_FAILED` (D-041) | 3 |
 | POST | /auth/otp/verify | public | `{ channel, target, code }` | `{ accessToken, user: MeDto }` + sets `apt_rt` | 3 |
+| POST | /auth/google | public, 10 per IP per minute | `{ credential }` (Google ID token) | `{ accessToken, user: MeDto }` + sets `apt_rt`. 403 when `GOOGLE_CLIENT_ID` is unset, 401 when Google rejects the token (D-043) | v3 |
 | POST | /auth/refresh | cookie | | `{ accessToken }` + rotates `apt_rt` | 3 |
 | POST | /auth/logout | cookie | | 204, revokes token family | 3 |
-| GET | /me | user | | `MeDto { id, name, email, phone (masked), preferredLocale, roles: [{ role, depotId, districtId }] }` | 3 |
+| GET | /me | user | | `MeDto { id, name, email, phone (masked), preferredLocale, roles: [{ role, depotId, districtId, stateId }] }` | 3 |
 | PATCH | /me | user | `{ name?, preferredLocale? }` | `MeDto` | 3 |
 
 ### Network, search, timetable (public)
 
 | Method | Path | Query | Returns | Day |
 | --- | --- | --- | --- | --- |
-| GET | /places/search | `q` (min 2 chars), `limit` | `[{ id, kind: STOP or BUS_STAND, nameEn, nameTe, districtNameEn, districtNameTe }]` | 4 |
-| GET | /districts | | `[{ id, code, nameEn, nameTe, busStandCount }]` | 4 |
+| GET | /places/search | `q` (min 2 chars), `limit` | `[{ id, kind: STOP or BUS_STAND, nameEn, nameTe, districtNameEn, districtNameTe, lat?, lng? }]` | 4 |
+| GET | /places/nearby | `lat`, `lng`, `limit` (1 to 50, default 20) | `[{ ...place, lat, lng, distanceKm }]` closest first (map picker, D-042) | v3 |
+| GET | /states | | `[{ id, code, nameEn, nameTe, center: { lat, lng }, bounds: [minLng, minLat, maxLng, maxLat], zoom }]` active states (D-034) | v2 P2 |
+| GET | /districts | | `[{ id, code, nameEn, nameTe, stateId, busStandCount }]` | 4 |
 | GET | /districts/:id/bus-stands | | `[{ id, nameEn, nameTe, routeCount }]` | 4 |
 | GET | /bus-stands/:id/routes | | `[{ id, code, nameEn, nameTe, destination, serviceTypes[] }]` | 4 |
 | GET | /routes/:id | | `RouteDto` with ordered stops | 4 |
@@ -95,7 +98,7 @@ Rule: tickets or passes are created **only** inside the verify or webhook handle
 | GET | /tickets/:id/qr | holder | | `{ token, rotSecret, periodSec: 30, serverTime }`. `rotSecret` only when ACTIVE. See [07](07-ticket-and-pass-rules.md) | 7 |
 | POST | /tickets/:id/cancel | holder | | `{ ticket: TicketDto, refund: { amountPaise, status } }` | 7 |
 | POST | /tickets/:id/transfer | holder | `{ recipient: phone or email }` | `{ ticketId, recipientMasked }` | 8 |
-| POST | /tickets/validate | CONDUCTOR | `{ qr, tripId, deviceTime, offline?: false }` | `{ result: VALID or INVALID, reason: ScanReason, ticket?: { passengerName, seatNo, routeName, boarding, dropping, type } }`. p95 under 300 ms | 12 |
+| POST | /tickets/validate | CONDUCTOR | `{ qr, tripId, deviceTime, offline?: false, position?: { lat, lng, accuracyM? } }` | `{ result: VALID or INVALID, reason: ScanReason, ticket?: { passengerName, seatNo, routeName, boarding, dropping, type }, context?: { ..., boardingStop: { stopId, nameEn, nameTe, source } or null, ticketFrom?, ticketTo?, validFrom? } }`. `position` is the scanning device's, used when the bus GPS is stale (D-035). p95 under 300 ms | 12 |
 
 ### Passes and free travel
 
@@ -103,9 +106,10 @@ Rule: tickets or passes are created **only** inside the verify or webhook handle
 | --- | --- | --- | --- | --- | --- |
 | GET | /pass-types | public | | `PassTypeDto[]` | 8 |
 | GET | /passes | user | | `PassDto[]` | 8 |
-| POST | /passes | user | `{ passTypeId }` | `PassDto` (PENDING_PAYMENT, or READY for FREE_TRAVEL with a valid eligibility check) | 8 |
+| POST | /passes | user | `{ passTypeId, homeStopId?, destStopId? }` (both stops for a route restricted type, D-036) | `PassDto` (PENDING_PAYMENT, or READY for FREE_TRAVEL with a valid eligibility check). A type with a scheme needs a current ELIGIBLE check of that scheme (422 `ELIGIBILITY_REQUIRED`) | 8 |
 | POST | /passes/:id/activate | owner | | `PassDto` (ACTIVE, `validFrom`, `validUntil`) | 8 |
 | GET | /passes/:id/qr | owner | | same shape as ticket QR | 8 |
+| POST | /eligibility/student | user | `{ consent, declaration: { isStudent, institutionName } }`, strict (no ID number) | `{ checkId, scheme: STUDENT, result, reasonCode?, expiresAt }`. The institution name goes to the provider and is never stored (D-036) | v2 P4 |
 | POST | /eligibility/stree-shakti | user | `{ consent: true, declaration: { category: WOMAN or GIRL or TRANSGENDER, apDomicile: true }, idType: AADHAAR or VOTER_ID or RATION_CARD or OTHER_PHOTO_ID }` | `{ checkId, result, reasonCode?, expiresAt }` | 8 |
 | GET | /eligibility | user | | latest check per scheme | 8 |
 
@@ -171,8 +175,10 @@ All scoped to the caller's depot unless the caller has a district or state role.
 | GET, POST, PATCH, DELETE | /admin/timetables, /admin/timetables/:id | timetables (delete = deactivate) | 14 |
 | POST | /admin/trips/generate `{ from, to }` | generated trip count | 14 |
 | GET | /admin/users `q?, role?` | users with roles | 14 |
-| POST, DELETE | /admin/users/:id/roles, /admin/users/:id/roles/:roleId | roles | 14 |
+| POST, DELETE | /admin/users/:id/roles, /admin/users/:id/roles/:roleId | roles. POST body `{ role, depotId?, districtId?, stateId? }`: state roles need `stateId`; a STATE_ADMIN grants only inside their state (D-034) | 14 |
 | GET, PUT | /admin/fare-rules, /admin/refund-policies, /admin/settings | policy rows | 14 |
+| GET, POST | /admin/pass-types | policy:write. `AdminPassTypeDto[]` with `soldCount`; POST creates a type (audit `pass_type.create`) | v2 P4 |
+| PATCH | /admin/pass-types/:id | policy:write. Price, names, duration, mode, group size, services, demo, order, active; never kind, scheme or state. Applies to new sales only (audit `pass_type.update`, D-036) | v2 P4 |
 | GET | /admin/audit-logs `entityType?, entityId?, actorId?, from?, to?` | paginated audit rows | 14 |
 | GET | /admin/jobs/failed | last 50 failed background jobs with queue, name, reason, attempts, failedAt (STATE_ADMIN and up) | 18 |
 
@@ -180,8 +186,8 @@ All scoped to the caller's depot unless the caller has a district or state role.
 
 | Method | Path | Query | Returns | Day |
 | --- | --- | --- | --- | --- |
-| GET | /gov/overview | `date?` | `{ activeBuses, activeTrips, passengersToday, delayedTrips, openIncidents, onTimePct, ticketsToday, revenueTodayPaise }` | 15 |
-| GET | /gov/map | | `{ districts: [{ id, activeBuses, delayed, incidents }], buses: LiveBusDto[], incidents: IncidentDto[] }` | 15 |
+| GET | /gov/overview | `date?, stateId?` (one state of the caller's scope; 403 outside it, D-034) | `{ activeBuses, activeTrips, passengersToday, delayedTrips, openIncidents, onTimePct, ticketsToday, revenueTodayPaise }` | 15 |
+| GET | /gov/map | `stateId?` | `{ districts: [{ id, activeBuses, delayed, incidents }], buses: LiveBusDto[], incidents: IncidentDto[] }` | 15 |
 | GET | /gov/districts/:id, /gov/depots/:id, /gov/routes/:id | `date?` | drill down summary for that level (sec 36) | 15 |
 | GET | /analytics/routes | `from, to, districtId?` | per route: passengers, trips, loadFactorPct, avgDelayMin, cancellations, revenuePaise | 15 |
 | GET | /analytics/buses | `from, to, depotId?` | per bus: trips, km, utilisationPct, downtimeHours | 15 |
@@ -204,18 +210,25 @@ Namespace `/live`. Connect with `io(WS_URL + '/live', { auth: { token } })`. Tok
 
 | Client emits | Payload | Server check |
 | --- | --- | --- |
-| `subscribe` | `{ room }` | `trip:<id>`, `route:<id>` public. `depot:<id>` needs a role scoped to that depot. `district:<id>` and `state` need DISTRICT_OFFICER and up |
+| `subscribe` | `{ room }` | `trip:<id>`, `route:<id>` public. `depot:<id>` needs a role scoped to that depot. `district:<id>` needs that district, its state or SUPER_ADMIN. `state:<id>` needs a state role on that state or SUPER_ADMIN (D-034) |
 | `unsubscribe` | `{ room }` | |
 
 Authenticated sockets auto join `user:<userId>`.
 
 | Server emits | Room | Payload |
 | --- | --- | --- |
-| `bus:position` | trip, route, depot, district, state | `{ tripId, busId, lat, lng, speedKmh, headingDeg, recordedAt, nextStopId, etaNextStopSec, delayMinutes, progressPct }` |
-| `trip:status` | trip, depot, district, state | `{ tripId, status, displayStatus, delayMinutes, lastStopSeq }` |
-| `incident:new`, `incident:update` | trip, depot, district, state | `IncidentDto` |
+| `bus:position` | trip, route, depot, district, `state:<id>` | `{ tripId, busId, lat, lng, speedKmh, headingDeg, recordedAt, nextStopId, etaNextStopSec, delayMinutes, progressPct }` |
+| `trip:status` | trip, depot, district, `state:<id>` | `{ tripId, status, displayStatus, delayMinutes, lastStopSeq }` |
+| `incident:new`, `incident:update` | trip, depot, district, `state:<id>` | `IncidentDto` |
 | `notification:new` | user | `NotificationDto` |
 | `ticket:status` | user | `{ ticketId, status }` |
-| `kpi:update` | depot, state | `{ scope, values }` every 15 s |
+| `kpi:update` | depot, `state:<id>` | `{ scope, values }` every 15 s |
 
 Throttle: at most one `bus:position` per trip per 2 s per room.
+
+## v3 additive fields (D-042)
+
+- `PassTypeDto.zoneScoped`, `PassDto.zoneDistrictId`, `PassDto.holderName`, `PassDto.holderAge`. `POST /passes` body adds `zoneDistrictId?` (required for zone pass types) and `child?: { name, age }` (age 1 to 17).
+- `GET /ops/trips/:id` adds `stages: [{ stopId, seq, nameEn, nameTe, booked, boarded, alighting }]` and `passBoardings` (pass scans have no stop).
+- Notification type `CHILD_BOARDED` with params `child`, `routeEn`, `routeTe`, `departureAt`.
+- Search applies the service fit rule in docs/07 section 7b.

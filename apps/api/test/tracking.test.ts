@@ -34,6 +34,8 @@ const ids = {
   depot: "depotknl0000001",
   otherDepot: "depotvja0000001",
   district: "districtknl0001",
+  state: "stateap0000001",
+  tgState: "statetg0000001",
 };
 const STOPS = [
   { id: "stopknl0000001", seq: 1, km: 0, min: 0, lat: 15.8281, lng: 78.0373, nameEn: "Kurnool" },
@@ -55,6 +57,14 @@ function freshTables(departureInMin = 20): Tables {
     device: [
       { id: "deviceok000001", userId: ids.driverUser, label: "Sim", deviceKeyHash: hashDeviceKey(DEVICE_KEY), approvedAt: new Date(now - 864e5), revokedAt: null },
       { id: "devicepend0001", userId: ids.driverUser, label: "New", deviceKeyHash: hashDeviceKey(PENDING_KEY), approvedAt: null, revokedAt: null },
+    ],
+    state: [
+      { id: ids.state, code: "AP", minLng: 76.7, minLat: 12.6, maxLng: 84.8, maxLat: 19.95 },
+      { id: ids.tgState, code: "TG", minLng: 77.23, minLat: 15.83, maxLng: 81.33, maxLat: 19.92 },
+    ],
+    district: [
+      { id: ids.district, stateId: ids.state },
+      { id: "districtntr0001", stateId: ids.state },
     ],
     depot: [
       { id: ids.depot, code: "D-KNL", districtId: ids.district },
@@ -112,6 +122,8 @@ describe("Driver, tracking and sockets (Day 11)", () => {
       assignments: (t) =>
         tables.tripAssignment!.filter((a) => a.tripId === t.id && a.endedAt === null).map((a) => ({ ...a, bus: byId("bus", a.busId), driver: byId("driver", a.driverId) })),
     },
+    district: { state: (d) => byId("state", d.stateId) },
+    depot: { district: (d) => byId("district", d.districtId) },
     tripAssignment: {
       driver: (a) => byId("driver", a.driverId),
       trip: (a) => {
@@ -176,7 +188,9 @@ describe("Driver, tracking and sockets (Day 11)", () => {
       manager: await auth.generateAccessToken("usermanager0001", [{ role: "DEPOT_MANAGER", depotId: ids.depot, districtId: null }]),
       otherManager: await auth.generateAccessToken("usermanager0002", [{ role: "DEPOT_MANAGER", depotId: ids.otherDepot, districtId: null }]),
       districtOfficer: await auth.generateAccessToken("userdistrict001", [{ role: "DISTRICT_OFFICER", depotId: null, districtId: ids.district }]),
-      transport: await auth.generateAccessToken("usertransport01", [{ role: "TRANSPORT_OFFICER", depotId: null, districtId: null }]),
+      transport: await auth.generateAccessToken("usertransport01", [{ role: "TRANSPORT_OFFICER", depotId: null, districtId: null, stateId: ids.state }]),
+      tgTransport: await auth.generateAccessToken("usertransport02", [{ role: "TRANSPORT_OFFICER", depotId: null, districtId: null, stateId: ids.tgState }]),
+      root: await auth.generateAccessToken("usersuperadmin1", [{ role: "SUPER_ADMIN", depotId: null, districtId: null }]),
     };
   });
 
@@ -333,7 +347,9 @@ describe("Driver, tracking and sockets (Day 11)", () => {
       expect(await subscribe(anon, `trip:${ids.trip}`)).toEqual({ ok: true });
       expect(await subscribe(anon, `route:${ids.route}`)).toEqual({ ok: true });
       expect(await subscribe(anon, `depot:${ids.depot}`)).toEqual({ ok: false, error: "FORBIDDEN" });
-      expect(await subscribe(anon, "state")).toEqual({ ok: false, error: "FORBIDDEN" });
+      expect(await subscribe(anon, `state:${ids.state}`)).toEqual({ ok: false, error: "FORBIDDEN" });
+      // D-034: the bare "state" room is gone, every state room names its state
+      expect(await subscribe(anon, "state")).toEqual({ ok: false, error: "VALIDATION_FAILED" });
       expect(await subscribe(anon, "admin:all")).toEqual({ ok: false, error: "VALIDATION_FAILED" });
 
       const manager = await connect(tokens.manager);
@@ -345,11 +361,23 @@ describe("Driver, tracking and sockets (Day 11)", () => {
       expect(await subscribe(district, `district:${ids.district}`)).toEqual({ ok: true });
       expect(await subscribe(district, `depot:${ids.depot}`)).toEqual({ ok: true });
       expect(await subscribe(district, `depot:${ids.otherDepot}`)).toEqual({ ok: false, error: "FORBIDDEN" });
-      expect(await subscribe(district, "state")).toEqual({ ok: false, error: "FORBIDDEN" });
+      expect(await subscribe(district, `state:${ids.state}`)).toEqual({ ok: false, error: "FORBIDDEN" });
 
       const transport = await connect(tokens.transport);
-      expect(await subscribe(transport, "state")).toEqual({ ok: true });
+      expect(await subscribe(transport, `state:${ids.state}`)).toEqual({ ok: true });
+      expect(await subscribe(transport, `state:${ids.tgState}`)).toEqual({ ok: false, error: "FORBIDDEN" });
+      expect(await subscribe(transport, `district:${ids.district}`)).toEqual({ ok: true });
       expect(await subscribe(transport, `depot:${ids.otherDepot}`)).toEqual({ ok: true });
+
+      const tg = await connect(tokens.tgTransport);
+      expect(await subscribe(tg, `state:${ids.tgState}`)).toEqual({ ok: true });
+      expect(await subscribe(tg, `state:${ids.state}`)).toEqual({ ok: false, error: "FORBIDDEN" });
+      expect(await subscribe(tg, `district:${ids.district}`)).toEqual({ ok: false, error: "FORBIDDEN" });
+      expect(await subscribe(tg, `depot:${ids.depot}`)).toEqual({ ok: false, error: "FORBIDDEN" });
+
+      const root = await connect(tokens.root);
+      expect(await subscribe(root, `state:${ids.tgState}`)).toEqual({ ok: true });
+      expect(await subscribe(root, `depot:${ids.depot}`)).toEqual({ ok: true });
 
       const citizen = await connect(tokens.citizen);
       expect(await subscribe(citizen, `depot:${ids.depot}`)).toEqual({ ok: false, error: "FORBIDDEN" });
@@ -361,6 +389,24 @@ describe("Driver, tracking and sockets (Day 11)", () => {
       const status = next<any>(manager, "trip:status");
       await startTrip();
       expect(await status).toMatchObject({ tripId: ids.trip, status: "RUNNING" });
+    });
+
+    it("trip:status and bus:position reach the trip's state:{id} room only (D-034)", async () => {
+      const ap = await connect(tokens.transport);
+      const tg = await connect(tokens.tgTransport);
+      await subscribe(ap, `state:${ids.state}`);
+      await subscribe(tg, `state:${ids.tgState}`);
+      let leaked = 0;
+      tg.on("trip:status", () => leaked++);
+      tg.on("bus:position", () => leaked++);
+      const status = next<any>(ap, "trip:status");
+      await startTrip();
+      expect(await status).toMatchObject({ tripId: ids.trip, status: "RUNNING" });
+      const position = next<any>(ap, "bus:position");
+      await ping([point(15.6, 78.3)]).expect(202);
+      expect(await position).toMatchObject({ tripId: ids.trip });
+      await new Promise((r) => setTimeout(r, 200));
+      expect(leaked).toBe(0);
     });
   });
 

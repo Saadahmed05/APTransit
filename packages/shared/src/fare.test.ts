@@ -1,10 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { calculateFare, DEFAULT_REFUND_TIERS, type FareRuleInput, refundQuote } from "./fare";
+import {
+  calculateFare,
+  DEFAULT_REFUND_TIERS,
+  type FareRuleInput,
+  groupFare,
+  passengerFarePaise,
+  refundQuote,
+  splitGroupTotal,
+} from "./fare";
 
 // Demo fare rules from docs/19 (base fare 0, fare is per km with a minimum).
-const EXPRESS: FareRuleInput = { baseFarePaise: 0, perKmPaise: 140, minFarePaise: 2000, reservationFeePaise: 3000 };
-const PALLEVELUGU: FareRuleInput = { baseFarePaise: 0, perKmPaise: 110, minFarePaise: 1000, reservationFeePaise: 0 };
-const AMARAVATI: FareRuleInput = { baseFarePaise: 0, perKmPaise: 250, minFarePaise: 6000, reservationFeePaise: 3000 };
+const EXPRESS: FareRuleInput = {
+  baseFarePaise: 0,
+  perKmPaise: 140,
+  minFarePaise: 2000,
+  reservationFeePaise: 3000,
+};
+const PALLEVELUGU: FareRuleInput = {
+  baseFarePaise: 0,
+  perKmPaise: 110,
+  minFarePaise: 1000,
+  reservationFeePaise: 0,
+};
+const AMARAVATI: FareRuleInput = {
+  baseFarePaise: 0,
+  perKmPaise: 250,
+  minFarePaise: 6000,
+  reservationFeePaise: 3000,
+};
 
 describe("calculateFare", () => {
   it("matches the docs/19 example: Kurnool to Vijayawada, Express, 365 km is Rs 541", () => {
@@ -66,7 +89,9 @@ describe("calculateFare", () => {
     expect(() => calculateFare({ distanceKm: -1, rule: EXPRESS })).toThrow(RangeError);
     expect(() => calculateFare({ distanceKm: Number.NaN, rule: EXPRESS })).toThrow(RangeError);
     expect(() => calculateFare({ distanceKm: 1, rule: { ...EXPRESS, perKmPaise: 1.5 } })).toThrow();
-    expect(() => calculateFare({ distanceKm: 1, rule: { ...EXPRESS, minFarePaise: -1 } })).toThrow();
+    expect(() =>
+      calculateFare({ distanceKm: 1, rule: { ...EXPRESS, minFarePaise: -1 } }),
+    ).toThrow();
   });
 });
 
@@ -113,14 +138,25 @@ describe("refundQuote", () => {
   });
 
   it("never refunds a free ticket", () => {
-    expect(refundQuote({ ...base, farePaise: 0, reservationFeePaise: 0, now: hoursBefore(48), isFree: true })).toEqual({
+    expect(
+      refundQuote({
+        ...base,
+        farePaise: 0,
+        reservationFeePaise: 0,
+        now: hoursBefore(48),
+        isFree: true,
+      }),
+    ).toEqual({
       cancellable: false,
       percent: 0,
       amountPaise: 0,
       feePaise: 0,
     });
     // Free wins over operator cancel: nothing was paid
-    expect(refundQuote({ ...base, now: hoursBefore(48), isFree: true, operatorCancelled: true }).amountPaise).toBe(0);
+    expect(
+      refundQuote({ ...base, now: hoursBefore(48), isFree: true, operatorCancelled: true })
+        .amountPaise,
+    ).toBe(0);
   });
 
   it("keeps a policy cancellation fee", () => {
@@ -130,7 +166,12 @@ describe("refundQuote", () => {
   });
 
   it("never refunds a negative amount when the fee is larger than the refund", () => {
-    const q = refundQuote({ ...base, farePaise: 1000, now: hoursBefore(2), cancellationFeePaise: 2000 });
+    const q = refundQuote({
+      ...base,
+      farePaise: 1000,
+      now: hoursBefore(2),
+      cancellationFeePaise: 2000,
+    });
     expect(q.amountPaise).toBe(0);
     expect(q.feePaise).toBe(3000 + 500);
   });
@@ -157,7 +198,23 @@ describe("refundQuote", () => {
 
   it("refuses bad amounts and bad tiers", () => {
     expect(() => refundQuote({ ...base, farePaise: -1, now: hoursBefore(48) })).toThrow(RangeError);
-    expect(() => refundQuote({ ...base, farePaise: 10.5, now: hoursBefore(48) })).toThrow(RangeError);
-    expect(() => refundQuote({ ...base, now: hoursBefore(48), tiers: [{ minHoursBefore: 1, percent: 120 }] })).toThrow();
+    expect(() => refundQuote({ ...base, farePaise: 10.5, now: hoursBefore(48) })).toThrow(
+      RangeError,
+    );
+    expect(() =>
+      refundQuote({ ...base, now: hoursBefore(48), tiers: [{ minHoursBefore: 1, percent: 120 }] }),
+    ).toThrow();
+  });
+});
+
+describe("group fares (D-042)", () => {
+  it("charges children half, rounded to the rupee", () => {
+    expect(passengerFarePaise(15_100, 30)).toBe(15_100);
+    expect(passengerFarePaise(15_100, 8)).toBe(7_600);
+    const g = groupFare(15_100, [35, 33, 8, 4]);
+    expect(g).toMatchObject({ adults: 2, children: 2, totalPaise: 15_100 * 2 + 7_600 * 2 });
+    const parts = splitGroupTotal(g.totalPaise, [35, 33, 8, 4]);
+    expect(parts.reduce((s, p) => s + p, 0)).toBe(g.totalPaise);
+    expect(Math.abs((parts[2] ?? 0) - 7_600)).toBeLessThan(100);
   });
 });

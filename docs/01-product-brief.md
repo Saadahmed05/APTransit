@@ -11,6 +11,8 @@ flowchart LR
   A[Citizen] --> B[Bus] --> C[Driver and Conductor] --> D[Bus Stand and Depot] --> E[Operations] --> F[Government]
 ```
 
+v3 (D-042): login first, light blue and white look, a Google Maps style From and To with a map, village buses for village journeys, group, day, monthly and zone tickets, child cards that tell parents when their child boards, and 3 second live QR codes.
+
 ## Principle
 
 **Make public transport easier without making the app complicated.** The technology can be advanced. The experience stays simple.

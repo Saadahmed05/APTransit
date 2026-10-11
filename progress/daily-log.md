@@ -4,6 +4,58 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## v2 P4: 2026-10-09, pass catalog (Dev B and Dev A)
+
+**Done**
+- Schema: four pass kinds and STUDENT in their own migration; PassValidityMode; pass type rules; a purchase time copy on every pass (all 139 local passes backfilled); home and destination stops. Applied as an upgrade locally; no schema drift. Seed has the DEMO catalog.
+- pass-rules: validity per mode (DAY ends 23:59:59 IST), scheme eligibility for any type, group and route rules. STUDENT mock eligibility. Group rule in validation with `group` in the result. Payments, validation and bookings read the pass copy.
+- Admin pass type endpoints with audit; /admin/policies/pass-types editor.
+- Web: /passes/buy cards with Demo price chips, /passes/school flow, group and route on pass cards, "n of 4 boarded" on the scanner. E2E-6 buys and activates a Day pass (and a weekly one). en and te copy (Telugu added to progress/telugu-review.md). Docs 05, 06, 07 section 8, 18, 19; D-036.
+
+## v2 P3: 2026-10-09, boarding record and segment validation (Dev B)
+
+**Done**
+- Schema: ValidatorKind, StopSource, new ticket_scans fields, conductorId optional, two indexes; four ScanReason values in their own migration; backfill of validatorKind and busId (all 26,438 local scans got a bus). Applied as an upgrade to the local database; no schema drift.
+- ValidateService takes a ValidatorContext; the conductor path behaves as before. Pure `resolveBoardingStop` with table tests. scanStatusReason gains 10a, 10b, 10c and 11a in docs/07 order; stop checks skipped with source NONE. Every scan saves bus, stop, source, position, device and validator.
+- Shared: reasons, ValidatorKind, StopSource, ScanPosition, result context. en and te copy for the four reasons (Telugu added to progress/telugu-review.md), scanner helpers. Docs 05, 06, 07 section 5; D-035.
+
+**Checks**
+- Unit: API 465 passed (6 database tests skipped; those 6 also pass against the local Postgres with TEST_DATABASE_URL), shared 125, web 44; lint, typecheck, i18n, dashes, check:endpoints pass. E2E Desktop Chrome 22 of 22 and Pixel 7 22 of 22 (E2E-8 now counts reasons from the messages and checks "This ticket ends at Nandyal"; reruns only for the OTP limit and one E2E-3 login redirect). seed.test counts AP only, so it passes with the Telangana stub. New tests: boarding-stop.test.ts, segment order tests in scan-rules.test.ts, D-035 HTTP tests in day12-validation.test.ts (NONE still boards, bus GPS stop saved, Kurnool to Nandyal ticket at Nandyal gives PAST_DESTINATION, BEFORE_BOARDING_STOP, stale bus GPS uses the device, device outside the state ignored, pass NOT_YET_VALID).
+
+## 2026-10-09, login email error (Dev B, branch b/email-delivery-error)
+
+**Done**
+- `EMAIL_DELIVERY_FAILED` (503) replaces the 500 when Resend refuses or cannot be reached; en and te messages; with `OTP_DEV_ECHO` (never production) the test code still lets testers log in. docs/06 and D-041.
+- Tests: `apps/api/src/modules/auth/email-delivery.test.ts` (refused send, network failure, EMAIL_FROM used, 503 without echo, never echo in production, echo fallback, other errors not hidden). API 426 passed (6 database tests skipped), shared 121; lint, i18n, dashes, check:endpoints pass.
+- Browser (production build, API in staging mode with an invalid Resend key): the login screen shows the new message under the email field in English and Telugu; nothing is sent.
+
+**Blockers or questions for the other dev**
+- Real Gmail delivery still needs the owner's Resend domain verification and Render env (`EMAIL_FROM`, `APP_ENV=staging`, then `OTP_DEV_ECHO=0`).
+
+## v2 P2: 2026-10-09, state model and multi state scope (Dev B)
+
+**Done**
+- `states` table and stateId on districts (required), user_roles, pass_types, daily_stats. Two migrations; applied as an upgrade to a seeded local database (PGlite): AP inserted with the fixed id, 10 districts, the two state roles, 3 pass types and every daily_stats row backfilled; `prisma migrate diff` against the schema is empty.
+- One scope implementation (`scope.service.ts`) used by ops, tracking, gov, analytics, reports, feedback and admin. SUPER_ADMIN platform wide; state roles limited to their state; a state admin grants roles only in their state.
+- Socket `state:{id}` rooms; GPS box per state; `GET /states`; `/gov/overview` and `/gov/map` take `stateId`; rollups write one state row per state; `PLATFORM_TIME_ZONE` replaces every code literal.
+- Web: state picker on `/gov` for SUPER_ADMIN, `/gov/state/[id]`, breadcrumb root from the API, map bounds per state, `state:{id}` rooms in gov and ops, state select when granting state roles, generic copy without "Andhra Pradesh".
+- Seed: AP state row; `pnpm db:seed --with-tg` adds the Telangana stub. Docs 04, 05, 06, 08, 12, 13, 18, 19 and D-034.
+
+**Checks**
+- Unit: API 434 passed, 6 database tests skipped (`vitest run --maxWorkers=2`; full parallel times out on this laptop), shared 125, ui 106, web 44. Lint, typecheck, i18n, dashes, check:endpoints, check:classes pass. Web production build passes.
+- HTTP on the local stack with `--with-tg`: transport@ sees 6 AP depots and gets 403 for the TG overview; admin.tg@ sees the 2 TG depots and gets 403 for AP; root@ sees both states.
+- Browser (production build): root sees the state picker, Telangana opens with its own map and districts, breadcrumb All states > Telangana > Hyderabad; Telugu names render.
+- Full E2E on the local stack (production builds, `--workers=1`): Desktop Chrome 22 of 22, Pixel 7 22 of 22, route sweep now with `/gov/state/<AP id>`. Reruns were needed only where the OTP limit (10 per IP per hour) ran out late in a run and once for E2E-3 landing on the login page; all passed after clearing the local Redis counters. Earlier `operations.spec.ts` timed out at its 5 s heading wait on this laptop; it passed in the full runs.
+
+**Contract changes (packages/shared)**
+- `PLATFORM_TIME_ZONE`, `StateDto`, `StatesResponse`, `DistrictDto.stateId`, `UserRoleDto.stateId`, `GrantRoleInput.stateId` (required for state roles), `AdminRoleDto.stateId`, `GovStateQuery`, `STATE_SCOPED_ROLES`, `LiveRoom` accepts `state:<id>` instead of `state`. Needs Dev A review.
+
+**Bugs found**
+- S3 fixed: the web called `/network/districts` (404), so gov breadcrumbs always showed "District".
+
+**Decisions needed**
+- D-034. Review at the sync. Deploy web and API together (room rename).
+
 ## Day 19: 2026-10-08, release checks (local and Neon)
 
 **Done**
@@ -717,3 +769,21 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 
 **Decisions needed (also added to decisions-log.md)**
 - D-007. Review at the sync.
+
+## v3 (2026-10-11): owner feedback round, branch a/v3-transit-ux
+
+**Done**
+- Light blue and white theme, bus opening animation, login first, Google sign in (D-043), terms page, account links.
+- Home with From and To plus map picker and nearby stops (`GET /places/nearby`).
+- Village journeys show village buses (Kurnool to Orvakal: Pallevelugu and Ultra Pallevelugu only, checked against the seeded API).
+- Group tickets with child half fare, day and zone passes, child cards with CHILD_BOARDED, QR every 3 s, passengers per stage on the ops trip page, overnight Vijayawada to Visakhapatnam route.
+
+**Checks**
+- API 423 passed (6 skipped), shared 122, ui 106, web 44, typecheck, lint, i18n, dashes, endpoints, classes, `next build`.
+- Local smoke on PGlite plus dev Redis: migrate, seed, login, home, passes buy, terms (Playwright screenshots).
+
+**Not done**
+- Map tiles not checked in a real browser (headless has no GPU). Native Telugu review of the new strings. E2E suite not rerun in full. Pass scans have no stop, so per stage counts cover tickets only.
+
+**Decisions:** D-042, D-043.
+

@@ -32,7 +32,11 @@ export interface CalculateFareArgs {
  * base = max(minFare, baseFare + distanceKm x perKm), rounded to the nearest rupee.
  * total = base + reservation fee. Free travel is always zero.
  */
-export function calculateFare({ distanceKm, rule, isFreeTravel = false }: CalculateFareArgs): FareBreakdown {
+export function calculateFare({
+  distanceKm,
+  rule,
+  isFreeTravel = false,
+}: CalculateFareArgs): FareBreakdown {
   if (!Number.isFinite(distanceKm) || distanceKm < 0) {
     throw new RangeError("distanceKm must be a finite number, zero or more");
   }
@@ -41,7 +45,9 @@ export function calculateFare({ distanceKm, rule, isFreeTravel = false }: Calcul
     return { basePaise: 0, reservationFeePaise: 0, totalPaise: 0 };
   }
   const distancePaise = Math.round(distanceKm * parsed.perKmPaise);
-  const basePaise = roundToRupee(Math.max(parsed.minFarePaise, parsed.baseFarePaise + distancePaise));
+  const basePaise = roundToRupee(
+    Math.max(parsed.minFarePaise, parsed.baseFarePaise + distancePaise),
+  );
   const reservationFeePaise = parsed.reservationFeePaise;
   return { basePaise, reservationFeePaise, totalPaise: basePaise + reservationFeePaise };
 }
@@ -89,7 +95,12 @@ export interface RefundQuote {
 
 const MS_PER_HOUR = 60 * 60 * 1000;
 
-const NOT_CANCELLABLE: RefundQuote = { cancellable: false, percent: 0, amountPaise: 0, feePaise: 0 };
+const NOT_CANCELLABLE: RefundQuote = {
+  cancellable: false,
+  percent: 0,
+  amountPaise: 0,
+  feePaise: 0,
+};
 
 /**
  * Refund for a ticket (docs/07 section 6).
@@ -111,13 +122,19 @@ export function refundQuote({
     ["reservationFeePaise", reservationFeePaise],
     ["cancellationFeePaise", cancellationFeePaise],
   ] as const) {
-    if (!Number.isInteger(value) || value < 0) throw new RangeError(`${name} must be a non negative integer`);
+    if (!Number.isInteger(value) || value < 0)
+      throw new RangeError(`${name} must be a non negative integer`);
   }
 
   if (isFree) return NOT_CANCELLABLE;
 
   if (operatorCancelled) {
-    return { cancellable: true, percent: 100, amountPaise: farePaise + reservationFeePaise, feePaise: 0 };
+    return {
+      cancellable: true,
+      percent: 100,
+      amountPaise: farePaise + reservationFeePaise,
+      feePaise: 0,
+    };
   }
 
   const hoursBefore = (departureAt.getTime() - now.getTime()) / MS_PER_HOUR;
@@ -131,4 +148,58 @@ export function refundQuote({
   const amountPaise = Math.max(0, refundable - cancellationFeePaise);
   const feePaise = reservationFeePaise + (refundable - amountPaise);
   return { cancellable: true, percent: tier.percent, amountPaise, feePaise };
+}
+
+// Group tickets (D-042): a passenger under CHILD_MAX_AGE pays CHILD_FARE_PERCENT of the adult fare.
+
+/** Passengers younger than this are children. */
+export const CHILD_MAX_AGE = 12;
+/** Children pay this percent of the adult ticket (fare and reservation fee), rounded to the rupee. */
+export const CHILD_FARE_PERCENT = 50;
+
+export type PassengerCategory = "ADULT" | "CHILD";
+
+export function passengerCategory(age: number): PassengerCategory {
+  return age < CHILD_MAX_AGE ? "CHILD" : "ADULT";
+}
+
+/** Fare for one passenger of a given age, from the adult ticket total. */
+export function passengerFarePaise(adultTotalPaise: number, age: number): number {
+  if (passengerCategory(age) === "ADULT") return adultTotalPaise;
+  return roundToRupee(Math.round((adultTotalPaise * CHILD_FARE_PERCENT) / 100));
+}
+
+export interface GroupFare {
+  adults: number;
+  children: number;
+  /** Fare per passenger, in the order of the ages given. */
+  perPassengerPaise: number[];
+  totalPaise: number;
+}
+
+/** Fare for a group (adults and children with ages). The booking total is the sum. */
+export function groupFare(adultTotalPaise: number, ages: readonly number[]): GroupFare {
+  const perPassengerPaise = ages.map((age) => passengerFarePaise(adultTotalPaise, age));
+  const children = ages.filter((age) => passengerCategory(age) === "CHILD").length;
+  return {
+    adults: ages.length - children,
+    children,
+    perPassengerPaise,
+    totalPaise: perPassengerPaise.reduce((sum, p) => sum + p, 0),
+  };
+}
+
+/**
+ * Splits a paid booking total over passengers by their ages (adults weight 2, children weight 1 at
+ * 50 percent). Rounding leftovers go to the first passenger, so the parts always add up to the total.
+ */
+export function splitGroupTotal(totalPaise: number, ages: readonly number[]): number[] {
+  if (ages.length === 0) return [];
+  const weights = ages.map((age) =>
+    passengerCategory(age) === "CHILD" ? CHILD_FARE_PERCENT : 100,
+  );
+  const weightSum = weights.reduce((s, w) => s + w, 0);
+  const parts = weights.map((w) => Math.floor((totalPaise * w) / weightSum));
+  parts[0] = (parts[0] ?? 0) + totalPaise - parts.reduce((s, p) => s + p, 0);
+  return parts;
 }

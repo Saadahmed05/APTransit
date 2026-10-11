@@ -46,7 +46,7 @@ export class ValidateController {
     @Req() req: Request,
   ) {
     return ValidateTicketResult.parse(
-      await this.validator.validate(user.id, body, auditActorFromRequest(req)),
+      await this.validator.validateAsConductor(user.id, body, auditActorFromRequest(req)),
     );
   }
 }

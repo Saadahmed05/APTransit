@@ -119,22 +119,29 @@ export class AuthService {
       },
     });
 
+    const otpDevEcho = this.config.get("OTP_DEV_ECHO", { infer: true });
+    const appEnv = this.config.get("APP_ENV", { infer: true });
+    const devCode = otpDevEcho && appEnv !== "production" ? code : undefined;
+
     if (input.channel === "EMAIL") {
-      await this.emailProvider.sendEmail(
-        target,
-        "Your AP TransitOS login code",
-        `Your login code is ${code}. It is valid for 5 minutes. Never share this code with anyone.`,
-      );
+      try {
+        await this.emailProvider.sendEmail(
+          target,
+          "Your AP TransitOS login code",
+          `Your login code is ${code}. It is valid for 5 minutes. Never share this code with anyone.`,
+        );
+      } catch (err) {
+        // With OTP_DEV_ECHO (never in production) the screen shows the code, so a failed email
+        // does not block test logins while the sender domain is being set up.
+        if (!(devCode && err instanceof AppError && err.code === "EMAIL_DELIVERY_FAILED")) throw err;
+        this.logger.warn("Login email not delivered; the test code is shown on screen (OTP_DEV_ECHO)");
+      }
     } else if (this.isDevelopment) {
       // No SMS provider yet (docs/18). Development only: the code goes to the local log.
       this.logger.log(`[Dev SMS] ${maskPhone(target)} code ${code}`);
     } else {
       this.logger.warn("SMS OTP requested but no SMS provider is configured");
     }
-
-    const otpDevEcho = this.config.get("OTP_DEV_ECHO", { infer: true });
-    const appEnv = this.config.get("APP_ENV", { infer: true });
-    const devCode = otpDevEcho && appEnv !== "production" ? code : undefined;
 
     return {
       expiresInSec: OTP_TTL_SEC,
@@ -218,9 +225,76 @@ export class AuthService {
       throw new AppError("OTP_EXPIRED", "That code has expired. Send a new code.");
     }
 
+    return this.signIn(
+      input.channel === "EMAIL" ? { email: target } : { phone: target },
+      {
+        phone: input.channel === "PHONE" ? target : null,
+        email: input.channel === "EMAIL" ? target : null,
+      },
+      ip,
+      userAgent,
+      "otp",
+    );
+  }
+
+  /**
+   * D-043: Sign in with Google. The ID token is checked by Google (tokeninfo), then the audience,
+   * issuer and verified email are checked here. Finds the account by email or creates a citizen.
+   */
+  async googleSignIn(
+    credential: string,
+    ip: string,
+    userAgent?: string,
+  ): Promise<AuthVerifyResponse & { refreshToken: string }> {
+    const clientId = this.config.get("GOOGLE_CLIENT_ID", { infer: true });
+    if (!clientId) throw new AppError("FORBIDDEN", "Google sign in is not set up");
+    let claims: {
+      aud?: string;
+      iss?: string;
+      email?: string;
+      email_verified?: string | boolean;
+      name?: string;
+      exp?: string;
+    };
+    try {
+      const res = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`,
+        {
+          signal: AbortSignal.timeout(5_000),
+        },
+      );
+      if (!res.ok) throw new Error(`tokeninfo ${res.status}`);
+      claims = (await res.json()) as typeof claims;
+    } catch {
+      throw new AppError("UNAUTHENTICATED", "Google sign in failed. Try again.");
+    }
+    const verified = claims.email_verified === true || claims.email_verified === "true";
+    const issuerOk =
+      claims.iss === "accounts.google.com" || claims.iss === "https://accounts.google.com";
+    const notExpired = Number(claims.exp ?? 0) * 1000 > Date.now();
+    if (claims.aud !== clientId || !issuerOk || !verified || !notExpired || !claims.email) {
+      throw new AppError("UNAUTHENTICATED", "Google sign in failed. Try again.");
+    }
+    const email = claims.email.trim().toLowerCase();
+    return this.signIn(
+      { email },
+      { email, phone: null, name: claims.name?.slice(0, 100) ?? null },
+      ip,
+      userAgent,
+      "google",
+    );
+  }
+
+  private async signIn(
+    where: { email: string } | { phone: string },
+    create: { email: string | null; phone: string | null; name?: string | null },
+    ip: string,
+    userAgent: string | undefined,
+    method: "otp" | "google",
+  ): Promise<AuthVerifyResponse & { refreshToken: string }> {
     // Find or create user
     let user = await this.prisma.user.findFirst({
-      where: input.channel === "EMAIL" ? { email: target } : { phone: target },
+      where,
       include: {
         userRoles: true,
       },
@@ -233,8 +307,7 @@ export class AuthService {
     if (!user) {
       user = await this.prisma.user.create({
         data: {
-          phone: input.channel === "PHONE" ? target : null,
-          email: input.channel === "EMAIL" ? target : null,
+          ...create,
           preferredLocale: "en",
           userRoles: {
             create: [
@@ -262,6 +335,7 @@ export class AuthService {
       role: r.role,
       depotId: r.depotId,
       districtId: r.districtId,
+      stateId: r.stateId,
     }));
     const accessToken = await this.generateAccessToken(user.id, rolesPayload);
 
@@ -280,6 +354,7 @@ export class AuthService {
       action: "auth.login",
       entityType: "user",
       entityId: user.id,
+      after: { method },
       actorUserId: user.id,
       actorRole: user.userRoles[0]?.role ?? "CITIZEN",
       ip,
@@ -356,6 +431,7 @@ export class AuthService {
       role: r.role,
       depotId: r.depotId,
       districtId: r.districtId,
+      stateId: r.stateId,
     }));
     const accessToken = await this.generateAccessToken(user.id, rolesPayload);
 
@@ -462,12 +538,13 @@ export class AuthService {
     email: string | null;
     phone: string | null;
     preferredLocale: string;
-    userRoles: { role: string; depotId: string | null; districtId: string | null }[];
+    userRoles: { role: string; depotId: string | null; districtId: string | null; stateId: string | null }[];
   }): MeDto {
     const roles: UserRoleDto[] = user.userRoles.map((r) => ({
       role: r.role as Role,
       depotId: r.depotId,
       districtId: r.districtId,
+      stateId: r.stateId,
     }));
 
     return {

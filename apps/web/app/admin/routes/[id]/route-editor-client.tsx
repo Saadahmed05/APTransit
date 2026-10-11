@@ -15,7 +15,6 @@ import {
   DialogDescription,
   DialogTitle,
   Input,
-  MapView,
   Skeleton,
 } from "@aptransit/ui";
 import { useTranslations } from "next-intl";
@@ -23,6 +22,12 @@ import Link from "next/link";
 import { useAdminMutation, useAdminQuery } from "../../../../lib/admin";
 import { OpsError, WriteError } from "../../../ops/ops-common";
 import { ArrowDown, ArrowLeft, ArrowUp, Check, Save } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const MapView = dynamic(() => import("@aptransit/ui/map-view"), {
+  ssr: false,
+  loading: () => <Skeleton className="h-64 w-full" />,
+});
 
 export default function RouteEditorClient({ id }: { id: string }) {
   const t = useTranslations("adminApp");

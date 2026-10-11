@@ -1,6 +1,13 @@
 "use client";
 
-import { type CountdownParts, formatDate, formatMoney, formatTime, PassDto, PassQrDto } from "@aptransit/shared";
+import {
+  type CountdownParts,
+  formatDate,
+  formatMoney,
+  formatTime,
+  PassDto,
+  PassQrDto,
+} from "@aptransit/shared";
 import {
   Button,
   Card,
@@ -91,10 +98,13 @@ export function PassesView() {
   }
 
   const passes = query.data;
-  const live = (p: PassDto) => p.status === "ACTIVE" && p.validUntil !== null && (!now || Date.parse(p.validUntil) > now);
+  const live = (p: PassDto) =>
+    p.status === "ACTIVE" && p.validUntil !== null && (!now || Date.parse(p.validUntil) > now);
   const active = passes.filter(live);
   const waiting = passes.filter((p) => p.status === "READY" || p.status === "PENDING_PAYMENT");
-  const history = passes.filter((p) => !live(p) && p.status !== "READY" && p.status !== "PENDING_PAYMENT");
+  const history = passes.filter(
+    (p) => !live(p) && p.status !== "READY" && p.status !== "PENDING_PAYMENT",
+  );
 
   if (passes.length === 0) {
     return (
@@ -133,7 +143,11 @@ export function PassesView() {
             {t("passes.readyHeading")}
           </h2>
           {waiting.map((pass) => (
-            <WaitingPassCard key={pass.id} pass={pass} blocked={active.some((a) => a.kind === pass.kind)} />
+            <WaitingPassCard
+              key={pass.id}
+              pass={pass}
+              blocked={active.some((a) => a.kind === pass.kind)}
+            />
           ))}
         </section>
       )}
@@ -162,7 +176,14 @@ function usePassText() {
 function StatusChip({ pass }: { pass: PassDto }) {
   const { t } = usePassText();
   const meta = STATUS_TONE[pass.status];
-  return <ToneChip tone={meta.tone} icon={meta.icon} label={t(`passes.status.${pass.status}`)} size="sm" />;
+  return (
+    <ToneChip
+      tone={meta.tone}
+      icon={meta.icon}
+      label={t(`passes.status.${pass.status}`)}
+      size="sm"
+    />
+  );
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -180,14 +201,24 @@ function ActivePassCard({ pass }: { pass: PassDto }) {
   });
   const format = (p: CountdownParts) =>
     p.showSeconds
-      ? t("passes.countdownShort", { hours: pad(p.hours), minutes: pad(p.minutes), seconds: pad(p.seconds) })
+      ? t("passes.countdownShort", {
+          hours: pad(p.hours),
+          minutes: pad(p.minutes),
+          seconds: pad(p.seconds),
+        })
       : t("passes.countdownLong", { days: p.days, hours: pad(p.hours), minutes: pad(p.minutes) });
-  const summary = (p: CountdownParts) => t("passes.countdownSummary", { days: p.days, hours: p.hours, minutes: p.minutes });
+  const summary = (p: CountdownParts) =>
+    t("passes.countdownSummary", { days: p.days, hours: p.hours, minutes: p.minutes });
 
   return (
     <article className="flex flex-col gap-4 rounded-xl border border-default bg-surface-raised p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="text-h3 text-fg">{pick(pass)}</h3>
+        {pass.holderName ? (
+          <p className="text-small font-medium text-primary">
+            {t("passes.childCard", { name: pass.holderName, age: pass.holderAge ?? 0 })}
+          </p>
+        ) : null}
         <StatusChip pass={pass} />
       </div>
       <dl className="grid gap-1 text-small text-muted">
@@ -197,24 +228,54 @@ function ActivePassCard({ pass }: { pass: PassDto }) {
       {pass.validUntil && (
         <div className="flex flex-col gap-1">
           <p className="text-caption text-muted">{t("pass.timeLeft")}</p>
-          <Countdown until={pass.validUntil} format={format} summary={summary} doneLabel={t("passes.ended")} className="text-h2 text-fg" />
+          <Countdown
+            until={pass.validUntil}
+            format={format}
+            summary={summary}
+            doneLabel={t("passes.ended")}
+            className="text-h2 text-fg"
+          />
         </div>
       )}
       <div className="flex flex-col items-center gap-2 border-t border-dashed border-default pt-4">
         {qr.data?.rotSecret ? (
           <LiveQr
-            data={{ token: qr.data.token, rotSecret: qr.data.rotSecret, periodSec: qr.data.periodSec, serverOffsetMs: qr.data.serverOffsetMs }}
+            data={{
+              token: qr.data.token,
+              rotSecret: qr.data.rotSecret,
+              periodSec: qr.data.periodSec,
+              serverOffsetMs: qr.data.serverOffsetMs,
+            }}
             label={t("passes.qrLabel", { name: pick(pass) })}
           />
         ) : qr.isError ? (
-          <ErrorState message={t(errorKey(qr.error, (k) => t.has(k)))} retryLabel={t("common.retry")} onRetry={() => void qr.refetch()} />
+          <ErrorState
+            message={t(errorKey(qr.error, (k) => t.has(k)))}
+            retryLabel={t("common.retry")}
+            onRetry={() => void qr.refetch()}
+          />
         ) : (
           <Skeleton className="size-64 rounded-md" />
         )}
         <p className="text-center text-small text-muted">{t("passes.showOnBoard")}</p>
       </div>
       <p className="text-small text-muted">{t("passes.services", { services: serviceList(pass.eligibleServiceTypes, t, locale) })}</p>
+      <PassScope pass={pass} />
     </article>
+  );
+}
+
+/** D-036: who and where a pass covers (family group size, school route). Nothing for a plain pass. */
+function PassScope({ pass }: { pass: PassDto }) {
+  const { t, pick } = usePassText();
+  if (pass.groupSize <= 1 && !pass.homeStop) return null;
+  return (
+    <>
+      {pass.groupSize > 1 && <p className="text-small text-fg">{t("passes.covers", { count: pass.groupSize })}</p>}
+      {pass.homeStop && pass.destStop && (
+        <p className="text-small text-fg">{t("passes.route", { from: pick(pass.homeStop), to: pick(pass.destStop) })}</p>
+      )}
+    </>
   );
 }
 
@@ -237,14 +298,24 @@ function WaitingPassCard({ pass, blocked }: { pass: PassDto; blocked: boolean })
     <Card padding="md" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="text-h3 text-fg">{pick(pass)}</h3>
+        {pass.holderName ? (
+          <p className="text-small font-medium text-primary">
+            {t("passes.childCard", { name: pass.holderName, age: pass.holderAge ?? 0 })}
+          </p>
+        ) : null}
         <StatusChip pass={pass} />
       </div>
       <p className="text-small text-muted">{t("passes.services", { services: serviceList(pass.eligibleServiceTypes, t, locale) })}</p>
+      <PassScope pass={pass} />
 
       {pass.status === "READY" ? (
         <>
-          <p className="text-small text-muted">{t("passes.activateBy", { time: at(pass.activateBy) })}</p>
-          {blocked && <p className="text-small text-status-warning">{t("passes.activateBlocked")}</p>}
+          <p className="text-small text-muted">
+            {t("passes.activateBy", { time: at(pass.activateBy) })}
+          </p>
+          {blocked && (
+            <p className="text-small text-status-warning">{t("passes.activateBlocked")}</p>
+          )}
           <Button size="lg" disabled={!pass.canActivate} onClick={() => setOpen(true)}>
             {t("passes.activate")}
           </Button>
@@ -288,7 +359,9 @@ function WaitingPassCard({ pass, blocked }: { pass: PassDto; blocked: boolean })
         <SheetContent closeLabel={t("common.close")}>
           <SheetHeader>
             <SheetTitle>{t("passes.activateTitle")}</SheetTitle>
-            <SheetDescription>{t("passes.activateBody", { time: at(pass.activationValidUntil) })}</SheetDescription>
+            <SheetDescription>
+              {t("passes.activateBody", { time: at(pass.activationValidUntil) })}
+            </SheetDescription>
           </SheetHeader>
           {activate.error && (
             <p role="alert" className="mt-3 text-small text-status-danger">
@@ -315,7 +388,11 @@ function PassSummary({ pass }: { pass: PassDto }) {
     <Card padding="md" className="flex flex-wrap items-center justify-between gap-2">
       <div className="min-w-0">
         <p className="text-body font-medium text-fg">{pick(pass)}</p>
-        {pass.validUntil && <p className="text-small text-muted">{t("passes.validUntil", { time: at(pass.validUntil) })}</p>}
+        {pass.validUntil && (
+          <p className="text-small text-muted">
+            {t("passes.validUntil", { time: at(pass.validUntil) })}
+          </p>
+        )}
       </div>
       <StatusChip pass={pass} />
     </Card>

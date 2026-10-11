@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { BusSplash } from "../components/bus-splash";
 import { Providers } from "../components/providers";
 import "./globals.css";
 
@@ -42,6 +43,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     >
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
+          <BusSplash />
           <Providers hasSession={hasSession}>{children}</Providers>
         </NextIntlClientProvider>
       </body>

@@ -28,21 +28,23 @@ Source of truth: `packages/ui/src/tokens.css`. Tailwind 4 reads them through `@t
 
 ### Colour: light
 
+v3 (D-042): light blue and white. The canvas is a pale sky blue, cards stay white, the accent is AP blue. `packages/ui/src/tokens.css` is the source of truth; `tokens.test.ts` keeps every text pair at AA.
+
 | Token | Hex | Use | Contrast |
 | --- | --- | --- | --- |
-| `--bg` | #F8F9FB | Page canvas | |
-| `--surface` | #F1F3F6 | Sections, chips, table header | |
+| `--bg` | #F3F8FE | Page canvas | |
+| `--surface` | #E9F3FD | Sections, chips, table header | |
 | `--surface-raised` | #FFFFFF | Cards, sheets, inputs | |
-| `--surface-sunken` | #ECEFF3 | Wells, segmented control track, skeleton | |
-| `--border` | #E3E6EB | Card and divider hairlines (decorative) | |
-| `--border-subtle` | #ECEEF2 | List dividers inside cards (class `border-hairline`) | decorative |
-| `--border-strong` | #7A8495 | Input borders (must be seen) | 3.78 on white |
-| `--text` | #0F1729 | Primary text | 17.87 on white |
-| `--text-muted` | #475265 | Secondary text, labels | 7.89 on white |
-| `--text-subtle` | #5D6778 | Captions, meta (never for key info) | 5.71 on white |
-| `--primary` | #1D4ED8 | Primary buttons, links, focus ring, active nav | 6.70 on white, white on it 6.70 |
-| `--primary-hover` | #1E40AF | Hover and pressed | |
-| `--primary-soft` | #EDF2FF | Selected row, active chip, info note | 5.98 |
+| `--surface-sunken` | #DDEBFA | Wells, segmented control track, skeleton | |
+| `--border` | #CFE1F4 | Card and divider hairlines (decorative) | |
+| `--border-subtle` | #E3EEFA | List dividers inside cards (class `border-hairline`) | decorative |
+| `--border-strong` | #5F7F9F | Input borders (must be seen) | 3 or more on white |
+| `--text` | #0A2540 | Primary text | AA on white |
+| `--text-muted` | #3B5672 | Secondary text, labels | AA on white |
+| `--text-subtle` | #4B6681 | Captions, meta (never for key info) | AA on white |
+| `--primary` | #0966C2 | Primary buttons, links, focus ring, active nav | AA on white, white on it AA |
+| `--primary-hover` | #0857A6 | Hover and pressed | |
+| `--primary-soft` | #E1F0FD | Selected row, active chip, info note | primary on it 4.5 or more |
 | `--on-primary` | #FFFFFF | Text on primary | |
 
 ### Colour: dark
@@ -242,6 +244,11 @@ Only `transform` and `opacity`. CSS only, no animation library.
 - Utilities: `animate-enter` (fade plus an 8 px rise), `press-scale` (0.98 while pressed), `animate-drain`, `duration-hold`.
 - Lists stagger 30 ms per item, at most 6 items. Success draws a check once, no confetti.
 - `prefers-reduced-motion: reduce`: transitions become opacity only, pulsing and the ticket band stop.
+
+### Opening animation (D-042)
+
+- `BusSplash` (`apps/web/components/bus-splash.tsx`) shows on every full page load: app name, tagline, a bus driving across a dashed road. Pure CSS, server rendered, `aria-hidden`, `pointer-events-none`, so it never blocks input or screen readers.
+- Utilities: `animate-bus-drive`, `animate-wheel-spin`, `animate-road-slide`, `animate-splash-out`. Duration token `--dur-splash` (2.2 s). Under reduced motion the layer fades after 0.4 s.
 
 ## UX behaviour
 

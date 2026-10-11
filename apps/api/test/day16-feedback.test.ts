@@ -9,7 +9,8 @@ import type { PrismaService } from "../src/prisma/prisma.service";
 
 const staff: AuthenticatedUser = { id: "staff1", roles: [{ role: "DEPOT_STAFF", depotId: "dep_knl" }] };
 const officer: AuthenticatedUser = { id: "do1", roles: [{ role: "DISTRICT_OFFICER", districtId: "dist_knl" }] };
-const admin: AuthenticatedUser = { id: "sa1", roles: [{ role: "STATE_ADMIN" }] };
+const admin: AuthenticatedUser = { id: "sa1", roles: [{ role: "STATE_ADMIN", stateId: "state_ap" }] };
+const root: AuthenticatedUser = { id: "root1", roles: [{ role: "SUPER_ADMIN" }] };
 
 const complaint = (over: Record<string, unknown> = {}) => ({
   id: "cmp1",
@@ -132,14 +133,19 @@ describe("Day 16: feedback service", () => {
     await expect(service.status("CMP-ABC123", "RAVI@example.com")).resolves.toMatchObject({ code: "CMP-ABC123", status: "IN_REVIEW" });
   });
 
-  it("scopes the ops list: depot staff to their depot, district officer to their district, admins to all", async () => {
+  it("scopes the ops list: depot staff to their depot, district officer to their district, state admin to the state, super admin to all", async () => {
     const { service, prisma } = setup();
     await service.list(staff, "RECEIVED");
     expect(prisma.complaint.findMany.mock.calls[0]![0].where).toEqual({ depot: { OR: [{ id: "dep_knl" }] }, status: "RECEIVED" });
     await service.list(officer);
     expect(prisma.complaint.findMany.mock.calls[1]![0].where).toEqual({ depot: { OR: [{ districtId: "dist_knl" }] } });
     await service.list(admin);
-    expect(prisma.complaint.findMany.mock.calls[2]![0].where).toEqual({});
+    // D-034: the state plus complaints without a depot (they have no place)
+    expect(prisma.complaint.findMany.mock.calls[2]![0].where).toEqual({
+      OR: [{ depot: { OR: [{ district: { stateId: "state_ap" } }] } }, { depotId: null }],
+    });
+    await service.list(root);
+    expect(prisma.complaint.findMany.mock.calls[3]![0].where).toEqual({});
     await expect(service.list({ id: "c", roles: [{ role: "CITIZEN" }] })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 

@@ -5,11 +5,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { liveSocket } from "../lib/socket";
+import { useAuth } from "./auth-provider";
 export function LiveEvents() {
   const client = useQueryClient();
   const t = useTranslations();
   const locale = useLocale();
+  const { status } = useAuth();
   useEffect(() => {
+    // Anonymous visitors get no notifications or ticket events, so they never open a socket here.
+    if (status !== "authenticated") return;
     const socket = liveSocket();
     const notification = (value: unknown) => {
       const parsed = NotificationDto.safeParse(value);
@@ -36,6 +40,6 @@ export function LiveEvents() {
       socket.off("notification:new", notification);
       socket.off("ticket:status", ticket);
     };
-  }, [client, t, locale]);
+  }, [client, t, locale, status]);
   return null;
 }

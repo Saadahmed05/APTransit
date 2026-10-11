@@ -1,8 +1,10 @@
 /**
  * Locale-aware string formatters for time, date, money, duration, and distance.
- * Always renders in Asia/Kolkata timezone with Indian number grouping.
+ * Always renders in the platform time zone (IST) with Indian number grouping.
  * Hard rule: No em dash or en dash anywhere.
  */
+
+import { PLATFORM_TIME_ZONE } from "./time";
 
 export function formatTime(input: Date | string | number, locale = "en"): string {
   const date = typeof input === "string" || typeof input === "number" ? new Date(input) : input;
@@ -14,11 +16,11 @@ export function formatTime(input: Date | string | number, locale = "en"): string
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
-    timeZone: "Asia/Kolkata",
+    timeZone: PLATFORM_TIME_ZONE,
   }).format(date);
 }
 
-/** Live clock with seconds for the ticket screen: "06:30:09 AM", Asia/Kolkata. */
+/** Live clock with seconds for the ticket screen: "06:30:09 AM", in IST. */
 export function formatClock(input: Date | string | number, locale = "en"): string {
   const date = typeof input === "string" || typeof input === "number" ? new Date(input) : input;
   if (isNaN(date.getTime())) {
@@ -30,7 +32,7 @@ export function formatClock(input: Date | string | number, locale = "en"): strin
     minute: "2-digit",
     second: "2-digit",
     hour12: true,
-    timeZone: "Asia/Kolkata",
+    timeZone: PLATFORM_TIME_ZONE,
   }).format(date);
 }
 
@@ -44,7 +46,7 @@ export function formatDate(input: Date | string | number, locale = "en"): string
     weekday: "short",
     day: "numeric",
     month: "short",
-    timeZone: "Asia/Kolkata",
+    timeZone: PLATFORM_TIME_ZONE,
   }).format(date);
 }
 

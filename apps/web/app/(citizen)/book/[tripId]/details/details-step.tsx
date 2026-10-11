@@ -1,6 +1,6 @@
 "use client";
 
-import { BookingDto, CreateBookingPassengerInput } from "@aptransit/shared";
+import { BookingDto, CreateBookingPassengerInput, CHILD_MAX_AGE } from "@aptransit/shared";
 import {
   Button,
   Card,
@@ -226,6 +226,7 @@ function PassengersFormView({ tripId, draft }: { tripId: string; draft: BookingD
             <Field
               id={`age-${seatNo}`}
               label={t("book.details.age")}
+              hint={t("book.details.childHint", { age: CHILD_MAX_AGE })}
               required
               error={fieldErrors?.age ? t("book.details.errors.age") : undefined}
             >

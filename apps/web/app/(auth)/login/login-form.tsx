@@ -20,11 +20,13 @@ import {
   TabsTrigger,
 } from "@aptransit/ui";
 import { useMutation } from "@tanstack/react-query";
-import { Info, Mail, Phone } from "lucide-react";
+import { BusFront, Info, Mail, Phone } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { type FormEvent, type Ref, useEffect, useRef, useState } from "react";
 import { useAuth, useMe } from "../../../components/auth-provider";
+import { GoogleSignIn, googleSignInEnabled } from "../../../components/google-sign-in";
 import { api, type ApiError, errorKey, isApiError } from "../../../lib/api";
 import { writePreferenceCookie } from "../../../lib/preferences";
 import { roleHome, safeNextPath } from "../../../lib/roles";
@@ -86,6 +88,18 @@ export function LoginForm({ next }: { next: string | null }) {
     return t(errorKey(error, (k) => t.has(k)));
   };
 
+  const signedIn = (result: AuthVerifyResponse) => {
+    // The account language wins on this device after login (docs/11 /account, language).
+    // A full load renders every layout in that language; the marker cookie restores the session.
+    if (document.documentElement.lang !== result.user.preferredLocale) {
+      writePreferenceCookie("locale", result.user.preferredLocale);
+      window.location.replace(safeNext ?? roleHome(result.user));
+      return;
+    }
+    login(result);
+  };
+  const [googleError, setGoogleError] = useState<string | null>(null);
+
   const request = useMutation({
     mutationFn: (input: OtpRequestInput) =>
       api("/auth/otp/request", {
@@ -116,16 +130,7 @@ export function LoginForm({ next }: { next: string | null }) {
         schema: AuthVerifyResponse,
         redirectOn401: false,
       }),
-    onSuccess: (result) => {
-      // The account language wins on this device after login (docs/11 /account, language).
-      // A full load renders every layout in that language; the marker cookie restores the session.
-      if (document.documentElement.lang !== result.user.preferredLocale) {
-        writePreferenceCookie("locale", result.user.preferredLocale);
-        window.location.replace(safeNext ?? roleHome(result.user));
-        return;
-      }
-      login(result);
-    },
+    onSuccess: (result) => signedIn(result),
     onError: (error: ApiError | Error) => {
       setCodeError(describe(error));
       if (isApiError(error) && (error.code === "OTP_INVALID" || error.code === "VALIDATION_FAILED"))
@@ -245,11 +250,35 @@ export function LoginForm({ next }: { next: string | null }) {
   }
 
   return (
-    <Card padding="lg" className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
+    <Card padding="lg" className="flex flex-col gap-6 shadow-md">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <span className="inline-flex size-14 items-center justify-center rounded-full bg-primary-soft text-primary">
+          <BusFront className="size-7" aria-hidden="true" />
+        </span>
         <h1 className="text-h1 text-fg">{t("auth.login")}</h1>
         <p className="text-body text-muted">{t("login.intro")}</p>
       </div>
+
+      {googleSignInEnabled ? (
+        <div className="flex flex-col gap-3">
+          <GoogleSignIn
+            onSignedIn={signedIn}
+            onError={(error) =>
+              setGoogleError(isApiError(error) ? describe(error) : t("login.googleFailed"))
+            }
+          />
+          {googleError ? (
+            <p role="alert" className="text-center text-small text-status-danger">
+              {googleError}
+            </p>
+          ) : null}
+          <p className="flex items-center gap-3 text-small text-muted">
+            <span className="h-px flex-1 bg-default" aria-hidden="true" />
+            {t("login.or")}
+            <span className="h-px flex-1 bg-default" aria-hidden="true" />
+          </p>
+        </div>
+      ) : null}
 
       <Tabs
         value={channel}
@@ -312,6 +341,16 @@ export function LoginForm({ next }: { next: string | null }) {
           </form>
         </TabsContent>
       </Tabs>
+
+      <p className="text-center text-small text-muted">
+        {t.rich("login.terms", {
+          terms: (chunks) => (
+            <Link href="/terms" className="font-medium text-primary underline underline-offset-4">
+              {chunks}
+            </Link>
+          ),
+        })}
+      </p>
     </Card>
   );
 }

@@ -4,6 +4,12 @@
 
 All coordinates are approximate. All bus registrations, staff names and fares are **demo values**, not official data. Town names are real so the demo feels familiar. District list is a subset, see [18](18-open-decisions.md) I2.
 
+## State (D-034)
+
+One `states` row: Andhra Pradesh, code `AP`, fixed id `stateap000000000000000000`, bounds `[76.7, 12.6, 84.8, 19.95]`, centre `[78, 16]`, zoom 7. Every district below belongs to it. Pass types and the TRANSPORT_OFFICER and STATE_ADMIN demo roles carry the AP state.
+
+`pnpm db:seed --with-tg` adds a Telangana stub to prove a new state is only data: state `TG` (bounds `[77.23, 15.83, 81.33, 19.92]`, centre `[79.3, 17.9]`), districts `TG-HYD` Hyderabad and `TG-WGL` Hanumakonda, bus stands `TG-MGBS` and `TG-HNK`, depots `D-TG-HYD` and `D-TG-WGL` (no buses, routes or trips), and `admin.tg@aptransit.test` as STATE_ADMIN of TG. Demo data, not operations data.
+
 ## Districts (subset)
 
 | Code | English | తెలుగు |
@@ -72,6 +78,13 @@ All coordinates are approximate. All bus registrations, staff names and fares ar
 
 Every route also has its reverse (`...-02`) with mirrored stops. Polylines: straight segments between stops are fine for the MVP (encode with the Google polyline algorithm). Nicer road geometry is a Phase 2 task.
 
+### v3 additions (D-042)
+
+- Districts ELR (Eluru) and EGD (East Godavari). Stops ELR (Eluru Bus Stand), RJY (Rajamahendravaram Bus Stand), ANK (Anakapalli, village stop, VSP district).
+- Long journey route VJA-VSP-01 Vijayawada to Visakhapatnam (D-VJA): VJA 0 / 0, ELR 60 / 75, RJY 150 / 190, ANK 315 / 390, DWK 350 / 435. Reverse VSP-VJA-02. Departures 07:00 Ultra Deluxe, 21:00 Garuda AC, 22:30 Super Luxury (overnight, arrives next day).
+- Pass types: Day Pass 150 rupees, Zone Day Pass 60 rupees (zone), Zone Monthly Pass 900 rupees (zone), plus Weekly, Monthly and Free travel. Zone passes are valid on Pallevelugu, Ultra Pallevelugu and City Ordinary.
+- `qr.periodSec` setting is 3.
+
 ## Bus types and demo fares
 
 | Service type | Layout | Seats | AC | Free travel | Per km (paise) | Min fare | Reservation fee |
@@ -103,6 +116,20 @@ Example: Kurnool to Vijayawada, Express, 365 km: 365 x ₹1.40 = ₹511 + ₹30 
 
 All run every day (`daysMask` 127). Trips generated for today minus 14 days to today plus 7 days.
 
+## Pass types (D-036, DEMO prices)
+
+| Kind | Price | Validity | Group | Notes |
+| --- | --- | --- | --- | --- |
+| DAY | 12,000 paise | until 23:59:59 IST of activation day | 1 | |
+| WEEKLY | 45,000 paise | 7 days | 1 | |
+| MONTHLY | 160,000 paise | 30 days | 1 | |
+| FAMILY | 100,000 paise | 7 days | 4 | |
+| SCHOOL | 60,000 paise | 30 days | 1 | scheme STUDENT, route restricted |
+| ANNUAL | 1,500,000 paise | 365 days | 1 | |
+| FREE_TRAVEL | 0 | 365 days | 1 | scheme STREE_SHAKTI, not a demo price |
+
+All paid types have `isDemo = true` and are sold on the five standard services. The seed upserts by kind, so reseeding resets demo prices.
+
 ## Buses and staff
 
 - Registrations: `AP 39 Z 0101` to `AP 39 Z 0160` style, fictional. Assigned by depot and type so every timetable can be covered.
@@ -130,5 +157,6 @@ See [08-roles-permissions.md](08-roles-permissions.md). Plus two approved driver
 ```bash
 pnpm db:seed                 # base data + today and next 7 days
 pnpm db:seed --history 14    # also 14 days of history (used on staging)
+pnpm db:seed --with-tg       # also the Telangana stub (D-034)
 pnpm db:reset                # drop, migrate, seed (local only)
 ```

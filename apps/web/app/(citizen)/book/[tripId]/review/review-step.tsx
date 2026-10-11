@@ -7,6 +7,8 @@ import {
   formatMoney,
   formatTime,
   TripDetailDto,
+  passengerCategory,
+  passengerFarePaise,
 } from "@aptransit/shared";
 import { Button, Card, cn, EmptyState, ErrorState, Skeleton } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -252,6 +254,19 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
                   count: booking.passengers.length,
                   fare: formatMoney(fare.totalPaise, locale),
                 })}
+                {/* D-042 group ticket: children under CHILD_MAX_AGE pay half */}
+                {booking.passengers.some((p) => passengerCategory(p.age) === "CHILD") ? (
+                  <span className="block">
+                    {t("book.review.group", {
+                      adults: booking.passengers.filter((p) => passengerCategory(p.age) === "ADULT")
+                        .length,
+                      children: booking.passengers.filter(
+                        (p) => passengerCategory(p.age) === "CHILD",
+                      ).length,
+                      childFare: formatMoney(passengerFarePaise(fare.totalPaise, 1), locale),
+                    })}
+                  </span>
+                ) : null}
               </dt>
               <dd className="tabular-nums text-body font-semibold text-fg">{total}</dd>
             </div>
@@ -278,21 +293,34 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
       )}
 
       {payment.state.phase === "dismissed" && (
-        <p role="status" className="flex items-start gap-2 rounded-md border border-default bg-surface p-3 text-small text-muted">
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded-md border border-default bg-surface p-3 text-small text-muted"
+        >
           <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           {t("book.review.payNotCompleted")}
         </p>
       )}
       {(payment.state.phase === "failed" || payment.state.phase === "blocked") && (
-        <p role="alert" className="flex items-start gap-2 rounded-md border border-status-danger-soft bg-status-danger-soft p-3 text-small text-status-danger">
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-status-danger-soft bg-status-danger-soft p-3 text-small text-status-danger"
+        >
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           {payment.state.phase === "blocked"
             ? t("book.review.payBlocked")
-            : t(payment.state.errorKey && t.has(payment.state.errorKey) ? payment.state.errorKey : "book.review.payFailed")}
+            : t(
+                payment.state.errorKey && t.has(payment.state.errorKey)
+                  ? payment.state.errorKey
+                  : "book.review.payFailed",
+              )}
         </p>
       )}
       {payment.state.phase === "checking" && (
-        <div role="status" className="flex flex-col gap-1 rounded-md border border-status-info-soft bg-status-info-soft p-3 text-small text-status-info">
+        <div
+          role="status"
+          className="flex flex-col gap-1 rounded-md border border-status-info-soft bg-status-info-soft p-3 text-small text-status-info"
+        >
           <p className="font-semibold">{t("book.review.checkingTitle")}</p>
           <p>{t("book.review.checkingHint", { code: booking.code })}</p>
         </div>

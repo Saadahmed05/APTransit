@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Role } from "../enums";
+import { EligibilityScheme, PassKind, PassValidityMode, Role, ServiceType } from "../enums";
 import { PublicId, ServiceDateString } from "./search";
 
 const name = z.string().trim().min(1).max(120);
@@ -111,19 +111,28 @@ export const GenerateTripsInput = z
 export type GenerateTripsInput = z.infer<typeof GenerateTripsInput>;
 export const GenerateTripsDto = z.object({ count: z.number().int().nonnegative() });
 export type GenerateTripsDto = z.infer<typeof GenerateTripsDto>;
+/** Roles scoped to one state (D-034). SUPER_ADMIN is platform wide and takes no scope. */
+export const STATE_SCOPED_ROLES: readonly Role[] = ["STATE_ADMIN", "TRANSPORT_OFFICER"];
+
 export const GrantRoleInput = z
-  .object({ role: Role, depotId: PublicId.optional(), districtId: PublicId.optional() })
+  .object({
+    role: Role,
+    depotId: PublicId.optional(),
+    districtId: PublicId.optional(),
+    stateId: PublicId.optional(),
+  })
   .strict()
   .superRefine((x, ctx) => {
     const depotRole = ["DRIVER", "CONDUCTOR", "DEPOT_STAFF", "DEPOT_MANAGER"].includes(x.role);
-    if (
-      depotRole
-        ? !x.depotId || !!x.districtId
-        : x.role === "DISTRICT_OFFICER"
-          ? !x.districtId || !!x.depotId
-          : !!x.depotId || !!x.districtId
-    )
-      ctx.addIssue({ code: "custom", message: "Role scope does not match role" });
+    const scopes = [x.depotId, x.districtId, x.stateId].filter(Boolean).length;
+    const ok = depotRole
+      ? !!x.depotId && scopes === 1
+      : x.role === "DISTRICT_OFFICER"
+        ? !!x.districtId && scopes === 1
+        : STATE_SCOPED_ROLES.includes(x.role)
+          ? !!x.stateId && scopes === 1
+          : scopes === 0;
+    if (!ok) ctx.addIssue({ code: "custom", message: "Role scope does not match role" });
   });
 export type GrantRoleInput = z.infer<typeof GrantRoleInput>;
 export const AdminRoleDto = z.object({
@@ -132,6 +141,7 @@ export const AdminRoleDto = z.object({
   role: Role,
   depotId: PublicId.nullable(),
   districtId: PublicId.nullable(),
+  stateId: PublicId.nullable(),
 });
 export type AdminRoleDto = z.infer<typeof AdminRoleDto>;
 
@@ -164,7 +174,10 @@ export const AdminRefundInput = z
     tiers: z
       .array(
         z
-          .object({ minHoursBefore: z.number().nonnegative(), percent: z.number().int().min(0).max(100) })
+          .object({
+            minHoursBefore: z.number().nonnegative(),
+            percent: z.number().int().min(0).max(100),
+          })
           .strict(),
       )
       .min(1)
@@ -184,7 +197,10 @@ export const AdminRefundInput = z
     });
   });
 export type AdminRefundInput = z.infer<typeof AdminRefundInput>;
-export const AdminRefundDto = AdminRefundInput.safeExtend({ id: PublicId, isActive: z.boolean() }).strip();
+export const AdminRefundDto = AdminRefundInput.safeExtend({
+  id: PublicId,
+  isActive: z.boolean(),
+}).strip();
 export type AdminRefundDto = z.infer<typeof AdminRefundDto>;
 
 const positive = z.number().int().positive();
@@ -200,7 +216,7 @@ export const AdminSettingsInput = z
     "gift.cutoffMinutesBefore": z.number().int().nonnegative().optional(),
     "gift.maxTransfers": z.number().int().nonnegative().optional(),
     "pass.activateWithinDays": positive.optional(),
-    "qr.periodSec": z.literal(30).optional(),
+    "qr.periodSec": z.literal(3).optional(),
     "qr.windowSteps": z.literal(1).optional(),
   })
   .strict()
@@ -245,3 +261,35 @@ export const OpsDepotDto = z.object({
   districtId: PublicId,
 });
 export const OpsBusTypeDto = z.object({ id: PublicId, nameEn: z.string(), nameTe: z.string() });
+
+/**
+ * Pass types (D-036): GET, POST /admin/pass-types and PATCH /admin/pass-types/:id (policy:write).
+ * Sold passes keep the values copied at purchase, so an edit applies to new sales only.
+ */
+export const AdminPassTypeInput = z
+  .object({
+    kind: PassKind,
+    nameEn: name,
+    nameTe: name,
+    durationDays: z.number().int().min(1).max(366),
+    validityMode: PassValidityMode,
+    pricePaise: paise,
+    eligibleServiceTypes: z.array(ServiceType).min(1),
+    scheme: EligibilityScheme.nullable(),
+    groupSize: z.number().int().min(1).max(10),
+    routeRestricted: z.boolean(),
+    isDemo: z.boolean(),
+    sortOrder: z.number().int().min(0).max(1000),
+    isActive: z.boolean(),
+    stateId: PublicId.nullable(),
+  })
+  .strict();
+export type AdminPassTypeInput = z.infer<typeof AdminPassTypeInput>;
+/** Kind, scheme and state are fixed once a type exists: they decide who may buy it and where. */
+export const AdminPassTypePatch = AdminPassTypeInput.omit({ kind: true, scheme: true, stateId: true })
+  .partial()
+  .strict()
+  .refine((x) => Object.keys(x).length > 0, { message: "Nothing to change" });
+export type AdminPassTypePatch = z.infer<typeof AdminPassTypePatch>;
+export const AdminPassTypeDto = AdminPassTypeInput.safeExtend({ id: PublicId, soldCount: z.number().int().nonnegative() }).strip();
+export type AdminPassTypeDto = z.infer<typeof AdminPassTypeDto>;

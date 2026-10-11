@@ -1,3 +1,30 @@
+export interface StateSeed {
+  /** Fixed for AP so the backfill migration and the seed agree; new states get a generated id. */
+  id?: string;
+  code: string;
+  nameEn: string;
+  nameTe: string;
+  codePrefix: string;
+  /** [minLng, minLat, maxLng, maxLat] */
+  bounds: [number, number, number, number];
+  center: { lat: number; lng: number };
+  zoom: number;
+}
+
+/** Same id as migration 20261009000100_states_backfill_ap (D-034). */
+export const AP_STATE_ID = "stateap000000000000000000";
+
+export const AP_STATE: StateSeed = {
+  id: AP_STATE_ID,
+  code: "AP",
+  nameEn: "Andhra Pradesh",
+  nameTe: "ఆంధ్రప్రదేశ్",
+  codePrefix: "AP",
+  bounds: [76.7, 12.6, 84.8, 19.95],
+  center: { lat: 16, lng: 78 },
+  zoom: 7,
+};
+
 export interface DistrictSeed {
   code: string;
   nameEn: string;
@@ -15,6 +42,9 @@ export const DISTRICTS: DistrictSeed[] = [
   { code: "GNT", nameEn: "Guntur", nameTe: "గుంటూరు" },
   { code: "NTR", nameEn: "NTR", nameTe: "ఎన్టీఆర్" },
   { code: "VSP", nameEn: "Visakhapatnam", nameTe: "విశాఖపట్నం" },
+  // D-042: long journey corridor Vijayawada to Visakhapatnam
+  { code: "ELR", nameEn: "Eluru", nameTe: "ఏలూరు" },
+  { code: "EGD", nameEn: "East Godavari", nameTe: "తూర్పు గోదావరి" },
 ];
 
 export interface StopSeed {
@@ -28,30 +58,249 @@ export interface StopSeed {
 }
 
 export const STOPS: StopSeed[] = [
-  { code: "KNL", nameEn: "Kurnool Bus Stand", nameTe: "కర్నూలు బస్ స్టాండ్", districtCode: "KNL", lat: 15.8281, lng: 78.0373, isBusStand: true },
-  { code: "ORV", nameEn: "Orvakal", nameTe: "ఓర్వకల్లు", districtCode: "KNL", lat: 15.67, lng: 78.11, isBusStand: false },
-  { code: "DHN", nameEn: "Dhone", nameTe: "డోన్", districtCode: "NDL", lat: 15.396, lng: 77.872, isBusStand: true },
-  { code: "PNY", nameEn: "Panyam", nameTe: "పాణ్యం", districtCode: "NDL", lat: 15.526, lng: 78.339, isBusStand: false },
-  { code: "NDL", nameEn: "Nandyal Bus Stand", nameTe: "నంద్యాల బస్ స్టాండ్", districtCode: "NDL", lat: 15.4786, lng: 78.4836, isBusStand: true },
-  { code: "AGD", nameEn: "Allagadda", nameTe: "ఆళ్లగడ్డ", districtCode: "NDL", lat: 15.131, lng: 78.513, isBusStand: false },
-  { code: "GDL", nameEn: "Giddalur", nameTe: "గిద్దలూరు", districtCode: "PKM", lat: 15.3789, lng: 78.9265, isBusStand: false },
-  { code: "MKP", nameEn: "Markapur", nameTe: "మార్కాపురం", districtCode: "PKM", lat: 15.7353, lng: 79.2698, isBusStand: true },
-  { code: "VKD", nameEn: "Vinukonda", nameTe: "వినుకొండ", districtCode: "PLN", lat: 16.0529, lng: 79.7394, isBusStand: false },
-  { code: "NRT", nameEn: "Narasaraopet", nameTe: "నరసరావుపేట", districtCode: "PLN", lat: 16.235, lng: 80.048, isBusStand: true },
-  { code: "GNT", nameEn: "Guntur Bus Stand", nameTe: "గుంటూరు బస్ స్టాండ్", districtCode: "GNT", lat: 16.3067, lng: 80.4365, isBusStand: true },
-  { code: "MGL", nameEn: "Mangalagiri", nameTe: "మంగళగిరి", districtCode: "GNT", lat: 16.43, lng: 80.568, isBusStand: false },
-  { code: "VJA", nameEn: "Vijayawada PNBS", nameTe: "విజయవాడ పీఎన్‌బీఎస్", districtCode: "NTR", lat: 16.5097, lng: 80.6197, isBusStand: true },
-  { code: "GTY", nameEn: "Gooty", nameTe: "గుత్తి", districtCode: "ATP", lat: 15.121, lng: 77.634, isBusStand: false },
-  { code: "ATP", nameEn: "Anantapur Bus Stand", nameTe: "అనంతపురం బస్ స్టాండ్", districtCode: "ATP", lat: 14.6819, lng: 77.6006, isBusStand: true },
-  { code: "MDK", nameEn: "Mydukur", nameTe: "మైదుకూరు", districtCode: "KDP", lat: 14.728, lng: 78.74, isBusStand: false },
-  { code: "KDP", nameEn: "Kadapa Bus Stand", nameTe: "కడప బస్ స్టాండ్", districtCode: "KDP", lat: 14.4673, lng: 78.8242, isBusStand: true },
-  { code: "RJP", nameEn: "Rajampet", nameTe: "రాజంపేట", districtCode: "KDP", lat: 14.19, lng: 79.16, isBusStand: false },
-  { code: "RGT", nameEn: "Renigunta", nameTe: "రేణిగుంట", districtCode: "TPT", lat: 13.636, lng: 79.512, isBusStand: false },
-  { code: "TPT", nameEn: "Tirupati Bus Stand", nameTe: "తిరుపతి బస్ స్టాండ్", districtCode: "TPT", lat: 13.6288, lng: 79.4192, isBusStand: true },
-  { code: "DWK", nameEn: "Dwaraka Bus Station", nameTe: "ద్వారకా బస్ స్టేషన్", districtCode: "VSP", lat: 17.724, lng: 83.305, isBusStand: true },
-  { code: "MDP", nameEn: "Maddilapalem", nameTe: "మద్దిలపాలెం", districtCode: "VSP", lat: 17.738, lng: 83.32, isBusStand: false },
-  { code: "HNW", nameEn: "Hanumanthawaka", nameTe: "హనుమంతవాక", districtCode: "VSP", lat: 17.756, lng: 83.322, isBusStand: false },
-  { code: "SMC", nameEn: "Simhachalam", nameTe: "సింహాచలం", districtCode: "VSP", lat: 17.766, lng: 83.25, isBusStand: false },
+  {
+    code: "KNL",
+    nameEn: "Kurnool Bus Stand",
+    nameTe: "కర్నూలు బస్ స్టాండ్",
+    districtCode: "KNL",
+    lat: 15.8281,
+    lng: 78.0373,
+    isBusStand: true,
+  },
+  {
+    code: "ORV",
+    nameEn: "Orvakal",
+    nameTe: "ఓర్వకల్లు",
+    districtCode: "KNL",
+    lat: 15.67,
+    lng: 78.11,
+    isBusStand: false,
+  },
+  {
+    code: "DHN",
+    nameEn: "Dhone",
+    nameTe: "డోన్",
+    districtCode: "NDL",
+    lat: 15.396,
+    lng: 77.872,
+    isBusStand: true,
+  },
+  {
+    code: "PNY",
+    nameEn: "Panyam",
+    nameTe: "పాణ్యం",
+    districtCode: "NDL",
+    lat: 15.526,
+    lng: 78.339,
+    isBusStand: false,
+  },
+  {
+    code: "NDL",
+    nameEn: "Nandyal Bus Stand",
+    nameTe: "నంద్యాల బస్ స్టాండ్",
+    districtCode: "NDL",
+    lat: 15.4786,
+    lng: 78.4836,
+    isBusStand: true,
+  },
+  {
+    code: "AGD",
+    nameEn: "Allagadda",
+    nameTe: "ఆళ్లగడ్డ",
+    districtCode: "NDL",
+    lat: 15.131,
+    lng: 78.513,
+    isBusStand: false,
+  },
+  {
+    code: "GDL",
+    nameEn: "Giddalur",
+    nameTe: "గిద్దలూరు",
+    districtCode: "PKM",
+    lat: 15.3789,
+    lng: 78.9265,
+    isBusStand: false,
+  },
+  {
+    code: "MKP",
+    nameEn: "Markapur",
+    nameTe: "మార్కాపురం",
+    districtCode: "PKM",
+    lat: 15.7353,
+    lng: 79.2698,
+    isBusStand: true,
+  },
+  {
+    code: "VKD",
+    nameEn: "Vinukonda",
+    nameTe: "వినుకొండ",
+    districtCode: "PLN",
+    lat: 16.0529,
+    lng: 79.7394,
+    isBusStand: false,
+  },
+  {
+    code: "NRT",
+    nameEn: "Narasaraopet",
+    nameTe: "నరసరావుపేట",
+    districtCode: "PLN",
+    lat: 16.235,
+    lng: 80.048,
+    isBusStand: true,
+  },
+  {
+    code: "GNT",
+    nameEn: "Guntur Bus Stand",
+    nameTe: "గుంటూరు బస్ స్టాండ్",
+    districtCode: "GNT",
+    lat: 16.3067,
+    lng: 80.4365,
+    isBusStand: true,
+  },
+  {
+    code: "MGL",
+    nameEn: "Mangalagiri",
+    nameTe: "మంగళగిరి",
+    districtCode: "GNT",
+    lat: 16.43,
+    lng: 80.568,
+    isBusStand: false,
+  },
+  {
+    code: "VJA",
+    nameEn: "Vijayawada PNBS",
+    nameTe: "విజయవాడ పీఎన్‌బీఎస్",
+    districtCode: "NTR",
+    lat: 16.5097,
+    lng: 80.6197,
+    isBusStand: true,
+  },
+  {
+    code: "GTY",
+    nameEn: "Gooty",
+    nameTe: "గుత్తి",
+    districtCode: "ATP",
+    lat: 15.121,
+    lng: 77.634,
+    isBusStand: false,
+  },
+  {
+    code: "ATP",
+    nameEn: "Anantapur Bus Stand",
+    nameTe: "అనంతపురం బస్ స్టాండ్",
+    districtCode: "ATP",
+    lat: 14.6819,
+    lng: 77.6006,
+    isBusStand: true,
+  },
+  {
+    code: "MDK",
+    nameEn: "Mydukur",
+    nameTe: "మైదుకూరు",
+    districtCode: "KDP",
+    lat: 14.728,
+    lng: 78.74,
+    isBusStand: false,
+  },
+  {
+    code: "KDP",
+    nameEn: "Kadapa Bus Stand",
+    nameTe: "కడప బస్ స్టాండ్",
+    districtCode: "KDP",
+    lat: 14.4673,
+    lng: 78.8242,
+    isBusStand: true,
+  },
+  {
+    code: "RJP",
+    nameEn: "Rajampet",
+    nameTe: "రాజంపేట",
+    districtCode: "KDP",
+    lat: 14.19,
+    lng: 79.16,
+    isBusStand: false,
+  },
+  {
+    code: "RGT",
+    nameEn: "Renigunta",
+    nameTe: "రేణిగుంట",
+    districtCode: "TPT",
+    lat: 13.636,
+    lng: 79.512,
+    isBusStand: false,
+  },
+  {
+    code: "TPT",
+    nameEn: "Tirupati Bus Stand",
+    nameTe: "తిరుపతి బస్ స్టాండ్",
+    districtCode: "TPT",
+    lat: 13.6288,
+    lng: 79.4192,
+    isBusStand: true,
+  },
+  {
+    code: "DWK",
+    nameEn: "Dwaraka Bus Station",
+    nameTe: "ద్వారకా బస్ స్టేషన్",
+    districtCode: "VSP",
+    lat: 17.724,
+    lng: 83.305,
+    isBusStand: true,
+  },
+  {
+    code: "MDP",
+    nameEn: "Maddilapalem",
+    nameTe: "మద్దిలపాలెం",
+    districtCode: "VSP",
+    lat: 17.738,
+    lng: 83.32,
+    isBusStand: false,
+  },
+  {
+    code: "HNW",
+    nameEn: "Hanumanthawaka",
+    nameTe: "హనుమంతవాక",
+    districtCode: "VSP",
+    lat: 17.756,
+    lng: 83.322,
+    isBusStand: false,
+  },
+  {
+    code: "ELR",
+    nameEn: "Eluru Bus Stand",
+    nameTe: "ఏలూరు బస్ స్టాండ్",
+    districtCode: "ELR",
+    lat: 16.7107,
+    lng: 81.0952,
+    isBusStand: true,
+  },
+  {
+    code: "RJY",
+    nameEn: "Rajamahendravaram Bus Stand",
+    nameTe: "రాజమహేంద్రవరం బస్ స్టాండ్",
+    districtCode: "EGD",
+    lat: 17.0005,
+    lng: 81.804,
+    isBusStand: true,
+  },
+  {
+    code: "ANK",
+    nameEn: "Anakapalli",
+    nameTe: "అనకాపల్లి",
+    districtCode: "VSP",
+    lat: 17.6913,
+    lng: 83.0039,
+    isBusStand: false,
+  },
+  {
+    code: "SMC",
+    nameEn: "Simhachalam",
+    nameTe: "సింహాచలం",
+    districtCode: "VSP",
+    lat: 17.766,
+    lng: 83.25,
+    isBusStand: false,
+  },
 ];
 
 export interface DepotSeed {
@@ -64,12 +313,54 @@ export interface DepotSeed {
 }
 
 export const DEPOTS: DepotSeed[] = [
-  { code: "D-KNL", nameEn: "Kurnool depot", nameTe: "కర్నూలు డిపో", districtCode: "KNL", busStandCode: "KNL", busCount: 24 },
-  { code: "D-NDL", nameEn: "Nandyal depot", nameTe: "నంద్యాల డిపో", districtCode: "NDL", busStandCode: "NDL", busCount: 8 },
-  { code: "D-ATP", nameEn: "Anantapur depot", nameTe: "అనంతపురం డిపో", districtCode: "ATP", busStandCode: "ATP", busCount: 6 },
-  { code: "D-TPT", nameEn: "Tirupati depot", nameTe: "తిరుపతి డిపో", districtCode: "TPT", busStandCode: "TPT", busCount: 6 },
-  { code: "D-VJA", nameEn: "Vijayawada depot", nameTe: "విజయవాడ డిపో", districtCode: "NTR", busStandCode: "VJA", busCount: 8 },
-  { code: "D-VSP", nameEn: "Visakhapatnam depot", nameTe: "విశాఖపట్నం డిపో", districtCode: "VSP", busStandCode: "DWK", busCount: 8 },
+  {
+    code: "D-KNL",
+    nameEn: "Kurnool depot",
+    nameTe: "కర్నూలు డిపో",
+    districtCode: "KNL",
+    busStandCode: "KNL",
+    busCount: 24,
+  },
+  {
+    code: "D-NDL",
+    nameEn: "Nandyal depot",
+    nameTe: "నంద్యాల డిపో",
+    districtCode: "NDL",
+    busStandCode: "NDL",
+    busCount: 8,
+  },
+  {
+    code: "D-ATP",
+    nameEn: "Anantapur depot",
+    nameTe: "అనంతపురం డిపో",
+    districtCode: "ATP",
+    busStandCode: "ATP",
+    busCount: 6,
+  },
+  {
+    code: "D-TPT",
+    nameEn: "Tirupati depot",
+    nameTe: "తిరుపతి డిపో",
+    districtCode: "TPT",
+    busStandCode: "TPT",
+    busCount: 6,
+  },
+  {
+    code: "D-VJA",
+    nameEn: "Vijayawada depot",
+    nameTe: "విజయవాడ డిపో",
+    districtCode: "NTR",
+    busStandCode: "VJA",
+    busCount: 8,
+  },
+  {
+    code: "D-VSP",
+    nameEn: "Visakhapatnam depot",
+    nameTe: "విశాఖపట్నం డిపో",
+    districtCode: "VSP",
+    busStandCode: "DWK",
+    busCount: 8,
+  },
 ];
 
 export interface RouteStopDef {
@@ -170,6 +461,23 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
       { stopCode: "VJA", kmFromOrigin: 0, minutesFromOrigin: 0 },
       { stopCode: "MGL", kmFromOrigin: 15, minutesFromOrigin: 30 },
       { stopCode: "GNT", kmFromOrigin: 35, minutesFromOrigin: 60 },
+    ],
+  },
+  {
+    // D-042: long overnight journey (350 km)
+    code: "VJA-VSP-01",
+    reverseCode: "VSP-VJA-02",
+    nameEn: "Vijayawada to Visakhapatnam",
+    reverseNameEn: "Visakhapatnam to Vijayawada",
+    nameTe: "విజయవాడ నుండి విశాఖపట్నం",
+    reverseNameTe: "విశాఖపట్నం నుండి విజయవాడ",
+    depotCode: "D-VJA",
+    stops: [
+      { stopCode: "VJA", kmFromOrigin: 0, minutesFromOrigin: 0 },
+      { stopCode: "ELR", kmFromOrigin: 60, minutesFromOrigin: 75 },
+      { stopCode: "RJY", kmFromOrigin: 150, minutesFromOrigin: 190 },
+      { stopCode: "ANK", kmFromOrigin: 315, minutesFromOrigin: 390 },
+      { stopCode: "DWK", kmFromOrigin: 350, minutesFromOrigin: 435 },
     ],
   },
   {
@@ -380,7 +688,11 @@ function everyMinutes(first: string, last: string, stepMin: number): string[] {
   return out;
 }
 
-const FORWARD_TIMETABLES: { routeCode: string; reverseCode: string; departures: [string, BusTypeSeed["serviceType"]][] }[] = [
+const FORWARD_TIMETABLES: {
+  routeCode: string;
+  reverseCode: string;
+  departures: [string, BusTypeSeed["serviceType"]][];
+}[] = [
   {
     routeCode: "KNL-VJA-01",
     reverseCode: "VJA-KNL-02",
@@ -405,17 +717,32 @@ const FORWARD_TIMETABLES: { routeCode: string; reverseCode: string; departures: 
   {
     routeCode: "KNL-ATP-01",
     reverseCode: "ATP-KNL-02",
-    departures: everyMinutes("05:00", "20:00", 60).map((t, i) => [t, i % 2 === 0 ? "PALLEVELUGU" : "EXPRESS"]),
+    departures: everyMinutes("05:00", "20:00", 60).map((t, i) => [
+      t,
+      i % 2 === 0 ? "PALLEVELUGU" : "EXPRESS",
+    ]),
   },
   {
     routeCode: "KNL-NDL-01",
     reverseCode: "NDL-KNL-02",
-    departures: everyMinutes("05:00", "21:00", 30).map((t, i) => [t, i % 4 === 3 ? "ULTRA_PALLEVELUGU" : "PALLEVELUGU"]),
+    departures: everyMinutes("05:00", "21:00", 30).map((t, i) => [
+      t,
+      i % 4 === 3 ? "ULTRA_PALLEVELUGU" : "PALLEVELUGU",
+    ]),
   },
   {
     routeCode: "VJA-GNT-01",
     reverseCode: "GNT-VJA-02",
     departures: everyMinutes("05:30", "22:00", 15).map((t) => [t, "METRO_EXPRESS"]),
+  },
+  {
+    routeCode: "VJA-VSP-01",
+    reverseCode: "VSP-VJA-02",
+    departures: [
+      ["07:00", "ULTRA_DELUXE"],
+      ["21:00", "GARUDA_AC"],
+      ["22:30", "SUPER_LUXURY"],
+    ],
   },
   {
     routeCode: "VSP-SMC-01",
@@ -433,3 +760,32 @@ export const TIMETABLE_DEFS: TimetableSeedDef[] = FORWARD_TIMETABLES.flatMap(({ 
     serviceType,
   })),
 ]);
+
+/**
+ * Telangana stub behind `pnpm db:seed --with-tg` (D-034): two districts, each with a bus stand and
+ * a depot, and a state admin. It proves a new state needs only data. Not real operations data.
+ */
+export const TG_STATE: StateSeed = {
+  code: "TG",
+  nameEn: "Telangana",
+  nameTe: "తెలంగాణ",
+  codePrefix: "TG",
+  bounds: [77.23, 15.83, 81.33, 19.92],
+  center: { lat: 17.9, lng: 79.3 },
+  zoom: 7,
+};
+
+export const TG_DISTRICTS: DistrictSeed[] = [
+  { code: "TG-HYD", nameEn: "Hyderabad", nameTe: "హైదరాబాద్" },
+  { code: "TG-WGL", nameEn: "Hanumakonda", nameTe: "హనుమకొండ" },
+];
+
+export const TG_STOPS: StopSeed[] = [
+  { code: "TG-MGBS", nameEn: "Hyderabad MGBS", nameTe: "హైదరాబాద్ ఎంజీబీఎస్", districtCode: "TG-HYD", lat: 17.3786, lng: 78.4833, isBusStand: true },
+  { code: "TG-HNK", nameEn: "Hanumakonda Bus Stand", nameTe: "హనుమకొండ బస్ స్టాండ్", districtCode: "TG-WGL", lat: 18.0072, lng: 79.5582, isBusStand: true },
+];
+
+export const TG_DEPOTS: DepotSeed[] = [
+  { code: "D-TG-HYD", nameEn: "Hyderabad depot", nameTe: "హైదరాబాద్ డిపో", districtCode: "TG-HYD", busStandCode: "TG-MGBS", busCount: 0 },
+  { code: "D-TG-WGL", nameEn: "Hanumakonda depot", nameTe: "హనుమకొండ డిపో", districtCode: "TG-WGL", busStandCode: "TG-HNK", busCount: 0 },
+];

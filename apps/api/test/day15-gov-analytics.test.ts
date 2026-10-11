@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AuthenticatedUser } from "../src/common/auth/auth.types";
-import { depotScopeWhere, isStatewide } from "../src/common/services/scope.service";
+import { depotScopeWhere, isPlatformWide } from "../src/common/services/scope.service";
 import { AnalyticsService, demandBands, worstRoutes } from "../src/modules/analytics/analytics.service";
 import { areaRows, countTrips, GovService, sumRows } from "../src/modules/gov/gov.service";
 import { csvLine, escapeCsvField, formatCsvWithBom, rupees } from "../src/modules/reports/csv-helper";
@@ -10,7 +10,8 @@ import type { TrackingService } from "../src/modules/tracking/tracking.service";
 import type { PrismaService } from "../src/prisma/prisma.service";
 
 const officer: AuthenticatedUser = { id: "do_knl", roles: [{ role: "DISTRICT_OFFICER", districtId: "dist_knl" }] };
-const transport: AuthenticatedUser = { id: "tof", roles: [{ role: "TRANSPORT_OFFICER" }] };
+const transport: AuthenticatedUser = { id: "tof", roles: [{ role: "TRANSPORT_OFFICER", stateId: "state_ap" }] };
+const superAdmin: AuthenticatedUser = { id: "root", roles: [{ role: "SUPER_ADMIN" }] };
 const manager: AuthenticatedUser = { id: "dm_knl", roles: [{ role: "DEPOT_MANAGER", depotId: "dep_knl" }] };
 const citizen: AuthenticatedUser = { id: "cit", roles: [{ role: "CITIZEN" }] };
 
@@ -35,6 +36,7 @@ const fact = (over: Partial<TripFact>): TripFact => ({
   routeCode: "KNL-VJA-01",
   depotId: "dep_knl",
   districtId: "dist_knl",
+  stateId: "state_ap",
   status: "COMPLETED",
   delayMinutes: 0,
   tickets: 10,
@@ -62,7 +64,9 @@ describe("Day 15: rollups", () => {
         { depotId: null, routeCode: null },
       ],
       depotDistrict: new Map(DEPOTS.map((d) => [d.id, d.districtId])),
-      passesActive: 55,
+      districtState: new Map([["dist_knl", "state_ap"], ["dist_ntr", "state_ap"]]),
+      stateIds: ["state_ap"],
+      passesActive: new Map([["state_ap", 55]]),
     },
   );
   const routeRow = rows.find((r) => r.routeId === "rt_1")!;
@@ -121,12 +125,14 @@ describe("Day 15: demand bands", () => {
 describe("Day 15: scope", () => {
   it("gives a district officer the depots of their district only", () => {
     expect(depotScopeWhere(officer, "gov:read")).toEqual({ OR: [{ districtId: "dist_knl" }] });
-    expect(isStatewide(officer, "gov:read")).toBe(false);
+    expect(isPlatformWide(officer, "gov:read")).toBe(false);
   });
 
-  it("gives statewide roles everything", () => {
-    expect(depotScopeWhere(transport, "gov:read")).toEqual({});
-    expect(isStatewide(transport, "gov:read")).toBe(true);
+  it("gives state roles their state and the super admin everything (D-034)", () => {
+    expect(depotScopeWhere(transport, "gov:read")).toEqual({ OR: [{ district: { stateId: "state_ap" } }] });
+    expect(isPlatformWide(transport, "gov:read")).toBe(false);
+    expect(depotScopeWhere(superAdmin, "gov:read")).toEqual({});
+    expect(isPlatformWide(superAdmin, "gov:read")).toBe(true);
   });
 
   it("refuses callers without the permission", () => {
@@ -150,11 +156,13 @@ describe("Day 15: scope", () => {
     const service = new AnalyticsService(prisma as unknown as PrismaService, {} as RollupsService);
     await expect(service.scopeFor(officer)).resolves.toEqual({
       all: false,
+      stateIds: [],
       depotIds: ["dep_knl", "dep_ndl"],
       districtIds: ["dist_knl"],
     });
     await expect(service.scopeFor(manager, "report:export")).resolves.toEqual({
       all: false,
+      stateIds: [],
       depotIds: ["dep_knl"],
       districtIds: [],
     });
@@ -187,7 +195,7 @@ describe("Day 15: scope", () => {
 
   it("takes the area rows that cover a scope exactly once", () => {
     const row = (over: Partial<DailyStatsRow>): DailyStatsRow =>
-      ({ routeId: null, depotId: null, districtId: null, passengers: 1, ...over }) as DailyStatsRow;
+      ({ stateId: "state_ap", routeId: null, depotId: null, districtId: null, passengers: 1, ...over }) as DailyStatsRow;
     const rows = [
       row({}),
       row({ districtId: "dist_knl", passengers: 10 }),
@@ -196,9 +204,10 @@ describe("Day 15: scope", () => {
       row({ districtId: "dist_ntr" }),
     ];
     const depotDistrict = new Map(DEPOTS.map((d) => [d.id, d.districtId]));
-    expect(areaRows({ all: true, depotIds: [], districtIds: [] }, rows, depotDistrict)).toEqual([rows[0]]);
-    expect(areaRows({ all: false, depotIds: ["dep_knl", "dep_ndl"], districtIds: ["dist_knl"] }, rows, depotDistrict)).toEqual([rows[1]]);
-    expect(areaRows({ all: false, depotIds: ["dep_knl"], districtIds: [] }, rows, depotDistrict)).toEqual([rows[2]]);
+    expect(areaRows({ all: true, stateIds: [], depotIds: [], districtIds: [] }, rows, depotDistrict)).toEqual([rows[0]]);
+    expect(areaRows({ all: false, stateIds: ["state_ap"], depotIds: [], districtIds: [] }, rows, depotDistrict)).toEqual([rows[0]]);
+    expect(areaRows({ all: false, stateIds: [], depotIds: ["dep_knl", "dep_ndl"], districtIds: ["dist_knl"] }, rows, depotDistrict)).toEqual([rows[1]]);
+    expect(areaRows({ all: false, stateIds: [], depotIds: ["dep_knl"], districtIds: [] }, rows, depotDistrict)).toEqual([rows[2]]);
   });
 });
 

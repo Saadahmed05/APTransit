@@ -22,7 +22,11 @@ import { createMemoryPrisma, type Tables } from "./memory-prisma";
 import { createFakeRedis } from "./fake-redis";
 const tables: Tables = {},
   by = (model: string, id: unknown) => (tables[model] ?? []).find((r) => r.id === id) ?? null;
-const depot = (id: unknown) => by("depot", id);
+/** Every test depot is in AP (D-034): the district row carries the state for room names. */
+const depot = (id: unknown) => {
+  const row = by("depot", id);
+  return row && { ...row, district: by("district", row.districtId) ?? { id: row.districtId, stateId: "stateap0000001" } };
+};
 const assignment = (a: any) => ({
   ...a,
   bus: by("bus", a.busId),

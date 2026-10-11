@@ -17,7 +17,8 @@ test("E2E-10 Gov: command center, drill down to a trip, CSV export", async ({ pa
   // State to district: the district list mirrors the map markers
   await page.getByRole("list", { name: en.govApp.districts }).getByRole("link", { name: /Kurnool/ }).click();
   await expect(page).toHaveURL(/\/gov\/district\//);
-  await expect(page.getByRole("navigation", { name: en.govApp.breadcrumb })).toContainText(en.govApp.state);
+  // D-034: the root crumb is the state name from GET /states (the seed state)
+  await expect(page.getByRole("navigation", { name: en.govApp.breadcrumb })).toContainText("Andhra Pradesh");
 
   // District to depot
   await page.getByRole("link", { name: /Kurnool/ }).filter({ hasText: /buses active/ }).first().click();

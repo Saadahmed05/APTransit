@@ -26,9 +26,25 @@ export class NotificationsSubscriber implements OnModuleInit, OnModuleDestroy {
     this.off.push(
       this.events.on("booking.confirmed", (e) => this.bookingConfirmed(e.bookingId, e.ticketIds)),
       this.events.on("ticket.status", async (e) => {
-        if (e.to === "ACTIVE") await this.notifications.notify(e.holderUserId, "TICKET_ACTIVATED", {}, `/tickets/${e.ticketId}`);
+        if (e.to === "ACTIVE")
+          await this.notifications.notify(
+            e.holderUserId,
+            "TICKET_ACTIVATED",
+            {},
+            `/tickets/${e.ticketId}`,
+          );
       }),
-      this.events.on("ticket.transferred", (e) => this.ticketReceived(e.ticketId, e.fromUserId, e.toUserId)),
+      this.events.on("pass.child_boarded", async (e) => {
+        await this.notifications.notify(
+          e.userId,
+          "CHILD_BOARDED",
+          { child: e.child, routeEn: e.routeEn, routeTe: e.routeTe, departureAt: e.at },
+          "/passes",
+        );
+      }),
+      this.events.on("ticket.transferred", (e) =>
+        this.ticketReceived(e.ticketId, e.fromUserId, e.toUserId),
+      ),
     );
   }
 
@@ -41,35 +57,57 @@ export class NotificationsSubscriber implements OnModuleInit, OnModuleDestroy {
       where: { id: bookingId },
       include: {
         passengers: { select: { seatNo: true }, orderBy: { seatNo: "asc" } },
-        trip: { include: { route: { include: { routeStops: { select: { stopId: true, minutesFromOrigin: true } } } } } },
+        trip: {
+          include: {
+            route: {
+              include: { routeStops: { select: { stopId: true, minutesFromOrigin: true } } },
+            },
+          },
+        },
       },
     });
     if (!booking) {
       this.logger.warn(`booking.confirmed for unknown booking ${bookingId}`);
       return;
     }
-    const minutes = booking.trip.route.routeStops.find((rs) => rs.stopId === booking.boardingStopId)?.minutesFromOrigin ?? 0;
+    const minutes =
+      booking.trip.route.routeStops.find((rs) => rs.stopId === booking.boardingStopId)
+        ?.minutesFromOrigin ?? 0;
     await this.notifications.notify(
       booking.userId,
       "BOOKING_CONFIRMED",
       {
         routeEn: booking.trip.route.nameEn,
         routeTe: booking.trip.route.nameTe,
-        departureAt: new Date(booking.trip.scheduledDepartureAt.getTime() + minutes * MS_PER_MIN).toISOString(),
+        departureAt: new Date(
+          booking.trip.scheduledDepartureAt.getTime() + minutes * MS_PER_MIN,
+        ).toISOString(),
         seat: booking.passengers.map((p) => p.seatNo).join(", "),
       },
       ticketIds.length === 1 ? `/tickets/${ticketIds[0]}` : "/tickets",
     );
   }
 
-  private async ticketReceived(ticketId: string, fromUserId: string, toUserId: string): Promise<void> {
+  private async ticketReceived(
+    ticketId: string,
+    fromUserId: string,
+    toUserId: string,
+  ): Promise<void> {
     const [ticket, sender] = await Promise.all([
-      this.prisma.ticket.findUnique({ where: { id: ticketId }, include: { route: { select: { nameEn: true, nameTe: true } } } }),
-      this.prisma.user.findUnique({ where: { id: fromUserId }, select: { name: true, phone: true, email: true } }),
+      this.prisma.ticket.findUnique({
+        where: { id: ticketId },
+        include: { route: { select: { nameEn: true, nameTe: true } } },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: fromUserId },
+        select: { name: true, phone: true, email: true },
+      }),
     ]);
     if (!ticket) return;
     // Never the sender's full phone or email (docs/12)
-    const senderName = sender?.name?.trim() || (sender?.phone ? maskPhone(sender.phone) : sender?.email ? maskEmail(sender.email) : "");
+    const senderName =
+      sender?.name?.trim() ||
+      (sender?.phone ? maskPhone(sender.phone) : sender?.email ? maskEmail(sender.email) : "");
     await this.notifications.notify(
       toUserId,
       "TICKET_RECEIVED",

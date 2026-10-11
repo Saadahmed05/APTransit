@@ -25,6 +25,8 @@ export interface TripContext {
     hasOpenIncident: boolean;
   };
   route: { id: string; code: string; nameEn: string; nameTe: string; distanceKm: number; polyline: string; depotId: string; depotCode: string; districtId: string };
+  /** The state of the route's district (D-034): its id for the state room, its box for GPS trust. */
+  state: StateGeo;
   stops: ContextStop[];
   /** The open assignment (endedAt null), if any. */
   assignment: { id: string; busId: string; busRegNo: string; driverId: string; driverUserId: string } | null;
@@ -89,13 +91,31 @@ export function displayStatusOf(trip: Pick<TripContext["trip"], "status" | "dela
 }
 
 export function roomsOf(context: TripContext): LiveRooms {
-  return { tripId: context.trip.id, routeId: context.route.id, depotId: context.route.depotId, districtId: context.route.districtId };
+  return {
+    tripId: context.trip.id,
+    routeId: context.route.id,
+    depotId: context.route.depotId,
+    districtId: context.route.districtId,
+    stateId: context.state.id,
+  };
 }
+
+export interface StateGeo {
+  id: string;
+  minLat: number;
+  minLng: number;
+  maxLat: number;
+  maxLng: number;
+}
+
+/** States change only through a migration or the seed; a short cache keeps pings off the database. */
+const STATE_CACHE_MS = 5 * 60_000;
 
 /** Loads a trip with its route, stops, depot and open assignment. Route geometry is cached per route. */
 @Injectable()
 export class TripContextService {
   private readonly geometries = new Map<string, { polyline: string; geometry: RouteGeometry }>();
+  private readonly states = new Map<string, { at: number; state: StateGeo }>();
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -103,6 +123,7 @@ export class TripContextService {
     const trip = (await this.prisma.trip.findUnique({ where: { id: tripId }, include: TRIP_INCLUDE })) as unknown as LoadedTrip | null;
     if (!trip) throw new AppError("NOT_FOUND", "Trip not found");
     const assignment = trip.assignments[0];
+    const state = await this.stateOf(trip.route.depot.districtId);
     return {
       trip: {
         id: trip.id,
@@ -128,6 +149,7 @@ export class TripContextService {
         depotCode: trip.route.depot.code,
         districtId: trip.route.depot.districtId,
       },
+      state,
       stops: trip.route.routeStops.map((rs) => ({
         stopId: rs.stopId,
         seq: rs.seq,
@@ -142,6 +164,19 @@ export class TripContextService {
         ? { id: assignment.id, busId: assignment.bus.id, busRegNo: assignment.bus.regNo, driverId: assignment.driver.id, driverUserId: assignment.driver.userId }
         : null,
     };
+  }
+
+  /** The state of a district with its bounding box, cached per district. */
+  async stateOf(districtId: string, now = Date.now()): Promise<StateGeo> {
+    const cached = this.states.get(districtId);
+    if (cached && now - cached.at < STATE_CACHE_MS) return cached.state;
+    const district = await this.prisma.district.findUnique({
+      where: { id: districtId },
+      select: { state: { select: { id: true, minLat: true, minLng: true, maxLat: true, maxLng: true } } },
+    });
+    if (!district?.state) throw new AppError("NOT_FOUND", "State of the district not found");
+    this.states.set(districtId, { at: now, state: district.state });
+    return district.state;
   }
 
   geometry(context: TripContext): RouteGeometry {

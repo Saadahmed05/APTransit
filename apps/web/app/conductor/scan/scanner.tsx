@@ -200,15 +200,21 @@ export function ConductorScanner() {
       />
     );
   const context = result?.context;
+  // D-035: the ticket's own stop for the segment reasons
+  const segmentStop =
+    result?.reason === "PAST_DESTINATION" ? context?.ticketTo : result?.reason === "BEFORE_BOARDING_STOP" ? context?.ticketFrom : undefined;
   const helpers = {
     time:
       result?.reason === "ALREADY_SCANNED" && result.earlierScanAt
         ? formatTime(result.earlierScanAt, locale)
         : result?.reason === "WRONG_TRIP" && context?.departureAt
           ? formatTime(context.departureAt, locale)
-          : context?.validUntil
-            ? formatTime(context.validUntil, locale)
-            : t("unavailable"),
+          : result?.reason === "NOT_YET_VALID" && context?.validFrom
+            ? formatTime(context.validFrom, locale)
+            : context?.validUntil
+              ? formatTime(context.validUntil, locale)
+              : t("unavailable"),
+    stop: segmentStop ? (locale === "te" ? segmentStop.nameTe : segmentStop.nameEn) : t("unavailable"),
     route: context?.route ?? t("unavailable"),
     date: context?.serviceDate ? formatDate(context.serviceDate, locale) : t("unavailable"),
     services:
@@ -390,6 +396,9 @@ export function ConductorScanner() {
           )}
           <p className="text-display">{root(status.i18nKey)}</p>
           <p className="text-h2">{t("reasons." + result.reason + ".line")}</p>
+          {result.group && (
+            <p className="text-h2 tabular-nums">{t("groupBoarded", { boarded: result.group.boarded, size: result.group.size })}</p>
+          )}
           <p>{t("reasons." + result.reason + ".helper", helpers)}</p>
           {result.ticket && (
             <dl className="flex flex-col gap-3 text-h2">

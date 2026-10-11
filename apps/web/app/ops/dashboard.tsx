@@ -13,7 +13,7 @@ import { useLocale, useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { useMe } from "../../components/auth-provider";
 import { can } from "@aptransit/shared";
-import { useOpsFilters, useOpsLive, useOpsQuery } from "../../lib/ops";
+import { useOpsBounds, useOpsFilters, useOpsLive, useOpsQuery } from "../../lib/ops";
 import { OpsEmpty, OpsError, useOpsWrite, WriteError } from "./ops-common";
 const OpsMap = dynamic(() => import("@aptransit/ui/map-view").then((m) => m.OpsMap), {
   ssr: false,
@@ -26,6 +26,7 @@ export default function OpsDashboard() {
     me = useMe(),
     { depotId } = useOpsFilters();
   useOpsLive(depotId);
+  const bounds = useOpsBounds();
   const trips = useOpsQuery("/ops/trips", z.array(OpsTripDto), { depotId });
   const kpi = useOpsQuery("/ops/dashboard", OpsDashboardDto, { depotId }),
     buses = useOpsQuery("/tracking/live", z.array(LiveBusDto), { depotId }),
@@ -76,6 +77,7 @@ export default function OpsDashboard() {
             <Skeleton className="h-tracking-map w-full" />
           ) : buses.data.length ? (
             <OpsMap
+              bounds={bounds}
               buses={buses.data}
               mapStyle={
                 process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/liberty"

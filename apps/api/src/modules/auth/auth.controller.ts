@@ -4,22 +4,13 @@ import {
   type MeDto,
   OtpRequestInput,
   type OtpRequestResponse,
+  GoogleSignInInput,
   OtpVerifyInput,
   UpdateMeInput,
 } from "@aptransit/shared";
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Patch,
-  Post,
-  Req,
-  Res,
-} from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post, Req, Res } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { SkipThrottle } from "@nestjs/throttler";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import type { AuthenticatedUser } from "../../common/auth/auth.types";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -118,6 +109,25 @@ export class AuthController {
       accessToken: result.accessToken,
       user: result.user,
     };
+  }
+
+  /** D-043: Sign in with Google (ID token from Google Identity Services). 10 per IP per minute. */
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post("auth/google")
+  @HttpCode(HttpStatus.OK)
+  async google(
+    @Body(new ZodValidationPipe(GoogleSignInInput)) body: GoogleSignInInput,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthVerifyResponse> {
+    const result = await this.authService.googleSignIn(
+      body.credential,
+      req.ip ?? "127.0.0.1",
+      req.headers["user-agent"],
+    );
+    setRefreshTokenCookie(res, result.refreshToken, this.secureCookie);
+    return { accessToken: result.accessToken, user: result.user };
   }
 
   @Public()

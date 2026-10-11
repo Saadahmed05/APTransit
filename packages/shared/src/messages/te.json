@@ -43,6 +43,10 @@
     "COMPLAINT_UPDATE": {
       "title": "ఫిర్యాదు {code} అప్‌డేట్ అయింది",
       "body": "స్థితి: {status}."
+    },
+    "CHILD_BOARDED": {
+      "title": "{child} బస్సు ఎక్కారు",
+      "body": "{child} {time}కి {route} బస్సు ఎక్కారు."
     }
   },
   "email": {

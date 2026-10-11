@@ -64,11 +64,13 @@ describe("Auth endpoints and lifecycle", () => {
       },
       user: {
         findFirst: async ({ where }: any) => {
-          return users.find((u) => {
-            if (where.email && u.email?.toLowerCase() === where.email?.toLowerCase()) return true;
-            if (where.phone && u.phone === where.phone) return true;
-            return false;
-          }) ?? null;
+          return (
+            users.find((u) => {
+              if (where.email && u.email?.toLowerCase() === where.email?.toLowerCase()) return true;
+              if (where.phone && u.phone === where.phone) return true;
+              return false;
+            }) ?? null
+          );
         },
         findUnique: async ({ where }: any) => {
           return users.find((u) => u.id === where.id) ?? null;
@@ -440,14 +442,18 @@ describe("Auth endpoints and lifecycle", () => {
     expect(res.status).toBe(401);
     const cookie = (res.headers["set-cookie"] as unknown as string[])[0]!;
     expect(cookie).toMatch(/^apt_rt=;/);
-    const marker = (res.headers["set-cookie"] as unknown as string[]).find((c) => c.startsWith("apt_session="));
+    const marker = (res.headers["set-cookie"] as unknown as string[]).find((c) =>
+      c.startsWith("apt_session="),
+    );
     expect(marker).toMatch(/^apt_session=;.*Path=\//);
   });
 
   it("login sets the apt_session marker for the web guard (D-016)", async () => {
     const target = "marker@aptransit.test";
     const res = await verify(target, await requestCode(target));
-    const marker = (res.headers["set-cookie"] as unknown as string[]).find((c) => c.startsWith("apt_session="))!;
+    const marker = (res.headers["set-cookie"] as unknown as string[]).find((c) =>
+      c.startsWith("apt_session="),
+    )!;
     expect(marker).toMatch(/^apt_session=1;/);
     expect(marker).toContain("Path=/;");
     expect(marker).toContain("HttpOnly");
@@ -456,7 +462,9 @@ describe("Auth endpoints and lifecycle", () => {
   });
 
   it("refresh without a refresh cookie clears a stale marker", async () => {
-    const res = await request(app.getHttpServer()).post("/api/v1/auth/refresh").set("Cookie", "apt_session=1");
+    const res = await request(app.getHttpServer())
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", "apt_session=1");
     expect(res.status).toBe(401);
     const cookies = res.headers["set-cookie"] as unknown as string[];
     expect(cookies.some((c) => /^apt_session=;/.test(c))).toBe(true);
@@ -468,7 +476,9 @@ describe("Auth endpoints and lifecycle", () => {
     const cookie = (login.headers["set-cookie"] as unknown as string[])[0]!;
     users.find((u) => u.email === target).deletedAt = new Date();
 
-    const res = await request(app.getHttpServer()).post("/api/v1/auth/refresh").set("Cookie", cookie);
+    const res = await request(app.getHttpServer())
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", cookie);
     expect(res.status).toBe(401);
   });
 
@@ -477,5 +487,15 @@ describe("Auth endpoints and lifecycle", () => {
       .get("/api/v1/me")
       .set("Authorization", `Bearer ${accessToken}`);
     expect(res.headers["x-ratelimit-limit"]).toBe("120");
+  });
+
+  it("POST /auth/google validates the body and answers 403 when Google is not set up (D-043)", async () => {
+    const bad = await request(app.getHttpServer()).post("/api/v1/auth/google").send({});
+    expect(bad.status).toBe(400);
+    const off = await request(app.getHttpServer())
+      .post("/api/v1/auth/google")
+      .send({ credential: "x".repeat(40) });
+    expect(off.status).toBe(403);
+    expect(ErrorResponse.parse(off.body).error.code).toBe("FORBIDDEN");
   });
 });

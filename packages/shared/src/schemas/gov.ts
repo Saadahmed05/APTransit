@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { LiveBusDto, IncidentDto } from "./tracking";
 import { OpsTripDto } from "./ops";
+import { PublicId } from "./search";
 
 export const GovOverviewDto = z.object({
   activeBuses: z.number().int().nonnegative(),
@@ -108,3 +109,9 @@ export const GovDateQuery = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 export type GovDateQuery = z.infer<typeof GovDateQuery>;
+
+/** GET /gov/overview and /gov/map: one state, or everything in the caller's scope when absent (D-034). */
+export const GovStateQuery = GovDateQuery.extend({
+  stateId: PublicId.optional(),
+});
+export type GovStateQuery = z.infer<typeof GovStateQuery>;

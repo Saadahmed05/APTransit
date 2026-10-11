@@ -35,6 +35,7 @@ const prisma = createMemoryPrisma(
       assignments: () => [],
     },
     ticket: { trip: (t) => by("trip", t.tripId) },
+    depot: { district: (d) => by("district", d.districtId) },
     user: { userRoles: (u) => tables.userRole?.filter((r) => r.userId === u.id) },
     auditLog: {
       actorUser: (a) => ({
@@ -44,7 +45,7 @@ const prisma = createMemoryPrisma(
     },
   },
   {
-    userRole: { depotId: null, districtId: null },
+    userRole: { depotId: null, districtId: null, stateId: null },
     stop: { busStandId: null },
     timetable: { validTo: null },
     fareRule: { validTo: null },
@@ -53,7 +54,9 @@ const prisma = createMemoryPrisma(
     setting: { updatedById: null },
   },
 );
-const districtId = "districttest01",
+const stateId = "statetest0001",
+  otherStateId = "statetest0002",
+  districtId = "districttest01",
   depotId = "depottest0001",
   stop1 = "stoptest00001",
   stop2 = "stoptest00002",
@@ -97,7 +100,7 @@ describe("Day 14 admin HTTP", () => {
     configureHttpApp(app);
     await app.init();
     const auth = module.get(AuthService) as any;
-    admin = await auth.generateAccessToken("admintest0001", [{ role: "STATE_ADMIN" }]);
+    admin = await auth.generateAccessToken("admintest0001", [{ role: "STATE_ADMIN", stateId }]);
     root = await auth.generateAccessToken("roottest00001", [{ role: "SUPER_ADMIN" }]);
     manager = await auth.generateAccessToken("managertest01", [{ role: "DEPOT_MANAGER", depotId }]);
     citizen = await auth.generateAccessToken("citizentest01", [{ role: "CITIZEN" }]);
@@ -110,7 +113,11 @@ describe("Day 14 admin HTTP", () => {
       past = new Date(+now - 86400000),
       future = new Date(+now + 86400000);
     Object.assign(tables, {
-      district: [{ id: districtId, code: "TST", nameEn: "Test", nameTe: "Test" }],
+      state: [
+        { id: stateId, code: "AP" },
+        { id: otherStateId, code: "TG" },
+      ],
+      district: [{ id: districtId, code: "TST", nameEn: "Test", nameTe: "Test", stateId }],
       depot: [{ id: depotId, code: "TST", nameEn: "Test depot", nameTe: "Test depot", districtId }],
       busStand: [],
       busType: [
@@ -262,6 +269,7 @@ describe("Day 14 admin HTTP", () => {
           role: "SUPER_ADMIN",
           depotId: null,
           districtId: null,
+          stateId: null,
         },
         {
           id: "adminroletest1",
@@ -269,6 +277,7 @@ describe("Day 14 admin HTTP", () => {
           role: "STATE_ADMIN",
           depotId: null,
           districtId: null,
+          stateId,
         },
         {
           id: "managerrole01",
@@ -276,8 +285,30 @@ describe("Day 14 admin HTTP", () => {
           role: "DEPOT_MANAGER",
           depotId,
           districtId: null,
+          stateId: null,
         },
       ],
+      passType: [
+        {
+          id: "passtypeday00001",
+          kind: "DAY",
+          nameEn: "Day Pass",
+          nameTe: "Day te",
+          durationDays: 1,
+          validityMode: "UNTIL_DAY_END",
+          pricePaise: 12_000,
+          eligibleServiceTypes: ["EXPRESS"],
+          scheme: null,
+          groupSize: 1,
+          routeRestricted: false,
+          isDemo: true,
+          sortOrder: 1,
+          isActive: true,
+          stateId: null,
+        },
+      ],
+      // One sold DAY pass with its purchase time copy (D-036)
+      pass: [{ id: "passsold000001", passTypeId: "passtypeday00001", status: "READY", pricePaise: 12_000, durationDays: 1 }],
       fareRule: [
         {
           id: "fareruletest01",
@@ -321,7 +352,56 @@ describe("Day 14 admin HTTP", () => {
     request(app.getHttpServer())[method]("/api/v1/admin/" + path)
       .auth(token, { type: "bearer" })
       .send(body);
-  it.each(["stops", "routes", "timetables", "users", "fare-rules", "refund-policies", "settings"])(
+  describe("pass types (D-036)", () => {
+    const body = {
+      kind: "FAMILY",
+      nameEn: "Family Pass",
+      nameTe: "Family te",
+      durationDays: 7,
+      validityMode: "ROLLING_DAYS",
+      pricePaise: 100_000,
+      eligibleServiceTypes: ["EXPRESS"],
+      scheme: null,
+      groupSize: 4,
+      routeRestricted: false,
+      isDemo: true,
+      sortOrder: 4,
+      isActive: true,
+      stateId: null,
+    };
+
+    it("lists, creates and edits with policy:write and an audit row; sold passes keep their price", async () => {
+      expect((await get("pass-types", manager)).status).toBe(403);
+      const list = await get("pass-types").expect(200);
+      expect(list.body).toEqual([expect.objectContaining({ id: "passtypeday00001", pricePaise: 12_000, soldCount: 1 })]);
+
+      const edited = await write("patch", "pass-types/passtypeday00001", { pricePaise: 15_000, isDemo: false });
+      expect(edited.status, edited.text).toBe(200);
+      expect(edited.body).toMatchObject({ pricePaise: 15_000, isDemo: false, soldCount: 1 });
+      expect(tables.pass![0]).toMatchObject({ pricePaise: 12_000, durationDays: 1 });
+      expect(tables.auditLog!.find((a) => a.action === "pass_type.update")).toMatchObject({
+        entityId: "passtypeday00001",
+        before: expect.objectContaining({ pricePaise: 12_000 }),
+        after: expect.objectContaining({ pricePaise: 15_000 }),
+      });
+
+      const created = await write("post", "pass-types", body);
+      expect(created.status, created.text).toBe(201);
+      expect(created.body).toMatchObject({ kind: "FAMILY", groupSize: 4, soldCount: 0 });
+      expect(tables.auditLog!.map((a) => a.action)).toEqual(["pass_type.update", "pass_type.create"]);
+    });
+
+    it("refuses bad input and changes to kind, scheme or state", async () => {
+      expect((await write("patch", "pass-types/passtypeday00001", {})).status).toBe(400);
+      expect((await write("patch", "pass-types/passtypeday00001", { kind: "ANNUAL" })).status).toBe(400);
+      expect((await write("patch", "pass-types/passtypeday00001", { pricePaise: -1 })).status).toBe(400);
+      expect((await write("patch", "pass-types/passtypeday00001", { groupSize: 0 })).status).toBe(400);
+      expect((await write("post", "pass-types", { ...body, eligibleServiceTypes: [] })).status).toBe(400);
+      expect((await write("patch", "pass-types/missingpasstype1", { pricePaise: 1 })).status).toBe(404);
+      expect((await write("patch", "pass-types/passtypeday00001", { pricePaise: 1 }, manager)).status).toBe(403);
+    });
+  });
+  it.each(["stops", "routes", "timetables", "users", "fare-rules", "refund-policies", "settings", "pass-types"])(
     "enforces read permission matrix for %s",
     async (path) => {
       expect((await get(path, manager)).status).toBe(403);
@@ -459,11 +539,19 @@ describe("Day 14 admin HTTP", () => {
     expect(tables.auditLog).toHaveLength(1);
   });
   it("limits admin grants and revokes to super admin, validates scope and protects last role", async () => {
-    expect((await write("post", "users/citizentest01/roles", { role: "STATE_ADMIN" })).status).toBe(
+    expect((await write("post", "users/citizentest01/roles", { role: "STATE_ADMIN", stateId })).status).toBe(
       403,
     );
     expect((await write("post", "users/citizentest01/roles", { role: "DRIVER" })).status).toBe(400);
-    const r = await write("post", "users/citizentest01/roles", { role: "STATE_ADMIN" }, root);
+    // D-034: state roles need a state, and a state admin grants only inside their own state
+    expect((await write("post", "users/citizentest01/roles", { role: "STATE_ADMIN" }, root)).status).toBe(400);
+    expect((await write("post", "users/citizentest01/roles", { role: "TRANSPORT_OFFICER", stateId: otherStateId })).status).toBe(403);
+    const officer = await write("post", "users/citizentest01/roles", { role: "TRANSPORT_OFFICER", stateId });
+    expect(officer.status, officer.text).toBe(201);
+    expect(officer.body.stateId).toBe(stateId);
+    tables.userRole = tables.userRole!.filter((x) => x.id !== officer.body.id);
+    tables.auditLog = [];
+    const r = await write("post", "users/citizentest01/roles", { role: "STATE_ADMIN", stateId }, root);
     expect(r.status, r.text).toBe(201);
     expect((await write("delete", "users/citizentest01/roles/" + r.body.id)).status).toBe(403);
     expect((await write("delete", "users/citizentest01/roles/" + r.body.id, {}, root)).status).toBe(

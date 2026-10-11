@@ -1,3 +1,4 @@
+import { login, uniqueEmail } from "./helpers";
 import { expect, test } from "@playwright/test";
 
 /**
@@ -9,6 +10,8 @@ import { expect, test } from "@playwright/test";
 test.describe("E2E-1: Guest search journey", () => {
   test("home to search to bus details", async ({ page }) => {
     // 1. Land on the home page
+    // D-042: home needs login first
+    await login(page, uniqueEmail("home"));
     await page.goto("/");
     await expect(page).toHaveTitle(/AP TransitOS/);
 
@@ -73,9 +76,9 @@ test.describe("E2E-1: Guest search journey", () => {
       const busContent = page.getByTestId("bus-detail-content");
       await expect(busContent).toBeVisible({ timeout: 10_000 });
 
-      const bookBtn = page.getByRole("link", { name: /book ticket/i }).or(
-        page.getByRole("button", { name: /book ticket/i }),
-      );
+      const bookBtn = page
+        .getByRole("link", { name: /book ticket/i })
+        .or(page.getByRole("button", { name: /book ticket/i }));
       await expect(bookBtn).toBeVisible({ timeout: 5_000 });
 
       await page.goBack();
@@ -84,7 +87,10 @@ test.describe("E2E-1: Guest search journey", () => {
       expect(urlBack.searchParams.get("from")).toBeTruthy();
       expect(urlBack.searchParams.get("to")).toBeTruthy();
       expect(urlBack.searchParams.get("timeBand")).toBe("morning");
-      await expect(page.getByRole("button", { name: /morning/i })).toHaveAttribute("aria-pressed", "true");
+      await expect(page.getByRole("button", { name: /morning/i })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
     }
   });
 
@@ -99,8 +105,8 @@ test.describe("E2E-1: Guest search journey", () => {
     await morningChip.click();
 
     // URL should now contain timeBand=morning
-    await page.waitForFunction(() =>
-      new URL(window.location.href).searchParams.get("timeBand") === "morning",
+    await page.waitForFunction(
+      () => new URL(window.location.href).searchParams.get("timeBand") === "morning",
     );
     expect(new URL(page.url()).searchParams.get("timeBand")).toBe("morning");
   });

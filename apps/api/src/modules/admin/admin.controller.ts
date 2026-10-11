@@ -126,6 +126,23 @@ export class AdminController {
   ) {
     return S.AdminFareDto.parse(await this.service.fare(b, auditActorFromRequest(req)));
   }
+  /** D-036 pass catalog. Edits apply to new sales only; audited as pass_type.create and pass_type.update. */
+  @Get("pass-types") @Can("policy:write") async passTypes() {
+    return z.array(S.AdminPassTypeDto).parse(await this.service.passTypes());
+  }
+  @Post("pass-types") @Can("policy:write") async createPassType(
+    @Body(new ZodValidationPipe(S.AdminPassTypeInput)) b: S.AdminPassTypeInput,
+    @Req() req: Request,
+  ) {
+    return S.AdminPassTypeDto.parse(await this.service.createPassType(b, auditActorFromRequest(req)));
+  }
+  @Patch("pass-types/:id") @Can("policy:write") async patchPassType(
+    @Param("id", idPipe) id: string,
+    @Body(new ZodValidationPipe(S.AdminPassTypePatch)) b: S.AdminPassTypePatch,
+    @Req() req: Request,
+  ) {
+    return S.AdminPassTypeDto.parse(await this.service.updatePassType(id, b, auditActorFromRequest(req)));
+  }
   @Get("refund-policies") @Can("policy:write") async refunds() {
     return z.array(S.AdminRefundDto).parse(await this.service.refunds());
   }

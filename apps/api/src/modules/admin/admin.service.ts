@@ -12,6 +12,8 @@ import {
   type GenerateTripsInput,
   type GrantRoleInput,
   type AdminFareInput,
+  type AdminPassTypeInput,
+  type AdminPassTypePatch,
   type AdminRefundInput,
   type AdminSettingsInput,
   AdminTimetableInput as TimetableSchema,
@@ -19,6 +21,7 @@ import {
 import { Injectable } from "@nestjs/common";
 import type { AuthenticatedUser } from "../../common/auth/auth.types";
 import { AppError } from "../../common/errors/app-error";
+import { depotScopeWhere, isPlatformWide, wholeStates } from "../../common/services/scope.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma } from "../../generated/prisma/client";
 import type { LogAuditParams } from "../audit/audit.service";
@@ -305,11 +308,15 @@ export class AdminService {
         throw new AppError("VALIDATION_FAILED", "Depot not found");
       if (b.districtId && !(await tx.district.findUnique({ where: { id: b.districtId } })))
         throw new AppError("VALIDATION_FAILED", "District not found");
+      if (b.stateId && !(await tx.state.findUnique({ where: { id: b.stateId } })))
+        throw new AppError("VALIDATION_FAILED", "State not found");
+      await this.assertGrantScope(tx, user, b);
       const data = {
         userId,
         role: b.role,
         depotId: b.depotId ?? null,
         districtId: b.districtId ?? null,
+        stateId: b.stateId ?? null,
       };
       const existing = await tx.userRole.findFirst({ where: data });
       if (existing) return existing;
@@ -317,6 +324,19 @@ export class AdminService {
       await this.audit(tx, actor, "role.grant", "user_role", row.id, null, row);
       return row;
     });
+  }
+  /** A state admin grants roles only inside their own state (D-034); SUPER_ADMIN anywhere. */
+  private async assertGrantScope(tx: Prisma.TransactionClient, user: AuthenticatedUser, b: GrantRoleInput) {
+    if (isPlatformWide(user, "user:roles")) return;
+    const states = wholeStates(user, "user:roles") ?? [];
+    const inScope = b.stateId
+      ? states.includes(b.stateId)
+      : b.districtId
+        ? (await tx.district.count({ where: { id: b.districtId, stateId: { in: states } } })) > 0
+        : b.depotId
+          ? (await tx.depot.count({ where: { AND: [depotScopeWhere(user, "user:roles"), { id: b.depotId }] } })) > 0
+          : true;
+    if (!inScope) throw new AppError("FORBIDDEN", "This place is outside your state");
   }
   async revoke(user: AuthenticatedUser, userId: string, roleId: string, actor: Actor) {
     return this.write(async (tx) => {
@@ -363,6 +383,36 @@ export class AdminService {
       return timetableDto(row);
     });
   }
+  /** GET /admin/pass-types (D-036): every type, with how many passes were sold of it. */
+  async passTypes() {
+    const rows = await this.prisma.passType.findMany({ orderBy: [{ sortOrder: "asc" }, { pricePaise: "asc" }] });
+    return Promise.all(rows.map(async (row) => ({ ...row, soldCount: await this.soldCount(this.prisma, row.id) })));
+  }
+  async createPassType(b: AdminPassTypeInput, actor: Actor) {
+    return this.write(async (tx) => {
+      if (b.stateId && !(await tx.state.findUnique({ where: { id: b.stateId } })))
+        throw new AppError("VALIDATION_FAILED", "State not found");
+      const row = await tx.passType.create({ data: b });
+      await this.audit(tx, actor, "pass_type.create", "pass_type", row.id, null, row);
+      return { ...row, soldCount: 0 };
+    });
+  }
+  /**
+   * PATCH /admin/pass-types/:id. Applies to new sales only: every sold pass carries its own copy of
+   * price, duration, mode, services and group size (D-036).
+   */
+  async updatePassType(id: string, b: AdminPassTypePatch, actor: Actor) {
+    return this.write(async (tx) => {
+      const before = await tx.passType.findUnique({ where: { id } });
+      if (!before) throw new AppError("NOT_FOUND", "Pass type not found");
+      const row = await tx.passType.update({ where: { id }, data: b });
+      await this.audit(tx, actor, "pass_type.update", "pass_type", id, before, row);
+      return { ...row, soldCount: await this.soldCount(tx, id) };
+    });
+  }
+  private soldCount(db: Pick<Tx, "pass">, passTypeId: string) {
+    return db.pass.count({ where: { passTypeId, status: { notIn: ["PENDING_PAYMENT", "CANCELLED"] } } });
+  }
   async refunds() {
     return (await this.prisma.refundPolicy.findMany({ orderBy: { validFrom: "desc" } })).map(
       (r) => ({ ...r, validFrom: r.validFrom.toISOString() }),
@@ -400,14 +450,22 @@ export class AdminService {
   }
   async auditLogs(user: AuthenticatedUser, q: AdminQuery) {
     const roles = user.roles.filter((r) => can([r.role], "audit:read"));
-    const global = roles.some((r) =>
-      ["STATE_ADMIN", "SUPER_ADMIN", "TRANSPORT_OFFICER"].includes(r.role),
-    );
+    const platform = isPlatformWide(user, "audit:read");
+    const states = wholeStates(user, "audit:read") ?? [];
+    const global = platform || states.length > 0;
+    // A state role sees every entry except those about depots of another state (D-034)
+    const foreignDepots = platform || !states.length ? [] : await this.prisma.depot.findMany({ where: { district: { stateId: { notIn: states } } }, select: { id: true } });
     const districtIds = roles.flatMap(r => r.districtId ? [r.districtId] : []);
     const districtDepots = global || !districtIds.length ? [] : await this.prisma.depot.findMany({ where: { districtId: { in: districtIds } }, select: { id: true } });
     const depotIds = [...new Set([...roles.flatMap(r => r.depotId ? [r.depotId] : []), ...districtDepots.map(d => d.id)])];
     // Scope the audited entity itself. An actor can hold roles in several depots.
-    const scope: Prisma.AuditLogWhereInput = global ? {} : { OR: depotIds.flatMap(id => [
+    const byDepot = (ids: string[]) => ids.flatMap((id) => [
+      { after: { path: ["depotId"], equals: id } },
+      { before: { path: ["depotId"], equals: id } },
+    ]);
+    const scope: Prisma.AuditLogWhereInput = global
+      ? foreignDepots.length ? { NOT: { OR: byDepot(foreignDepots.map((d) => d.id)) } } : {}
+      : { OR: depotIds.flatMap(id => [
       { after: { path: ["depotId"], equals: id } },
       { before: { path: ["depotId"], equals: id } },
     ]) };

@@ -33,6 +33,14 @@ The full plan (113 sections) is a multi month program. In 20 days two developers
 | Notifications | In app inbox and email for booking, activation, delay, cancellation, pass expiry, complaint update | 43, 65 |
 | Quality | Unit, integration, Playwright e2e, a11y checks, staging deploy, GPS simulator | 78 to 81 |
 
+### Added in v3 (owner request, D-042 and D-043)
+
+- Login first with a bus opening animation, light blue and white theme.
+- Google Maps style home: From and To bars plus a stop map picker and "use my location".
+- Village journeys list village buses only (service fit). Long overnight journeys.
+- Single and group tickets (children under 12 at half fare), day, weekly, monthly and zone (one district) passes, child cards that message the parent on boarding.
+- Live QR rotates every 3 seconds. Passengers per stage on the ops trip page. Terms and conditions page. Sign in with Google.
+
 ## Out of scope (Phase 2 backlog)
 
 | Item | Why not now | Plan sec |

@@ -1,8 +1,8 @@
-import type { EligibilityCheckDto, EligibilityStatusDto, StreeShaktiCheckInput } from "@aptransit/shared";
+import type { EligibilityCheckDto, EligibilityScheme, EligibilityStatusDto, StreeShaktiCheckInput, StudentCheckInput } from "@aptransit/shared";
 import { Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService, type LogAuditParams } from "../audit/audit.service";
-import { ELIGIBILITY_PROVIDER, type EligibilityProvider } from "./eligibility-provider";
+import { ELIGIBILITY_PROVIDER, type EligibilityDecision, type EligibilityProvider } from "./eligibility-provider";
 
 type AuditActor = Pick<LogAuditParams, "actorUserId" | "actorRole" | "ip" | "userAgent">;
 
@@ -12,7 +12,7 @@ const MS_PER_DAY = 86_400_000;
 
 interface CheckRow {
   id: string;
-  scheme: "STREE_SHAKTI";
+  scheme: EligibilityScheme;
   result: "ELIGIBLE" | "NOT_ELIGIBLE";
   reasonCode: string | null;
   checkedAt: Date;
@@ -44,11 +44,28 @@ export class EligibilityService {
    * and never written anywhere, not even in the audit row.
    */
   async checkStreeShakti(userId: string, input: StreeShaktiCheckInput, actor: AuditActor, now = new Date()): Promise<EligibilityCheckDto> {
-    const decision = await this.provider.checkStreeShakti(input);
+    return this.record(userId, "STREE_SHAKTI", await this.provider.checkStreeShakti(input), actor, now);
+  }
+
+  /**
+   * POST /eligibility/student (D-036, school pass). Same storage rule: the declaration and the
+   * institution name go to the provider and are never written anywhere.
+   */
+  async checkStudent(userId: string, input: StudentCheckInput, actor: AuditActor, now = new Date()): Promise<EligibilityCheckDto> {
+    return this.record(userId, "STUDENT", await this.provider.checkStudent(input), actor, now);
+  }
+
+  private async record(
+    userId: string,
+    scheme: EligibilityScheme,
+    decision: EligibilityDecision,
+    actor: AuditActor,
+    now: Date,
+  ): Promise<EligibilityCheckDto> {
     const row = (await this.prisma.eligibilityCheck.create({
       data: {
         userId,
-        scheme: "STREE_SHAKTI",
+        scheme,
         provider: this.provider.name,
         result: decision.result,
         reasonCode: decision.reasonCode,
@@ -83,10 +100,10 @@ export class EligibilityService {
     return out;
   }
 
-  /** The newest Stree Shakti check. pass-rules decides whether it is still good. */
-  async current(userId: string): Promise<CheckRow | null> {
+  /** The newest check of a scheme (Stree Shakti by default). pass-rules decides whether it is still good. */
+  async current(userId: string, scheme: EligibilityScheme = "STREE_SHAKTI"): Promise<CheckRow | null> {
     return (await this.prisma.eligibilityCheck.findFirst({
-      where: { userId, scheme: "STREE_SHAKTI" },
+      where: { userId, scheme },
       orderBy: { checkedAt: "desc" },
     })) as CheckRow | null;
   }

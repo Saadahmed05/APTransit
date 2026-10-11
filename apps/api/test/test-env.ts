@@ -1,4 +1,5 @@
 import { generateKeyPairSync, randomBytes } from "node:crypto";
+import { PLATFORM_TIME_ZONE } from "@aptransit/shared";
 
 /** A complete, valid, fake environment for tests. Real secrets never appear in tests. */
 export function testEnv(overrides: Record<string, string> = {}): Record<string, string> {
@@ -26,7 +27,7 @@ export function testEnv(overrides: Record<string, string> = {}): Record<string, 
     PAYMENTS_FAKE: "0",
     WORKER: "0",
     BULLMQ_DRAIN_DELAY_SEC: "60",
-    TZ_DISPLAY: "Asia/Kolkata",
+    TZ_DISPLAY: PLATFORM_TIME_ZONE,
     ...overrides,
   };
 }

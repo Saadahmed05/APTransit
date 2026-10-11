@@ -92,6 +92,18 @@ enum PassKind {
   WEEKLY
   MONTHLY
   FREE_TRAVEL
+  DAY
+  FAMILY
+  SCHOOL
+  ANNUAL
+}
+
+/// How a pass's validity ends after activation (D-036).
+enum PassValidityMode {
+  /// activatedAt plus durationDays
+  ROLLING_DAYS
+  /// 23:59:59 IST of the activation day
+  UNTIL_DAY_END
 }
 
 enum PassStatus {
@@ -119,6 +131,23 @@ enum ScanReason {
   WRONG_TRIP
   WRONG_DATE
   SERVICE_NOT_ELIGIBLE
+  PAST_DESTINATION
+  BEFORE_BOARDING_STOP
+  NOT_YET_VALID
+  ROUTE_NOT_COVERED
+}
+
+/// Who verified a boarding (D-035). Door scanners arrive in P5.
+enum ValidatorKind {
+  CONDUCTOR
+  DOOR_SCANNER
+}
+
+/// Where the boarding stop came from (D-035). NONE skips every stop check.
+enum StopSource {
+  BUS_GPS
+  DEVICE_GPS
+  NONE
 }
 
 enum IncidentType {
@@ -174,10 +203,12 @@ enum NotificationType {
   ROUTE_UPDATE
   PASS_EXPIRING
   COMPLAINT_UPDATE
+  CHILD_BOARDED
 }
 
 enum EligibilityScheme {
   STREE_SHAKTI
+  STUDENT
 }
 
 enum EligibilityResult {
@@ -240,11 +271,14 @@ model UserRole {
   role       Role
   depotId    String?
   districtId String?
+  /// Set for STATE_ADMIN and TRANSPORT_OFFICER; SUPER_ADMIN is platform wide (D-034)
+  stateId    String?
   createdAt  DateTime  @default(now())
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   depot    Depot?    @relation(fields: [depotId], references: [id])
   district District? @relation(fields: [districtId], references: [id])
+  state    State?    @relation(fields: [stateId], references: [id])
 
   @@unique([userId, role, depotId, districtId])
   @@map("user_roles")
@@ -290,9 +324,39 @@ model Device {
   revokedAt     DateTime?
   createdAt     DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scans TicketScan[]
 
   @@map("devices")
+}
+
+/// Top of the network: State > District > Depot > Route > Bus > Trip (D-034). A new state is data.
+model State {
+  id          String   @id @default(cuid(2))
+  /// "AP", "TG"
+  code        String   @unique
+  nameEn      String
+  nameTe      String
+  /// Must equal the platform time zone until per state zones exist
+  timezone    String   @default("Asia/Kolkata")
+  /// Prefix for new depot, route and stop codes of this state
+  codePrefix  String
+  minLat      Float
+  minLng      Float
+  maxLat      Float
+  maxLng      Float
+  centerLat   Float
+  centerLng   Float
+  defaultZoom Int      @default(7)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  districts District[]
+  userRoles UserRole[]
+  passTypes PassType[]
+
+  @@map("states")
 }
 
 model District {
@@ -300,14 +364,17 @@ model District {
   code      String   @unique
   nameEn    String
   nameTe    String
+  stateId   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  state     State      @relation(fields: [stateId], references: [id])
   busStands BusStand[]
   depots    Depot[]
   stops     Stop[]
   userRoles UserRole[]
 
+  @@index([stateId])
   @@map("districts")
 }
 
@@ -374,6 +441,9 @@ model Stop {
   droppingBookings    Booking[]   @relation("DroppingStop")
   boardingTickets     Ticket[]    @relation("TicketBoardingStop")
   droppingTickets     Ticket[]    @relation("TicketDroppingStop")
+  scans               TicketScan[]
+  homePasses          Pass[]      @relation("PassHomeStop")
+  destPasses          Pass[]      @relation("PassDestStop")
 
   @@index([nameEn])
   @@index([nameTe])
@@ -483,6 +553,7 @@ model Bus {
   tripAssignments    TripAssignment[]
   gpsLocations       GpsLocation[]
   incidents          Incident[]
+  scans              TicketScan[]
 
   @@map("buses")
 }
@@ -728,27 +799,41 @@ model Ticket {
   @@map("tickets")
 }
 
+/// Every scan attempt; a VALID one is the boarding record (D-035).
 model TicketScan {
-  id          String     @id @default(cuid(2))
-  ticketId    String?
-  passId      String?
-  tripId      String
-  conductorId String
-  result      ScanResult
-  reason      ScanReason
-  scannedAt   DateTime   @default(now())
-  deviceTime  DateTime?
-  offline     Boolean    @default(false)
-  createdAt   DateTime   @default(now())
+  id            String        @id @default(cuid(2))
+  ticketId      String?
+  passId        String?
+  tripId        String
+  /// Null when a door scanner verified the boarding (P5)
+  conductorId   String?
+  result        ScanResult
+  reason        ScanReason
+  scannedAt     DateTime      @default(now())
+  deviceTime    DateTime?
+  offline       Boolean       @default(false)
+  busId         String?
+  stopId        String?
+  stopSource    StopSource    @default(NONE)
+  lat           Float?
+  lng           Float?
+  deviceId      String?
+  validatorKind ValidatorKind @default(CONDUCTOR)
+  createdAt     DateTime      @default(now())
 
-  ticket    Ticket?   @relation(fields: [ticketId], references: [id])
-  pass      Pass?     @relation(fields: [passId], references: [id])
-  trip      Trip      @relation(fields: [tripId], references: [id])
-  conductor Conductor @relation(fields: [conductorId], references: [id])
+  ticket    Ticket?    @relation(fields: [ticketId], references: [id])
+  pass      Pass?      @relation(fields: [passId], references: [id])
+  trip      Trip       @relation(fields: [tripId], references: [id])
+  conductor Conductor? @relation(fields: [conductorId], references: [id])
+  bus       Bus?       @relation(fields: [busId], references: [id])
+  stop      Stop?      @relation(fields: [stopId], references: [id])
+  device    Device?    @relation(fields: [deviceId], references: [id])
 
   @@index([tripId, scannedAt])
   @@index([ticketId])
   @@index([passId])
+  @@index([stopId, scannedAt])
+  @@index([busId, scannedAt])
   @@map("ticket_scans")
 }
 
@@ -773,30 +858,57 @@ model PassType {
   nameEn               String
   nameTe               String
   durationDays         Int
+  validityMode         PassValidityMode  @default(ROLLING_DAYS)
   pricePaise           Int
   eligibleServiceTypes ServiceType[]
   scheme               EligibilityScheme?
+  /// People one pass covers on the same trip (FAMILY 4)
+  groupSize            Int               @default(1)
+  /// Valid only on routes holding both the pass's home and destination stops (SCHOOL)
+  routeRestricted      Boolean           @default(false)
+  /// Placeholder price pending client confirmation (D-036); the web shows a "Demo price" chip
+  isDemo               Boolean           @default(false)
+  sortOrder            Int               @default(0)
+  /// D-042: valid only inside one district (the zone the buyer picks)
+  zoneScoped           Boolean           @default(false)
   isActive             Boolean           @default(true)
+  /// Null means sold in every state
+  stateId              String?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
+  state  State? @relation(fields: [stateId], references: [id])
   passes Pass[]
 
   @@map("pass_types")
 }
 
+/// Price, duration, mode, services and group size are copied from the pass type at purchase,
+/// so later pass type edits never change a sold pass (D-036).
 model Pass {
-  id                 String      @id @default(cuid(2))
-  code               String      @unique
-  userId             String
-  passTypeId         String
-  status             PassStatus  @default(PENDING_PAYMENT)
+  id                   String           @id @default(cuid(2))
+  code                 String           @unique
+  userId               String
+  passTypeId           String
+  status               PassStatus       @default(PENDING_PAYMENT)
+  pricePaise           Int
+  durationDays         Int
+  validityMode         PassValidityMode @default(ROLLING_DAYS)
+  eligibleServiceTypes ServiceType[]
+  groupSize            Int              @default(1)
+  /// Route restricted passes (SCHOOL): home stop and destination (institution) stop
+  homeStopId           String?
+  destStopId           String?
   activatedAt        DateTime?
   validFrom          DateTime?
   validUntil         DateTime?
   eligibilityCheckId String?
   paymentId          String?
   qrSecret           String
+  /// D-042: zone pass district, child card holder (the parent is userId and gets CHILD_BOARDED)
+  zoneDistrictId     String?
+  holderName         String?
+  holderAge          Int?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
@@ -804,6 +916,8 @@ model Pass {
   passType         PassType          @relation(fields: [passTypeId], references: [id])
   eligibilityCheck EligibilityCheck? @relation(fields: [eligibilityCheckId], references: [id])
   payment          Payment?          @relation(fields: [paymentId], references: [id])
+  homeStop         Stop?             @relation("PassHomeStop", fields: [homeStopId], references: [id])
+  destStop         Stop?             @relation("PassDestStop", fields: [destStopId], references: [id])
   scans            TicketScan[]
 
   @@map("passes")
@@ -959,6 +1073,8 @@ model Complaint {
 model DailyStats {
   id             String   @id @default(cuid(2))
   date           DateTime
+  /// Set on every row; the state row is the one with no district, depot or route (D-034)
+  stateId        String?
   districtId     String?
   depotId        String?
   routeId        String?
@@ -976,6 +1092,7 @@ model DailyStats {
   createdAt      DateTime @default(now())
 
   @@index([date, routeId])
+  @@index([date, stateId])
   @@map("daily_stats")
 }
 

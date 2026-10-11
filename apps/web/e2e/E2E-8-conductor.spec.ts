@@ -75,6 +75,9 @@ test("E2E-8 scanner reasons, duplicate debounce and manual live code", async ({
         departureAt: now,
         serviceDate: now.slice(0, 10),
         services: ["ORDINARY"],
+        // D-035 segment reasons name the ticket's own stops
+        ticketFrom: { nameEn: "Kurnool", nameTe: "కర్నూలు" },
+        ticketTo: { nameEn: "Nandyal", nameTe: "నంద్యాల" },
       },
       ...(reason === "OK"
         ? {
@@ -102,15 +105,20 @@ test("E2E-8 scanner reasons, duplicate debounce and manual live code", async ({
         .first(),
     ).toBeVisible();
     if (reason === "OK") await expect(page.getByText("Test Passenger")).toBeVisible();
+    if (reason === "PAST_DESTINATION") await expect(page.getByText("This ticket ends at Nandyal")).toBeVisible();
+    if (reason === "BEFORE_BOARDING_STOP") await expect(page.getByText("This ticket starts at Kurnool")).toBeVisible();
     await inject("fixture-" + reason);
     await page.getByRole("button", { name: "Tap anywhere to continue" }).click();
   }
-  expect(requests).toHaveLength(11);
+  // One request per reason: the second inject of each is debounced as a duplicate
+  const reasonCount = Object.keys(messages.conductorApp.reasons).length;
+  expect(requests).toHaveLength(reasonCount);
   expect(requests[0]).toMatchObject({ qr: "fixture-OK", tripId: "tripscanner001" });
   await page.getByRole("button", { name: "Enter ticket details" }).click();
   await inject("qr-during-manual-entry");
   await page.waitForTimeout(300);
-  expect(requests).toHaveLength(11);
+  // A QR seen while typing a manual entry is ignored
+  expect(requests).toHaveLength(reasonCount);
   await page.getByLabel("Ticket number", { exact: true }).fill("APT-1234-5678");
   await page.getByLabel("Live 8-character validation code").fill("ABCDEFG2");
   result = { result: "VALID", reason: "OK" };

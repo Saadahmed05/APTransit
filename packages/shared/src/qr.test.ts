@@ -1,26 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { buildQrContent, formatCode, parseQrContent, qrStep, rotatingCode, stepMessage } from "./qr";
+import {
+  buildQrContent,
+  formatCode,
+  parseQrContent,
+  qrStep,
+  rotatingCode,
+  stepMessage,
+} from "./qr";
 
 // Web Crypto, as the browser computes it (shared has no DOM or Node types, so type it here)
 interface SubtleLike {
-  importKey(format: "raw", key: Uint8Array, algorithm: object, extractable: boolean, usages: string[]): Promise<unknown>;
+  importKey(
+    format: "raw",
+    key: Uint8Array,
+    algorithm: object,
+    extractable: boolean,
+    usages: string[],
+  ): Promise<unknown>;
   sign(algorithm: string, key: unknown, data: Uint8Array): Promise<ArrayBuffer>;
 }
 const subtle = (globalThis as unknown as { crypto: { subtle: SubtleLike } }).crypto.subtle;
 const webHmac = async (key: Uint8Array, message: Uint8Array) => {
-  const cryptoKey = await subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const cryptoKey = await subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, [
+    "sign",
+  ]);
   return new Uint8Array(await subtle.sign("HMAC", cryptoKey, message));
 };
 const key = Uint8Array.from({ length: 32 }, (_, i) => i);
 
 describe("qr helpers (docs/07 section 4)", () => {
-  it("computes the 30 s step with the server clock offset", () => {
-    expect(qrStep(0)).toBe(0);
-    expect(qrStep(29_999)).toBe(0);
-    expect(qrStep(30_000)).toBe(1);
+  it("computes the step (period passed in) with the server clock offset", () => {
+    expect(qrStep(0, 0, 30)).toBe(0);
+    expect(qrStep(29_999, 0, 30)).toBe(0);
+    expect(qrStep(30_000, 0, 30)).toBe(1);
     // The device is 10 s behind the server
-    expect(qrStep(25_000, 10_000)).toBe(1);
-    expect(qrStep(1_784_046_720_000)).toBe(59_468_224);
+    expect(qrStep(25_000, 10_000, 30)).toBe(1);
+    expect(qrStep(1_784_046_720_000, 0, 30)).toBe(59_468_224);
   });
 
   it("encodes the step as 8 bytes big endian", () => {

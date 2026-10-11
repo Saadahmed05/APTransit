@@ -23,3 +23,6 @@ Everything from `docs/02-mvp-scope.md` (Out of scope, Stretch) that the 20 days 
 | 17 | Local business ads | Needs an admin review flow and an ads policy | M | 45, 74 |
 | 18 | Local events and places | Content work, not core transport | M | 46, 75 |
 | 19 | Dark mode polish beyond tokens | Charts and maps are readable today; illustrations and empty states can improve | S | 9 |
+| 20 | Per state time zones (v2 P2, D-034) | Every Indian state is IST today, so one `PLATFORM_TIME_ZONE` is enough; a state outside IST needs zone aware rollups, schedules and display | M | |
+| 21 | State admin screen (v2 P2, D-034) | States arrive by migration or seed; an admin screen must validate bounds and refuse a zone other than the platform zone | S | |
+| 22 | Future low cost bus tracking hardware, research (v2 journey plan) | Cheap tags could track buses without a driver phone; research only, no promise that it works like Apple Find My | M | |

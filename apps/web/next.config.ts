@@ -11,7 +11,12 @@ const nextConfig: NextConfig = {
   // Our rules live in the root AGENTS.md. Stop `next dev` from writing its own AGENTS.md and
   // CLAUDE.md into apps/web (they break pnpm check:dashes).
   agentRules: false,
-  transpilePackages: ["@aptransit/ui"],
+  // The web app reads @aptransit/shared from source so each page only bundles the schemas it
+  // imports. The compiled CommonJS in dist/ cannot be tree shaken (the API still uses it).
+  transpilePackages: ["@aptransit/ui", "@aptransit/shared"],
+  turbopack: {
+    resolveAlias: { "@aptransit/shared": "../../packages/shared/src/index.ts" },
+  },
   // docs: next/dist/docs/01-app/02-guides/progressive-web-apps.md. The worker is never cached by HTTP.
   async headers() {
     return [

@@ -5,6 +5,8 @@
 
 const MAP_ORIGIN = "https://tiles.openfreemap.org";
 const RAZORPAY = ["https://checkout.razorpay.com", "https://api.razorpay.com"];
+/** D-043: Sign in with Google (Google Identity Services script, button frame and its styles). */
+const GOOGLE = "https://accounts.google.com";
 
 /** http(s) origin plus its ws(s) twin, for the Socket.IO server. */
 function socketOrigins(wsUrl: string | undefined): string[] {
@@ -18,7 +20,10 @@ function socketOrigins(wsUrl: string | undefined): string[] {
   }
 }
 
-export function buildCsp(nonce: string, opts: { dev: boolean; wsUrl?: string; mapStyleUrl?: string }): string {
+export function buildCsp(
+  nonce: string,
+  opts: { dev: boolean; wsUrl?: string; mapStyleUrl?: string },
+): string {
   let mapOrigin = MAP_ORIGIN;
   try {
     if (opts.mapStyleUrl) mapOrigin = new URL(opts.mapStyleUrl).origin;
@@ -27,12 +32,26 @@ export function buildCsp(nonce: string, opts: { dev: boolean; wsUrl?: string; ma
   }
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
-    "script-src": ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...RAZORPAY.slice(0, 1), ...(opts.dev ? ["'unsafe-eval'"] : [])],
-    "style-src": ["'self'", "'unsafe-inline'"],
+    "script-src": [
+      "'self'",
+      `'nonce-${nonce}'`,
+      "'strict-dynamic'",
+      ...RAZORPAY.slice(0, 1),
+      `${GOOGLE}/gsi/client`,
+      ...(opts.dev ? ["'unsafe-eval'"] : []),
+    ],
+    "style-src": ["'self'", "'unsafe-inline'", `${GOOGLE}/gsi/style`],
     "img-src": ["'self'", "data:", "blob:", mapOrigin],
     "font-src": ["'self'", "data:"],
-    "connect-src": ["'self'", ...socketOrigins(opts.wsUrl), RAZORPAY[1]!, mapOrigin, ...(opts.dev ? ["ws:"] : [])],
-    "frame-src": RAZORPAY,
+    "connect-src": [
+      "'self'",
+      ...socketOrigins(opts.wsUrl),
+      RAZORPAY[1]!,
+      `${GOOGLE}/gsi/`,
+      mapOrigin,
+      ...(opts.dev ? ["ws:"] : []),
+    ],
+    "frame-src": [...RAZORPAY, `${GOOGLE}/gsi/`],
     "worker-src": ["'self'", "blob:"],
     "manifest-src": ["'self'"],
     "object-src": ["'none'"],

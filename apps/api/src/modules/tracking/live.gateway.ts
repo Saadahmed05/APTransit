@@ -15,26 +15,28 @@ import * as jose from "jose";
 import type { Namespace, Socket } from "socket.io";
 import type { AuthenticatedUser } from "../../common/auth/auth.types";
 import { DomainEventsService, type LiveRooms } from "../../common/events/domain-events.service";
+import { PLATFORM_ROLES, ScopeService, STATE_ROLES } from "../../common/services/scope.service";
 import type { Env } from "../../config/env";
 import { TrackingService } from "./tracking.service";
 
-/** docs/06 WebSocket: at most one bus:position per trip per 2 s, the state room one per 10 s. */
+/** docs/06 WebSocket: at most one bus:position per trip per 2 s, the state rooms one per 10 s. */
 export const POSITION_THROTTLE_MS = 2_000;
 export const STATE_THROTTLE_MS = 10_000;
 
-const STATE_ROLES: ReadonlySet<Role> = new Set(["TRANSPORT_OFFICER", "STATE_ADMIN", "SUPER_ADMIN"]);
-const DISTRICT_ROLES: ReadonlySet<Role> = new Set(["DISTRICT_OFFICER", ...STATE_ROLES]);
+const DISTRICT_ROLES: ReadonlySet<Role> = new Set(["DISTRICT_OFFICER", ...STATE_ROLES, ...PLATFORM_ROLES]);
 const OPS_ROLES: ReadonlySet<Role> = new Set(["DEPOT_STAFF", "DEPOT_MANAGER", ...DISTRICT_ROLES]);
 
 type SocketData = { user: AuthenticatedUser | null };
 type Ack = { ok: true } | { ok: false; error: "FORBIDDEN" | "VALIDATION_FAILED" };
 
 const roomList = (rooms: LiveRooms) => [`trip:${rooms.tripId}`, `route:${rooms.routeId}`, `depot:${rooms.depotId}`, `district:${rooms.districtId}`];
+/** The state room of a trip (D-034): state:{id}. Web and API deploy together for this name. */
+const stateRoom = (rooms: LiveRooms) => `state:${rooms.stateId}`;
 
 /**
  * Socket.IO namespace /live (docs/06, docs/13). The JWT in handshake auth is optional: anonymous
  * sockets may follow trips and routes; authenticated ones also join user:{id}. Depot, district and
- * state rooms need a scoped role. Emits come from domain events, so services never hold sockets.
+ * state:{id} rooms need a scoped role. Emits come from domain events, so services never hold sockets.
  */
 @WebSocketGateway({ namespace: "/live", cors: { origin: process.env.WEB_ORIGIN ?? "http://localhost:3000", credentials: true } })
 export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModuleInit, OnModuleDestroy {
@@ -51,6 +53,7 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
     config: ConfigService<Env, true>,
     private readonly events: DomainEventsService,
     private readonly tracking: TrackingService,
+    private readonly scope: ScopeService,
     @Optional() private readonly ops?: OpsService,
   ) {
     this.jwtSecret = new TextEncoder().encode(config.get("JWT_SECRET", { infer: true }));
@@ -58,7 +61,7 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
 
   onModuleInit(): void {
     this.off.push(
-      this.events.on("incident.updated", ({rooms,...payload}) => this.emitTo(roomList(rooms).concat("state"), "incident:update", payload)),
+      this.events.on("incident.updated", ({rooms,...payload}) => this.emitTo(roomList(rooms).concat(stateRoom(rooms)), "incident:update", payload)),
       this.events.on("conductor.scan", e => this.emitTo(["trip:"+e.tripId], "conductor:counts", e)),
     );
     this.kpiTimer = setInterval(() => { void this.pushKpis(); }, 15_000);
@@ -66,9 +69,9 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
     this.off.push(
       this.events.on("notification.created", (e) => this.emitTo([`user:${e.userId}`], "notification:new", e.notification)),
       this.events.on("bus.position", (event) => this.emitPosition(event)),
-      this.events.on("trip.status", ({ rooms, ...payload }) => this.emitTo([...roomList(rooms).filter((r) => !r.startsWith("route:")), "state"], "trip:status", payload)),
+      this.events.on("trip.status", ({ rooms, ...payload }) => this.emitTo([...roomList(rooms).filter((r) => !r.startsWith("route:")), stateRoom(rooms)], "trip:status", payload)),
       this.events.on("incident.created", ({ rooms, ...payload }) =>
-        this.emitTo([`trip:${rooms.tripId}`, `depot:${rooms.depotId}`, `district:${rooms.districtId}`, "state"], "incident:new", payload),
+        this.emitTo([`trip:${rooms.tripId}`, `depot:${rooms.depotId}`, `district:${rooms.districtId}`, stateRoom(rooms)], "incident:new", payload),
       ),
       this.events.on("ticket.status", (e) => this.emitTo([`user:${e.holderUserId}`], "ticket:status", { ticketId: e.ticketId, status: e.to })),
     );
@@ -82,13 +85,16 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
   async pushKpis(): Promise<void> {
     if (!this.ops || !this.server || this.kpiBusy) return;
     const rooms = [...(this.server.adapter?.rooms?.entries() ?? [])]
-      .filter(([room,members]) => members.size > 0 && (room.startsWith("depot:") || room === "state"))
+      .filter(([room,members]) => members.size > 0 && (room.startsWith("depot:") || room.startsWith("state:")))
       .map(([room]) => room);
     if (!rooms.length) return;
     this.kpiBusy = true;
     try {
       for (const room of rooms) {
-        const values = await this.ops.dashboard({id:"socket-kpi-service",roles:[{role:"STATE_ADMIN"}]}, room==="state"?{}:{depotId:room.slice(6)});
+        // A state room gets that state's totals, a depot room its depot
+        const values = room.startsWith("state:")
+          ? await this.ops.dashboard({ id: "socket-kpi-service", roles: [{ role: "STATE_ADMIN", stateId: room.slice(6) }] }, {})
+          : await this.ops.dashboard({ id: "socket-kpi-service", roles: [{ role: "SUPER_ADMIN" }] }, { depotId: room.slice(6) });
         this.emitTo([room], "kpi:update", {scope:room,values});
       }
     } catch { this.logger.warn("KPI update failed"); }
@@ -149,9 +155,16 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
     if (room.startsWith("trip:") || room.startsWith("route:")) return true;
     if (!user) return false;
     const roles = user.roles;
-    if (room === "state") return roles.some((r) => STATE_ROLES.has(r.role));
     const [kind, id] = room.split(":") as [string, string];
-    if (kind === "district") return roles.some((r) => STATE_ROLES.has(r.role) || (r.role === "DISTRICT_OFFICER" && r.districtId === id));
+    if (kind === "state") return roles.some((r) => PLATFORM_ROLES.has(r.role) || (STATE_ROLES.has(r.role) && r.stateId === id));
+    if (kind === "district") {
+      try {
+        await this.scope.assertDistrictAccess({ ...user, roles: roles.filter((r) => DISTRICT_ROLES.has(r.role)) }, id);
+        return true;
+      } catch {
+        return false;
+      }
+    }
     if (kind === "depot") {
       if (!roles.some((r) => OPS_ROLES.has(r.role))) return false;
       try {
@@ -164,7 +177,7 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
     return false;
   }
 
-  /** bus:position to trip, route, depot and district at most every 2 s per trip, state every 10 s. */
+  /** bus:position to trip, route, depot and district at most every 2 s per trip, state:{id} every 10 s. */
   private emitPosition({ rooms, ...payload }: BusPositionEvent & { rooms: LiveRooms }): void {
     const now = Date.now();
     const tripId = rooms.tripId;
@@ -174,7 +187,7 @@ export class LiveGateway implements OnGatewayInit, OnGatewayConnection, OnModule
     }
     if (now - (this.lastStatePosition.get(tripId) ?? 0) >= STATE_THROTTLE_MS) {
       this.lastStatePosition.set(tripId, now);
-      this.emitTo(["state"], "bus:position", payload);
+      this.emitTo([stateRoom(rooms)], "bus:position", payload);
     }
   }
 

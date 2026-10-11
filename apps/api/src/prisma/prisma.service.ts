@@ -13,7 +13,13 @@ import { PrismaClient } from "../generated/prisma/client";
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
   constructor(config: ConfigService<Env, true>) {
     super({
-      adapter: new PrismaPg({ connectionString: config.get("DATABASE_URL", { infer: true }) }),
+      // pg waits forever for a connection by default. A cold Neon branch can take a few seconds
+      // to wake, so allow 15 s and then fail instead of hanging every request behind it.
+      adapter: new PrismaPg({
+        connectionString: config.get("DATABASE_URL", { infer: true }),
+        connectionTimeoutMillis: 15_000,
+        idleTimeoutMillis: 30_000,
+      }),
     });
   }
 

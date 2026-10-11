@@ -33,7 +33,6 @@ export * from "./components/route-progress";
 
 export * from "./components/data-table";
 export * from "./components/kpi-tile";
-export * from "./components/map-view";
 export * from "./components/bottom-nav";
 export * from "./components/status-chip";
 export * from "./components/result-splash";

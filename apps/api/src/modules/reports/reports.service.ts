@@ -2,7 +2,7 @@ import { formatIstDate, formatIstTime, type ReportKind } from "@aptransit/shared
 import { Injectable } from "@nestjs/common";
 import type { AuthenticatedUser } from "../../common/auth/auth.types";
 import { PrismaService } from "../../prisma/prisma.service";
-import { type AnalyticsScope, AnalyticsService } from "../analytics/analytics.service";
+import { type AnalyticsScope, AnalyticsService, complaintScopeOf } from "../analytics/analytics.service";
 import { csvLine, rupees } from "./csv-helper";
 
 const PAGE = 2000;
@@ -84,7 +84,7 @@ export class ReportsService {
     }
   }
 
-  /** Complaints created in the range. Statewide roles also see complaints without a depot. */
+  /** Complaints created in the range. State and platform roles also see complaints without a depot. */
   private async *complaints(scope: AnalyticsScope, start: Date, end: Date): AsyncGenerator<string> {
     yield csvLine([
       "Complaint code", "Created (IST)", "Category", "Status", "Depot", "Route code", "Bus", "Travel date", "Message",
@@ -93,7 +93,7 @@ export class ReportsService {
     let cursor: string | undefined;
     for (;;) {
       const page = await this.prisma.complaint.findMany({
-        where: { createdAt: { gte: start, lt: end }, ...(scope.all ? {} : { depotId: { in: scope.depotIds } }) },
+        where: { createdAt: { gte: start, lt: end }, ...complaintScopeOf(scope) },
         include: { depot: { select: { nameEn: true } } },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         take: PAGE,

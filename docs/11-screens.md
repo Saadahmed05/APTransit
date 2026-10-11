@@ -7,7 +7,8 @@
 | Route | Purpose | Key elements | Empty state | Day |
 | --- | --- | --- | --- | --- |
 | `/` | Home (plan sec 6) | Question "Where do you want to go?", From, To, swap, date chips, Search buses. Quick actions: Track bus, My tickets, My passes, Timetable. Updates strip (max 2 items) | No updates: hide the strip | 4 |
-| `/login` | Log in (sec 7) | Email or phone tabs, Send code, OTP boxes, resend timer, `?next=` redirect | | 4 |
+| `/` (v3, D-042) | Home after login | Login first: `/` needs a session. Google Maps style: From and To bars, swap, date, Search, then "Pick on the map" (MapLibre, every stop a dot, tap for "Set as from" or "Set as to"), "Use my location" (nearest stop as From), and a keyboard list of nearby stops | "No stops found here." | v3 |
+| `/login` | Log in (sec 7) | Bus splash on load, Sign in with Google (D-043, hidden without a client id), "or", email or phone tabs, Send code, OTP boxes, resend timer, `?next=` redirect | | 4 |
 | `/search` | Results (sec 8) | Sticky summary (From to To, date, edit), time filter chips (Morning, Afternoon, Evening, Night), TripCard list | "No buses for this date." Buttons: Next day, Change route | 5 |
 | `/bus/[tripId]` | Bus details (sec 9) | Service type, bus number, departure, arrival, fare, seats left, live status, boarding points, stops. Actions: Book ticket (primary), Track bus, View route | | 5 |
 | `/timetable` | Drill down (sec 10) | District list, then bus stand, then routes. Breadcrumb | | 5 |
@@ -21,14 +22,17 @@
 | `/tickets/[id]/gift` | Gift (sec 21) | Recipient phone or email, rules in one line, Confirm dialog | | 9 |
 | `/tickets/[id]/cancel` | Cancel | Refund quote, policy line, Cancel ticket (danger) | | 8 |
 | `/passes` | My passes (sec 16, 17) | Active pass with Countdown and QR, other passes, Buy pass | "No passes." Buy pass | 9 |
-| `/passes/buy` | Buy pass (sec 18) | Pass types as cards with price, validity, services. Select, then pay | | 9 |
+| `/passes/buy` | Buy pass (sec 18) | Pass types as cards with price, validity, services, zone badge. Zone passes ask for the district. "This pass is for my child" adds name and age (child card). Select, then pay | | 9 |
 | `/free-travel` | Free travel (sec 19) | Explainer, consent, declaration, ID type, result (eligible or reason), Activate pass | | 9 |
 | `/track` | Track entry | Enter ticket or pick from upcoming tickets, or search route | | 12 |
 | `/track/[tripId]` | Live tracking (sec 22 to 24) | Map (top half), RouteProgress (bottom sheet), next stop, ETA, delay chip, status badge, last updated time | Trip not started: "Tracking starts when the bus leaves {stop} at {time}." | 12 |
+| `/terms` | Terms and conditions (D-042) | Public. Tickets, groups, passes, child cards, live QR, refunds, conduct, data, account | | v3 |
 | `/updates` | Notifications inbox | Grouped by day, icon, title, body, time, unread dot, Mark all read | "You are all caught up." | 9 |
 | `/feedback` | Feedback (sec 40) | Email (prefilled when logged in), category chips, message, optional ticket, bus, route, date. Submit shows complaint code | | 17 |
 | `/feedback/status` | Complaint status (sec 41) | Code + email lookup, status timeline | | 17 |
-| `/account` | Account | Name, email, phone (masked), language, theme, role switcher (staff), Log out | | 4 |
+| `/account` | Account | Name, email, phone (masked), language, theme, role switcher (staff), Passes help and terms links, Log out | | 4 |
+
+Booking step 2 shows "Under 12 travels at half fare" under each age; step 3 shows adults, children and the child fare. Search shows "next day" arrivals on long journeys. The ops trip page (`/ops/trips/[id]`) adds a "Passengers per stage" table (booked, boarded, getting off per stop).
 
 ## Driver (mobile first, large targets)
 

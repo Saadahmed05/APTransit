@@ -1,4 +1,13 @@
-import type { ErrorCode, PassKind, PassStatus, ServiceType } from "@aptransit/shared";
+import {
+  type EligibilityScheme,
+  type ErrorCode,
+  formatIstDate,
+  localTimeToUtc,
+  type PassKind,
+  type PassStatus,
+  type PassValidityMode,
+  type ServiceType,
+} from "@aptransit/shared";
 import type { RuleResult } from "../tickets/ticket-rules";
 
 // docs/07 section 8, implemented once. Pure functions over UTC Dates; days come from settings.
@@ -24,34 +33,66 @@ export function passActivateBy(createdAt: Date, activateWithinDays: number): Dat
   return new Date(createdAt.getTime() + activateWithinDays * MS_PER_DAY);
 }
 
+/** 23:59:59 IST of the IST calendar day that holds `at`. */
+export function endOfIstDay(at: Date): Date {
+  return new Date(localTimeToUtc(formatIstDate(at), "00:00").getTime() + MS_PER_DAY - 1000);
+}
+
 /**
- * validFrom = activatedAt, validUntil = activatedAt + durationDays. A free travel pass never
- * outlives its eligibility check (docs/07 section 8: until the eligibility check expires).
+ * Validity starts at activation (D-036). ROLLING_DAYS: validUntil = activatedAt + durationDays
+ * (a weekly pass activated Sunday 12:00 runs to the next Sunday 12:00). UNTIL_DAY_END (DAY pass):
+ * 23:59:59 IST of the activation day. A scheme pass (free travel, school) never outlives its
+ * eligibility check.
  */
 export function passValidity(
   activatedAt: Date,
-  durationDays: number,
+  rule: { validityMode: PassValidityMode; durationDays: number },
   eligibilityExpiresAt?: Date | null,
 ): { validFrom: Date; validUntil: Date } {
-  const byDuration = activatedAt.getTime() + durationDays * MS_PER_DAY;
-  const until = eligibilityExpiresAt ? Math.min(byDuration, eligibilityExpiresAt.getTime()) : byDuration;
+  const end =
+    rule.validityMode === "UNTIL_DAY_END"
+      ? endOfIstDay(activatedAt).getTime()
+      : activatedAt.getTime() + rule.durationDays * MS_PER_DAY;
+  const until = eligibilityExpiresAt ? Math.min(end, eligibilityExpiresAt.getTime()) : end;
   return { validFrom: activatedAt, validUntil: new Date(until) };
 }
 
-/** A FREE_TRAVEL pass needs a current ELIGIBLE check. Paid kinds need nothing. */
+/**
+ * Buying a pass (D-036). A type with a scheme (FREE_TRAVEL: STREE_SHAKTI, SCHOOL: STUDENT) needs a
+ * current ELIGIBLE check of that scheme. A route restricted type needs a home and a destination stop.
+ * Only one open FREE_TRAVEL pass at a time.
+ */
 export function canCreatePass(
-  kind: PassKind,
+  type: { kind: PassKind; scheme: EligibilityScheme | null; routeRestricted: boolean },
   eligibility: { result: "ELIGIBLE" | "NOT_ELIGIBLE"; expiresAt: Date } | null,
   hasOpenFreeTravelPass: boolean,
+  hasStops: boolean,
   now: Date,
 ): RuleResult {
-  if (kind !== "FREE_TRAVEL") return OK;
-  if (!eligibility || eligibility.result !== "ELIGIBLE" || eligibility.expiresAt.getTime() <= now.getTime()) {
+  if (type.scheme && (!eligibility || eligibility.result !== "ELIGIBLE" || eligibility.expiresAt.getTime() <= now.getTime())) {
     return fail("ELIGIBILITY_REQUIRED");
   }
+  if (type.routeRestricted !== hasStops) return fail("VALIDATION_FAILED");
   // One free travel pass at a time: a READY or ACTIVE one already covers the citizen
-  if (hasOpenFreeTravelPass) return fail("PASS_ALREADY_ACTIVE");
+  if (type.kind === "FREE_TRAVEL" && hasOpenFreeTravelPass) return fail("PASS_ALREADY_ACTIVE");
   return OK;
+}
+
+/**
+ * Group passes (D-036): a pass may have at most groupSize VALID scans on one trip. groupSize 1 is
+ * the old "a pass is scanned once per trip" rule.
+ */
+export function passGroupFull(validScansOnTrip: number, groupSize: number): boolean {
+  return validScansOnTrip >= groupSize;
+}
+
+/** Route restricted pass (check 11a): the trip's route holds both of the pass's stops. */
+export function passRouteCovered(
+  pass: { homeStopId: string | null; destStopId: string | null },
+  routeStopIds: ReadonlySet<string>,
+): boolean {
+  if (!pass.homeStopId || !pass.destStopId) return true;
+  return routeStopIds.has(pass.homeStopId) && routeStopIds.has(pass.destStopId);
 }
 
 /** READY to ACTIVE: before activateBy, and no other ACTIVE pass of the same kind (one per kind per user). */

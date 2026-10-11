@@ -1,7 +1,17 @@
 "use client";
 
 import { MeDto, type Role, UpdateMeInput } from "@aptransit/shared";
-import { Button, Card, ErrorState, Field, Input, RadioGroup, RadioGroupItem, Skeleton, toast } from "@aptransit/ui";
+import {
+  Button,
+  Card,
+  ErrorState,
+  Field,
+  Input,
+  RadioGroup,
+  RadioGroupItem,
+  Skeleton,
+  toast,
+} from "@aptransit/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Download, LogOut } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -70,12 +80,16 @@ function AccountDetails({ me }: { me: MeDto }) {
         <dl className="grid gap-4 sm:grid-cols-2">
           <div className="min-w-0">
             <dt className="text-small text-muted">{t("account.profile.email")}</dt>
-            <dd className="truncate text-body text-fg">{me.email ?? t("account.profile.notAdded")}</dd>
+            <dd className="truncate text-body text-fg">
+              {me.email ?? t("account.profile.notAdded")}
+            </dd>
           </div>
           <div className="min-w-0">
             <dt className="text-small text-muted">{t("account.profile.phone")}</dt>
             {/* The API sends the phone already masked (docs/06 MeDto) */}
-            <dd className="text-body text-fg tabular-nums">{me.phone ?? t("account.profile.notAdded")}</dd>
+            <dd className="text-body text-fg tabular-nums">
+              {me.phone ?? t("account.profile.notAdded")}
+            </dd>
           </div>
         </dl>
       </Section>
@@ -95,10 +109,16 @@ function AccountDetails({ me }: { me: MeDto }) {
       <Section id="account-feedback" title={t("feedbackPage.title")}>
         <p className="text-body text-muted">{t("feedbackPage.accountHint")}</p>
         <div className="flex flex-wrap gap-3">
-          <Link href="/feedback" className="inline-flex min-h-11 items-center gap-2 text-primary underline-offset-4 hover:underline">
+          <Link
+            href="/feedback"
+            className="inline-flex min-h-11 items-center gap-2 text-primary underline-offset-4 hover:underline"
+          >
             {t("feedbackPage.giveFeedback")}
           </Link>
-          <Link href="/feedback/status" className="inline-flex min-h-11 items-center gap-2 text-primary underline-offset-4 hover:underline">
+          <Link
+            href="/feedback/status"
+            className="inline-flex min-h-11 items-center gap-2 text-primary underline-offset-4 hover:underline"
+          >
             {t("feedbackPage.haveCode")}
           </Link>
         </div>
@@ -122,6 +142,30 @@ function AccountDetails({ me }: { me: MeDto }) {
           </ul>
         </Section>
       ) : null}
+
+      {/* D-042: passes (daily, monthly, zone, child cards), help and the terms in one place */}
+      <Section title={t("account.more")} id="account-more">
+        <ul className="flex flex-col divide-y divide-hairline">
+          {(
+            [
+              ["/passes", "account.links.passes"],
+              ["/passes/buy", "account.links.childCard"],
+              ["/feedback", "account.links.help"],
+              ["/terms", "account.links.terms"],
+            ] as const
+          ).map(([href, key]) => (
+            <li key={href}>
+              <Link
+                href={href}
+                className="flex min-h-12 items-center justify-between gap-3 py-2 text-body text-fg hover:text-primary"
+              >
+                {t(key)}
+                <ArrowRight className="size-5 shrink-0 text-muted" aria-hidden="true" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Section>
 
       <Button
         variant="secondary"
@@ -147,7 +191,8 @@ function NameForm({ me }: { me: MeDto }) {
   const [error, setError] = useState<string | null>(null);
 
   const save = useMutation({
-    mutationFn: (input: UpdateMeInput) => api("/me", { method: "PATCH", body: input, schema: MeDto }),
+    mutationFn: (input: UpdateMeInput) =>
+      api("/me", { method: "PATCH", body: input, schema: MeDto }),
     onSuccess: (updated) => {
       queryClient.setQueryData(queryKeys.me, updated);
       toast.success(t("account.profile.saved"));
@@ -170,7 +215,12 @@ function NameForm({ me }: { me: MeDto }) {
 
   return (
     <form noValidate onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-start">
-      <Field id="account-name" label={t("account.profile.name")} error={error ?? undefined} className="min-w-0 flex-1">
+      <Field
+        id="account-name"
+        label={t("account.profile.name")}
+        error={error ?? undefined}
+        className="min-w-0 flex-1"
+      >
         <Input
           autoComplete="name"
           maxLength={100}
@@ -179,7 +229,13 @@ function NameForm({ me }: { me: MeDto }) {
           onChange={(event) => setName(event.currentTarget.value)}
         />
       </Field>
-      <Button type="submit" variant="primary" className="sm:mt-8" loading={save.isPending} disabled={unchanged}>
+      <Button
+        type="submit"
+        variant="primary"
+        className="sm:mt-8"
+        loading={save.isPending}
+        disabled={unchanged}
+      >
         {t("account.profile.saveName")}
       </Button>
     </form>
@@ -216,7 +272,12 @@ function ThemeChoice() {
       <span id="theme-label" className="text-body font-medium text-fg">
         {t("theme")}
       </span>
-      <RadioGroup value={theme} onValueChange={choose} aria-labelledby="theme-label" className="gap-1 sm:grid-cols-3">
+      <RadioGroup
+        value={theme}
+        onValueChange={choose}
+        aria-labelledby="theme-label"
+        className="gap-1 sm:grid-cols-3"
+      >
         {options.map((value) => (
           <label
             key={value}
@@ -240,7 +301,12 @@ function InstallApp() {
   return (
     <Section id="account-install" title={t("installTitle")}>
       <p className="text-body text-muted">{t("installHint")}</p>
-      <Button variant="secondary" className="self-start" leftIcon={<Download className="size-4" aria-hidden="true" />} onClick={() => void install()}>
+      <Button
+        variant="secondary"
+        className="self-start"
+        leftIcon={<Download className="size-4" aria-hidden="true" />}
+        onClick={() => void install()}
+      >
         {t("install")}
       </Button>
     </Section>

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { BusStatus, TicketStatus, TripStatus, IncidentStatus } from "./enums";
+import { PLATFORM_TIME_ZONE } from "./time";
 
 // One status system for the whole product. Source: docs/09-design-system.md (Status tones, Status labels)
 // and docs/07-ticket-and-pass-rules.md section 3. Colour is never the only signal: every status has
@@ -121,10 +122,10 @@ const COLOUR_BY_WEEKDAY: readonly { key: ColourOfDay; cssVar: string; i18nKey: s
   { key: "PINK", cssVar: "--day-sat", i18nKey: "colourOfDay.PINK" },
 ];
 
-const IST_WEEKDAY = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "Asia/Kolkata" });
+const IST_WEEKDAY = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: PLATFORM_TIME_ZONE });
 const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
-/** Colour of the day for ticket anti fraud, based on the weekday in Asia/Kolkata. */
+/** Colour of the day for ticket anti fraud, based on the weekday in IST. */
 export function colourOfDay(date: Date) {
   const weekday = WEEKDAY_INDEX[IST_WEEKDAY.format(date)];
   if (weekday === undefined) throw new Error("Could not resolve IST weekday");

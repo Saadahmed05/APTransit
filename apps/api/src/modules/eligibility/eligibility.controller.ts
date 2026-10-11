@@ -1,4 +1,4 @@
-import { type EligibilityCheckDto, type EligibilityStatusDto, StreeShaktiCheckInput } from "@aptransit/shared";
+import { type EligibilityCheckDto, type EligibilityStatusDto, StreeShaktiCheckInput, StudentCheckInput } from "@aptransit/shared";
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
@@ -24,6 +24,18 @@ export class EligibilityController {
     @Req() req: Request & { user?: AuthenticatedUser },
   ): Promise<EligibilityCheckDto> {
     return this.eligibility.checkStreeShakti(user.id, body, auditActorFromRequest(req));
+  }
+
+  /** D-036 school pass. Strict schema: no student ID number can reach the service. */
+  @Post("student")
+  @Throttle({ default: { limit: 10, ttl: 600_000 } })
+  @HttpCode(HttpStatus.OK)
+  student(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(StudentCheckInput)) body: StudentCheckInput,
+    @Req() req: Request & { user?: AuthenticatedUser },
+  ): Promise<EligibilityCheckDto> {
+    return this.eligibility.checkStudent(user.id, body, auditActorFromRequest(req));
   }
 
   @Get()

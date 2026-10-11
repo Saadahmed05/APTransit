@@ -1,7 +1,17 @@
 import { z } from "zod";
-import { ScanReason, TicketType } from "../enums";
+import { ScanReason, StopSource, TicketType } from "../enums";
 import { PublicId } from "./search";
 import { TripDto } from "./tracking";
+
+/** The scanning device's own position, used for the boarding stop when the bus GPS is stale (D-035). */
+export const ScanPosition = z
+  .object({
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    accuracyM: z.number().nonnegative().max(10_000).optional(),
+  })
+  .strict();
+export type ScanPosition = z.infer<typeof ScanPosition>;
 
 const QrValidationInput = z
   .object({
@@ -9,6 +19,7 @@ const QrValidationInput = z
     tripId: PublicId,
     deviceTime: z.string().datetime(),
     offline: z.literal(false).optional(),
+    position: ScanPosition.optional(),
   })
   .strict();
 export const ManualValidationInput = z
@@ -26,10 +37,13 @@ export const ManualValidationInput = z
     tripId: PublicId,
     deviceTime: z.string().datetime(),
     offline: z.literal(false).optional(),
+    position: ScanPosition.optional(),
   })
   .strict();
 export const ValidateTicketInput = z.union([QrValidationInput, ManualValidationInput]);
 export type ValidateTicketInput = z.infer<typeof ValidateTicketInput>;
+const StopNames = z.object({ nameEn: z.string(), nameTe: z.string() });
+
 export const ValidateTicketResult = z.object({
   result: z.enum(["VALID", "INVALID"]),
   reason: ScanReason,
@@ -41,8 +55,20 @@ export const ValidateTicketResult = z.object({
       departureAt: z.string().datetime().optional(),
       serviceDate: z.string().optional(),
       services: z.array(z.string()).optional(),
+      /** Pass: first valid moment (NOT_YET_VALID). */
+      validFrom: z.string().datetime().nullable().optional(),
+      /** Ticket: its own boarding and dropping stops (BEFORE_BOARDING_STOP, PAST_DESTINATION). */
+      ticketFrom: StopNames.optional(),
+      ticketTo: StopNames.optional(),
+      /** Where the bus is, from bus or device GPS; null when unknown (D-035). */
+      boardingStop: z
+        .object({ stopId: z.string(), nameEn: z.string(), nameTe: z.string(), source: StopSource })
+        .nullable()
+        .optional(),
     })
     .optional(),
+  /** Group passes (D-036): VALID boardings on this trip so far, including this one, of size. */
+  group: z.object({ boarded: z.number().int().nonnegative(), size: z.number().int().positive() }).optional(),
   ticket: z
     .object({
       passengerName: z.string(),

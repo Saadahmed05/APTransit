@@ -7,6 +7,7 @@ import {
   formatMoney,
   formatTime,
   type PlaceDto,
+  PLATFORM_TIME_ZONE,
   SearchTripsResponse,
   ServiceDateString,
   type TripSummaryDto,
@@ -43,7 +44,7 @@ type TimeBand = (typeof TIME_BANDS)[number];
 
 function getIstHour(isoString: string): number {
   const hour = Number.parseInt(
-    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "numeric", hour12: false }).format(
+    new Intl.DateTimeFormat("en-GB", { timeZone: PLATFORM_TIME_ZONE, hour: "numeric", hour12: false }).format(
       new Date(isoString),
     ),
     10,
@@ -284,7 +285,11 @@ export function SearchClient({
                 <DatePicker value={editDate} onChange={setEditDate} {...datePickerProps} />
               </div>
 
-              <Button type="submit" size="md" leftIcon={<Search className="size-4" aria-hidden="true" />}>
+              <Button
+                type="submit"
+                size="md"
+                leftIcon={<Search className="size-4" aria-hidden="true" />}
+              >
                 {t("search.cta")}
               </Button>
             </form>
@@ -307,7 +312,9 @@ export function SearchClient({
                     onClick={() => updateTimeBand(band)}
                     className={cn(
                       "flex min-h-11 items-center rounded-md px-3 text-left text-small transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                      active ? "bg-primary font-medium text-on-primary" : "bg-surface text-fg hover:bg-surface-raised",
+                      active
+                        ? "bg-primary font-medium text-on-primary"
+                        : "bg-surface text-fg hover:bg-surface-raised",
                     )}
                   >
                     {timeBandLabels[band]}
@@ -321,7 +328,11 @@ export function SearchClient({
         {/* Right Column: Results & Mobile Filter Chips */}
         <section aria-label={t("search.title")} className="flex flex-col gap-4 md:col-span-8">
           {/* Mobile Time Filter Chips */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:hidden" role="group" aria-label={t("search.filterByTime")}>
+          <div
+            className="flex items-center gap-2 overflow-x-auto pb-1 md:hidden"
+            role="group"
+            aria-label={t("search.filterByTime")}
+          >
             {TIME_BANDS.map((band) => {
               const active = timeBand === band;
               return (
@@ -402,9 +413,18 @@ export function SearchClient({
                 const serviceKey = `serviceType.${trip.serviceType}`;
                 const serviceName = t.has(serviceKey) ? t(serviceKey) : trip.serviceType;
                 const departure = formatTime(trip.departureAt, locale);
-                const arrival = formatTime(trip.arrivalAt, locale);
+                // D-042 long journeys: an arrival on a later IST date says so ("06:15, next day")
+                const nextDay =
+                  formatIstDate(new Date(trip.arrivalAt)) !==
+                  formatIstDate(new Date(trip.departureAt));
+                const arrival = nextDay
+                  ? t("search.nextDay", { time: formatTime(trip.arrivalAt, locale) })
+                  : formatTime(trip.arrivalAt, locale);
                 const fare = formatMoney(trip.farePaise, locale);
-                const seats = trip.seatsLeft > 0 ? t("common.seatsLeft", { count: trip.seatsLeft }) : t("search.full");
+                const seats =
+                  trip.seatsLeft > 0
+                    ? t("common.seatsLeft", { count: trip.seatsLeft })
+                    : t("search.full");
                 const statusKey = `status.${trip.displayStatus}`;
                 const statusLabel = t.has(statusKey) ? t(statusKey) : trip.displayStatus;
                 const destination = toName ?? t("common.destination");
@@ -415,7 +435,14 @@ export function SearchClient({
                     data-testid="trip-card"
                     linkAs={Link}
                     href={`/bus/${trip.tripId}?${new URLSearchParams({ from: fromId, to: toId }).toString()}`}
-                    label={t("search.tripCardLabel", { departure, service: serviceName, destination, arrival, seats, fare })}
+                    label={t("search.tripCardLabel", {
+                      departure,
+                      service: serviceName,
+                      destination,
+                      arrival,
+                      seats,
+                      fare,
+                    })}
                     departureTime={departure}
                     arrivalTime={arrival}
                     duration={formatDuration(trip.durationMin, locale)}

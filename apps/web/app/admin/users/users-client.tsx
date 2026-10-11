@@ -21,9 +21,10 @@ import {
   SelectItem,
   Skeleton,
 } from "@aptransit/ui";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useMe } from "../../../components/auth-provider";
 import { useAdminMutation, useAdminQuery } from "../../../lib/admin";
+import { useStates } from "../../../lib/gov";
 import { useOpsDepots } from "../../../lib/ops";
 import { OpsEmpty, OpsError, WriteError } from "../../ops/ops-common";
 import { Shield, Trash2, UserPlus, Users } from "lucide-react";
@@ -43,8 +44,10 @@ const ALL_ROLES: Role[] = [
 export default function UsersClient() {
   const t = useTranslations("adminApp");
   const common = useTranslations("common");
+  const locale = useLocale();
   const me = useMe();
   const depots = useOpsDepots();
+  const { states } = useStates();
 
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<AdminUserDto | null>(null);
@@ -53,6 +56,7 @@ export default function UsersClient() {
   const [roleToGrant, setRoleToGrant] = useState<Role>("DEPOT_STAFF");
   const [scopedDepotId, setScopedDepotId] = useState("");
   const [scopedDistrictId, setScopedDistrictId] = useState("");
+  const [scopedStateId, setScopedStateId] = useState("");
 
   const {
     data: users,
@@ -76,6 +80,10 @@ export default function UsersClient() {
 
   const isDepotScoped = ["DRIVER", "CONDUCTOR", "DEPOT_STAFF", "DEPOT_MANAGER"].includes(roleToGrant);
   const isDistrictScoped = roleToGrant === "DISTRICT_OFFICER";
+  // D-034: state roles name their state; a state admin may only grant inside their own state
+  const isStateScoped = ["STATE_ADMIN", "TRANSPORT_OFFICER"].includes(roleToGrant);
+  const myStateIds = (me.data?.roles ?? []).flatMap((r) => (r.stateId ? [r.stateId] : []));
+  const grantableStates = currentUserRoles.includes("SUPER_ADMIN") ? states : states.filter((s) => myStateIds.includes(s.id));
 
   const handleGrantRole = async () => {
     if (!selectedUser) return;
@@ -86,6 +94,7 @@ export default function UsersClient() {
         role: roleToGrant,
         depotId: isDepotScoped ? (scopedDepotId || depots.data?.[0]?.id) : undefined,
         districtId: isDistrictScoped ? (scopedDistrictId || "dist_knl") : undefined,
+        stateId: isStateScoped ? (scopedStateId || grantableStates[0]?.id) : undefined,
       },
     });
 
@@ -266,6 +275,21 @@ export default function UsersClient() {
                     {depots.data?.map((dp) => (
                       <SelectItem key={dp.id} value={dp.id}>
                         {dp.nameEn}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                </Field>
+              )}
+
+              {isStateScoped && (
+                <Field id="user-state" label={common("state")}>
+                  <Select
+                    value={scopedStateId || (grantableStates[0]?.id ?? "")}
+                    onValueChange={setScopedStateId}
+                  >
+                    {grantableStates.map((st) => (
+                      <SelectItem key={st.id} value={st.id}>
+                        {locale === "te" ? st.nameTe : st.nameEn}
                       </SelectItem>
                     ))}
                   </Select>

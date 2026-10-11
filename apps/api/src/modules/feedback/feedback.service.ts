@@ -11,7 +11,7 @@ import {
 import { Injectable } from "@nestjs/common";
 import type { AuthenticatedUser } from "../../common/auth/auth.types";
 import { AppError } from "../../common/errors/app-error";
-import { depotScopeWhere, isStatewide } from "../../common/services/scope.service";
+import { depotScopeWhere, isPlatformWide, wholeStates } from "../../common/services/scope.service";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService, type LogAuditParams } from "../audit/audit.service";
@@ -192,21 +192,26 @@ export class FeedbackService {
     return null;
   }
 
-  /** Depot scope for complaint:manage. Complaints without a depot are for statewide roles only. */
+  /**
+   * Depot scope for complaint:manage. Complaints without a depot have no place, so state and
+   * platform roles see them; depot and district roles do not.
+   */
   private scopeWhere(user: AuthenticatedUser): Prisma.ComplaintWhereInput {
     const depots = depotScopeWhere(user, "complaint:manage");
-    if (isStatewide(user, "complaint:manage")) return {};
+    if (isPlatformWide(user, "complaint:manage")) return {};
+    if (wholeStates(user, "complaint:manage")?.length) return { OR: [{ depot: depots }, { depotId: null }] };
     return { depot: depots };
   }
 
   /** The assignee must hold complaint:manage for the complaint's depot (or statewide). */
   private async assertAssignee(userId: string, depotId: string | null): Promise<void> {
-    const roles = await this.prisma.userRole.findMany({ where: { userId }, select: { role: true, depotId: true, districtId: true } });
+    const roles = await this.prisma.userRole.findMany({ where: { userId }, select: { role: true, depotId: true, districtId: true, stateId: true } });
     const assignee: AuthenticatedUser = { id: userId, roles };
     let allowed = false;
     try {
-      if (isStatewide(assignee, "complaint:manage")) allowed = true;
-      else if (depotId) {
+      if (isPlatformWide(assignee, "complaint:manage")) allowed = true;
+      else if (!depotId) allowed = Boolean(wholeStates(assignee, "complaint:manage")?.length);
+      else {
         allowed = (await this.prisma.depot.count({ where: { AND: [depotScopeWhere(assignee, "complaint:manage"), { id: depotId }] } })) > 0;
       }
     } catch {

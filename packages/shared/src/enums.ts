@@ -29,6 +29,14 @@ export const ServiceType = z.enum([
 ]);
 export type ServiceType = z.infer<typeof ServiceType>;
 
+/** D-042: services that stop in villages. A journey to or from a village stop lists only these. */
+export const VILLAGE_SERVICE_TYPES = [
+  "PALLEVELUGU",
+  "ULTRA_PALLEVELUGU",
+  "CITY_ORDINARY",
+  "METRO_EXPRESS",
+] as const satisfies readonly ServiceType[];
+
 export const BusStatus = z.enum(["IDLE", "RUNNING", "DELAYED", "BREAKDOWN", "MAINTENANCE"]);
 export type BusStatus = z.infer<typeof BusStatus>;
 
@@ -64,8 +72,12 @@ export type PaymentStatus = z.infer<typeof PaymentStatus>;
 export const RefundStatus = z.enum(["PENDING", "PROCESSED", "FAILED"]);
 export type RefundStatus = z.infer<typeof RefundStatus>;
 
-export const PassKind = z.enum(["WEEKLY", "MONTHLY", "FREE_TRAVEL"]);
+export const PassKind = z.enum(["WEEKLY", "MONTHLY", "FREE_TRAVEL", "DAY", "FAMILY", "SCHOOL", "ANNUAL"]);
 export type PassKind = z.infer<typeof PassKind>;
+
+/** D-036: ROLLING_DAYS ends durationDays after activation, UNTIL_DAY_END at 23:59:59 IST of that day. */
+export const PassValidityMode = z.enum(["ROLLING_DAYS", "UNTIL_DAY_END"]);
+export type PassValidityMode = z.infer<typeof PassValidityMode>;
 
 export const PassStatus = z.enum(["PENDING_PAYMENT", "READY", "ACTIVE", "EXPIRED", "CANCELLED"]);
 export type PassStatus = z.infer<typeof PassStatus>;
@@ -85,7 +97,20 @@ export const ScanReason = z.enum([
   "WRONG_TRIP",
   "WRONG_DATE",
   "SERVICE_NOT_ELIGIBLE",
+  // D-035 segment and validity checks (docs/07 section 5, 10a to 11a)
+  "PAST_DESTINATION",
+  "BEFORE_BOARDING_STOP",
+  "NOT_YET_VALID",
+  "ROUTE_NOT_COVERED",
 ]);
+
+/** Who verified a boarding (D-035). */
+export const ValidatorKind = z.enum(["CONDUCTOR", "DOOR_SCANNER"]);
+export type ValidatorKind = z.infer<typeof ValidatorKind>;
+
+/** Where the boarding stop came from (D-035). NONE skips every stop check. */
+export const StopSource = z.enum(["BUS_GPS", "DEVICE_GPS", "NONE"]);
+export type StopSource = z.infer<typeof StopSource>;
 export type ScanReason = z.infer<typeof ScanReason>;
 
 export const IncidentType = z.enum([
@@ -132,10 +157,11 @@ export const NotificationType = z.enum([
   "ROUTE_UPDATE",
   "PASS_EXPIRING",
   "COMPLAINT_UPDATE",
+  "CHILD_BOARDED",
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 
-export const EligibilityScheme = z.enum(["STREE_SHAKTI"]);
+export const EligibilityScheme = z.enum(["STREE_SHAKTI", "STUDENT"]);
 export type EligibilityScheme = z.infer<typeof EligibilityScheme>;
 
 export const EligibilityResult = z.enum(["ELIGIBLE", "NOT_ELIGIBLE"]);

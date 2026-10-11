@@ -2,7 +2,7 @@ import { formatIstDate, formatIstTime, localTimeToUtc } from "@aptransit/shared"
 import { describe, expect, it } from "vitest";
 import { FakeNetworkRepository, routeId, stopId } from "../../../test/network-fixture";
 import type { NetworkRepository, StopSearchRow } from "./network.repository";
-import { NetworkService, rankPlaces } from "./network.service";
+import { NetworkService, rankPlaces, villageFit } from "./network.service";
 import { medianGapMinutes } from "./trip-summary";
 
 const DATE = "2026-10-01";
@@ -14,7 +14,8 @@ function makeService(repo = new FakeNetworkRepository({ dates: [DATE] })) {
 
 describe("NetworkService.searchTrips", () => {
   const query = { from: stopId("KNL"), to: stopId("VJA"), date: DATE };
-  const times = (trips: { departureAt: string }[]) => trips.map((t) => formatIstTime(new Date(t.departureAt)));
+  const times = (trips: { departureAt: string }[]) =>
+    trips.map((t) => formatIstTime(new Date(t.departureAt)));
 
   it("closes booking 10 minutes before departure from the boarding stop", async () => {
     const { service } = makeService();
@@ -27,7 +28,10 @@ describe("NetworkService.searchTrips", () => {
   it("uses the boarding stop departure for the close check", async () => {
     const { service } = makeService();
     // The 05:30 bus leaves Nandyal at 06:45, so it is still bookable from Nandyal at 06:30
-    const trips = await service.searchTrips({ from: stopId("NDL"), to: stopId("VJA"), date: DATE }, at("06:30"));
+    const trips = await service.searchTrips(
+      { from: stopId("NDL"), to: stopId("VJA"), date: DATE },
+      at("06:30"),
+    );
     expect(times(trips)[0]).toBe("06:45");
   });
 
@@ -58,7 +62,8 @@ describe("NetworkService.searchTrips", () => {
   it("skips trips without a fare rule", async () => {
     const { repo, service } = makeService();
     const original = repo.tripRows.bind(repo);
-    repo.tripRows = async (args) => (await original(args)).map((r, i) => (i === 0 ? { ...r, fare: null } : r));
+    repo.tripRows = async (args) =>
+      (await original(args)).map((r, i) => (i === 0 ? { ...r, fare: null } : r));
     expect(await service.searchTrips(query, at("00:00"))).toHaveLength(5);
   });
 
@@ -81,13 +86,17 @@ describe("NetworkService.timetable", () => {
 
   it("has no next departure after the last bus", async () => {
     const { service } = makeService();
-    expect((await service.timetable(routeId("KNL-NDL-01"), DATE, at("21:01"))).nextDepartureAt).toBeNull();
+    expect(
+      (await service.timetable(routeId("KNL-NDL-01"), DATE, at("21:01"))).nextDepartureAt,
+    ).toBeNull();
   });
 
   it("keeps cancelled trips in the list but not in first, last or next", async () => {
     const { repo, service } = makeService();
     const route = routeId("KNL-VJA-01");
-    const first = repo.trips.find((t) => t.routeId === route && formatIstTime(new Date(t.departureMs)) === "05:30")!;
+    const first = repo.trips.find(
+      (t) => t.routeId === route && formatIstTime(new Date(t.departureMs)) === "05:30",
+    )!;
     first.status = "CANCELLED";
     const tt = await service.timetable(route, DATE, at("04:00"));
     expect(tt.trips).toHaveLength(6);
@@ -113,7 +122,9 @@ describe("NetworkService.timetable", () => {
     const { service } = makeService();
     // 20:00 UTC on 30 Sep is 01:30 IST on 1 Oct
     const now = new Date("2026-09-30T20:00:00Z");
-    expect((await service.timetable(routeId("KNL-VJA-01"), undefined, now)).date).toBe(formatIstDate(now));
+    expect((await service.timetable(routeId("KNL-VJA-01"), undefined, now)).date).toBe(
+      formatIstDate(now),
+    );
     expect(formatIstDate(now)).toBe(DATE);
   });
 });
@@ -130,10 +141,20 @@ describe("rankPlaces", () => {
 
   it("puts bus stands first, then prefix matches, then by name", () => {
     const ranked = rankPlaces(
-      [row("Mydukur", false), row("Urvakonda", false), row("Guntur Bus Stand", true), row("Anantapur Bus Stand", true)],
+      [
+        row("Mydukur", false),
+        row("Urvakonda", false),
+        row("Guntur Bus Stand", true),
+        row("Anantapur Bus Stand", true),
+      ],
       "ur",
     );
-    expect(ranked.map((r) => r.nameEn)).toEqual(["Anantapur Bus Stand", "Guntur Bus Stand", "Urvakonda", "Mydukur"]);
+    expect(ranked.map((r) => r.nameEn)).toEqual([
+      "Anantapur Bus Stand",
+      "Guntur Bus Stand",
+      "Urvakonda",
+      "Mydukur",
+    ]);
   });
 
   it("treats a Telugu prefix as a prefix match", () => {
@@ -152,5 +173,17 @@ describe("medianGapMinutes", () => {
   it("is null with fewer than two departures", () => {
     expect(medianGapMinutes([])).toBeNull();
     expect(medianGapMinutes(m(5))).toBeNull();
+  });
+});
+
+describe("villageFit (D-042)", () => {
+  const row = (serviceType: string, villageEnd: boolean) => ({ serviceType, villageEnd }) as never;
+  it("keeps only village buses for a village journey when there are any", () => {
+    const rows = [row("EXPRESS", true), row("PALLEVELUGU", true)];
+    expect(villageFit(rows)).toEqual([row("PALLEVELUGU", true)]);
+  });
+  it("falls back to every bus when no village bus serves the pair, and leaves bus stand pairs alone", () => {
+    expect(villageFit([row("EXPRESS", true)])).toHaveLength(1);
+    expect(villageFit([row("EXPRESS", false), row("PALLEVELUGU", false)])).toHaveLength(2);
   });
 });

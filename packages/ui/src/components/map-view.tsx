@@ -6,6 +6,7 @@ import { setWorkerUrl } from "maplibre-gl";
 import Map, { Layer, Marker, Source, type MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Button } from "./button";
+import { cn } from "../cn";
 import { StatusBadge } from "./status-badge";
 import type { LiveBusDto } from "@aptransit/shared";
 // The app serves the MapLibre worker from public/ (apps/web/scripts/copy-map-worker.mjs).
@@ -27,11 +28,21 @@ const themeRead = () => {
     .map((k) => css.getPropertyValue(k).trim())
     .join("|");
 };
+/** [minLng, minLat, maxLng, maxLat] of a state (GET /states, D-034). */
+export type MapBounds = [number, number, number, number];
+
+/** Used only until the state arrives from the API: the first state (Andhra Pradesh). */
+export const DEFAULT_MAP_BOUNDS: MapBounds = [76.7, 12.6, 84.8, 19.95];
+
+const centerOf = (b: MapBounds) => ({ lng: (b[0] + b[2]) / 2, lat: (b[1] + b[3]) / 2 });
+
 export interface MapMarker {
   id: string;
   lat: number;
   lng: number;
   label: string;
+  /** D-042 map picker: from and to pins stand out, other stops are small dots. */
+  tone?: "from" | "to" | "stop";
 }
 
 export interface MapViewProps {
@@ -43,11 +54,16 @@ export interface MapViewProps {
   markers?: MapMarker[];
   center?: { lat: number; lng: number };
   zoom?: number;
+  /** The state to show when there is no center, route or markers. */
+  bounds?: MapBounds;
   fitBounds?: boolean;
   mapStyle?: string;
   recenterLabel?: string;
   errorLabel?: string;
   retryLabel?: string;
+  /** D-042: makes markers tappable (the map picker). Keep a keyboard list next to the map too: the map is hidden from screen readers. */
+  onMarkerClick?: (id: string) => void;
+  className?: string;
 }
 
 export function MapView({
@@ -59,11 +75,14 @@ export function MapView({
   markers = [],
   center,
   zoom,
+  bounds = DEFAULT_MAP_BOUNDS,
   fitBounds: shouldFit = true,
   mapStyle = "https://tiles.openfreemap.org/styles/liberty",
   recenterLabel,
   errorLabel = "Map failed to load",
   retryLabel = "Retry",
+  onMarkerClick,
+  className,
 }: MapViewProps) {
   const ref = useRef<MapRef>(null);
   const [failed, setFailed] = useState(false);
@@ -99,7 +118,7 @@ export function MapView({
   const split =
     a && b
       ? [a[0]! + (b[0]! - a[0]!) * fraction, a[1]! + (b[1]! - a[1]!) * fraction]
-      : (coords[0] ?? [center?.lng ?? 78, center?.lat ?? 16]);
+      : (coords[0] ?? [center?.lng ?? centerOf(bounds).lng, center?.lat ?? centerOf(bounds).lat]);
   const line = (points: number[][]) => ({
     type: "Feature" as const,
     properties: {},
@@ -126,7 +145,12 @@ export function MapView({
     }
   };
   return (
-    <section className="relative h-tracking-map overflow-hidden rounded-lg border border-default bg-surface">
+    <section
+      className={cn(
+        "relative h-tracking-map overflow-hidden rounded-lg border border-default bg-surface",
+        className,
+      )}
+    >
       <div className="h-full w-full" aria-hidden="true">
         <Map
           key={attempt}
@@ -135,7 +159,7 @@ export function MapView({
           initialViewState={
             center
               ? { longitude: center.lng, latitude: center.lat, zoom: zoom ?? 12 }
-              : { bounds: [76.7, 12.6, 84.8, 19.95] }
+              : { bounds }
           }
           attributionControl={{ compact: false }}
           keyboard={false}
@@ -182,13 +206,36 @@ export function MapView({
             </>
           )}
           {markers.map((m) => (
-            <Marker key={m.id} longitude={m.lng} latitude={m.lat} anchor="bottom">
-              <span
-                className="flex size-7 items-center justify-center rounded-full bg-primary text-on-primary text-small font-bold shadow-md"
-                title={m.label}
-              >
-                *
-              </span>
+            <Marker
+              key={m.id}
+              longitude={m.lng}
+              latitude={m.lat}
+              anchor="bottom"
+              onClick={
+                onMarkerClick
+                  ? (e) => (e.originalEvent.stopPropagation(), onMarkerClick(m.id))
+                  : undefined
+              }
+            >
+              {m.tone === "stop" ? (
+                <span
+                  className="block size-4 cursor-pointer rounded-full border-2 border-surface-raised bg-primary shadow-md"
+                  title={m.label}
+                />
+              ) : (
+                <span
+                  className={cn(
+                    "flex size-7 items-center justify-center rounded-full text-small font-bold shadow-md",
+                    m.tone === "to"
+                      ? "bg-status-danger-solid text-on-solid"
+                      : "bg-primary text-on-primary",
+                    onMarkerClick && "cursor-pointer",
+                  )}
+                  title={m.label}
+                >
+                  {m.tone === "from" ? "A" : m.tone === "to" ? "B" : "*"}
+                </span>
+              )}
             </Marker>
           ))}
           {position && (
@@ -253,8 +300,10 @@ export interface OpsMapProps {
   };
   statusLabel: (status: LiveBusDto["displayStatus"]) => string;
   details: { tripId: string; route: string; driver: string | null }[];
+  /** The state shown before any bus has a position. */
+  bounds?: MapBounds;
 }
-export function OpsMap({ buses, mapStyle, labels, statusLabel, details }: OpsMapProps) {
+export function OpsMap({ buses, mapStyle, labels, statusLabel, details, bounds = DEFAULT_MAP_BOUNDS }: OpsMapProps) {
   const [selected, setSelected] = useState<string | null>(null),
     [failed, setFailed] = useState(false),
     [attempt, setAttempt] = useState(0);
@@ -280,12 +329,8 @@ export function OpsMap({ buses, mapStyle, labels, statusLabel, details }: OpsMap
   return (
     <section className="relative h-tracking-map overflow-hidden rounded-lg border border-default bg-surface">
       <Map
-        key={attempt}
-        initialViewState={{
-          latitude: buses[0]?.lat ?? 15.8,
-          longitude: buses[0]?.lng ?? 78.2,
-          zoom: 7,
-        }}
+        key={`${attempt}:${bounds.join(",")}`}
+        initialViewState={buses[0] ? { latitude: buses[0].lat, longitude: buses[0].lng, zoom: 7 } : { bounds }}
         mapStyle={mapStyle}
         onError={() => setFailed(true)}
         attributionControl={{ compact: true }}
@@ -331,7 +376,10 @@ const TONES = ["success", "info", "warning", "danger", "maintenance", "neutral"]
 /** Map paint cannot use classes: read the solid tone tokens (and the text on them) from CSS. */
 const toneRead = () => {
   const css = getComputedStyle(document.documentElement);
-  return [...TONES.map((tone) => css.getPropertyValue(`--${tone}-solid`)), css.getPropertyValue("--on-solid")]
+  return [
+    ...TONES.map((tone) => css.getPropertyValue(`--${tone}-solid`)),
+    css.getPropertyValue("--on-solid"),
+  ]
     .map((v) => v.trim())
     .join("|");
 };
@@ -364,6 +412,8 @@ export interface GovMapProps {
   mapStyle: string;
   /** Zooms to these districts (drill down); the whole state when not given. */
   focus?: { lat: number; lng: number; zoom: number };
+  /** The state (or states) to show when there is no focus. */
+  bounds?: MapBounds;
   onDistrict?: (id: string) => void;
   labels: { error: string; retry: string; legend: string };
 }
@@ -375,12 +425,15 @@ export interface GovMapProps {
  * get their own icon. Markers are pointer shortcuts; the district list next to the map is the keyboard
  * and screen reader route (pass onDistrict and render that list).
  */
-export function GovMap({ districts, buses, incidents, mapStyle, focus, onDistrict, labels }: GovMapProps) {
+export function GovMap({ districts, buses, incidents, mapStyle, focus, bounds = DEFAULT_MAP_BOUNDS, onDistrict, labels }: GovMapProps) {
   const [failed, setFailed] = useState(false),
     [attempt, setAttempt] = useState(0);
   const colors = useSyncExternalStore(themeSubscribe, toneRead, () => "||||||").split("|");
   const onSolid = colors[TONES.length] ?? "";
-  const color = Object.fromEntries(TONES.map((tone, i) => [tone, colors[i] ?? ""])) as Record<(typeof TONES)[number], string>;
+  const color = Object.fromEntries(TONES.map((tone, i) => [tone, colors[i] ?? ""])) as Record<
+    (typeof TONES)[number],
+    string
+  >;
   const most = Math.max(1, ...districts.map((d) => d.activeBuses));
   const busData = {
     type: "FeatureCollection" as const,
@@ -392,7 +445,10 @@ export function GovMap({ districts, buses, incidents, mapStyle, focus, onDistric
   };
   if (failed)
     return (
-      <div className="flex h-tracking-map flex-col items-center justify-center gap-4 rounded-lg border border-default bg-surface p-4" role="alert">
+      <div
+        className="flex h-tracking-map flex-col items-center justify-center gap-4 rounded-lg border border-default bg-surface p-4"
+        role="alert"
+      >
         <p>{labels.error}</p>
         <Button
           onClick={() => {
@@ -405,18 +461,28 @@ export function GovMap({ districts, buses, incidents, mapStyle, focus, onDistric
       </div>
     );
   return (
-    <section aria-label={labels.legend} className="relative h-tracking-map overflow-hidden rounded-lg border border-default bg-surface">
+    <section
+      aria-label={labels.legend}
+      className="relative h-tracking-map overflow-hidden rounded-lg border border-default bg-surface"
+    >
       <Map
-        key={attempt}
+        key={`${attempt}:${bounds.join(",")}`}
         mapStyle={mapStyle}
         initialViewState={
-          focus ? { latitude: focus.lat, longitude: focus.lng, zoom: focus.zoom } : { bounds: [76.7, 12.6, 84.8, 19.95] }
+          focus ? { latitude: focus.lat, longitude: focus.lng, zoom: focus.zoom } : { bounds }
         }
         attributionControl={{ compact: true }}
         onError={() => setFailed(true)}
       >
         {color.neutral && (
-          <Source id="gov-buses" type="geojson" data={busData} cluster clusterRadius={40} clusterMaxZoom={11}>
+          <Source
+            id="gov-buses"
+            type="geojson"
+            data={busData}
+            cluster
+            clusterRadius={40}
+            clusterMaxZoom={11}
+          >
             <Layer
               id="gov-bus-clusters"
               type="circle"
@@ -445,11 +511,16 @@ export function GovMap({ districts, buses, incidents, mapStyle, focus, onDistric
                 "circle-color": [
                   "match",
                   ["get", "tone"],
-                  "success", color.success,
-                  "warning", color.warning,
-                  "danger", color.danger,
-                  "maintenance", color.maintenance,
-                  "info", color.info,
+                  "success",
+                  color.success,
+                  "warning",
+                  color.warning,
+                  "danger",
+                  color.danger,
+                  "maintenance",
+                  color.maintenance,
+                  "info",
+                  color.info,
                   color.neutral,
                 ],
               }}
@@ -457,7 +528,12 @@ export function GovMap({ districts, buses, incidents, mapStyle, focus, onDistric
           </Source>
         )}
         {districts.map((d) => {
-          const size = d.activeBuses / most > 0.66 ? "size-14" : d.activeBuses / most > 0.33 ? "size-12" : "size-11";
+          const size =
+            d.activeBuses / most > 0.66
+              ? "size-14"
+              : d.activeBuses / most > 0.33
+                ? "size-12"
+                : "size-11";
           return (
             <Marker key={d.id} latitude={d.lat} longitude={d.lng} anchor="center">
               {/* Pointer shortcut only: markers can overlap, so keyboard and screen reader users get the
@@ -477,7 +553,10 @@ export function GovMap({ districts, buses, incidents, mapStyle, focus, onDistric
         })}
         {incidents.map((i) => (
           <Marker key={i.id} latitude={i.lat} longitude={i.lng} anchor="bottom">
-            <span title={i.label} className="flex size-8 items-center justify-center rounded-md bg-status-danger-solid text-on-solid shadow-md">
+            <span
+              title={i.label}
+              className="flex size-8 items-center justify-center rounded-md bg-status-danger-solid text-on-solid shadow-md"
+            >
               <TriangleAlert className="size-5" aria-hidden="true" />
               <span className="sr-only">{i.label}</span>
             </span>
@@ -494,8 +573,9 @@ const TONE_SOLID = {
   danger: "bg-status-danger-solid text-on-solid",
 } as const;
 
-const TONE_OF: Partial<Record<LiveBusDto["displayStatus"], (typeof TONES)[number]>> = Object.fromEntries(
-  Object.entries(STATUS_MAP).map(([key, value]) => [key, value.tone]),
-) as Partial<Record<LiveBusDto["displayStatus"], (typeof TONES)[number]>>;
+const TONE_OF: Partial<Record<LiveBusDto["displayStatus"], (typeof TONES)[number]>> =
+  Object.fromEntries(
+    Object.entries(STATUS_MAP).map(([key, value]) => [key, value.tone]),
+  ) as Partial<Record<LiveBusDto["displayStatus"], (typeof TONES)[number]>>;
 
 export default MapView;

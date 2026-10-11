@@ -1,6 +1,6 @@
 "use client";
 
-import { formatTime, TripDto } from "@aptransit/shared";
+import { formatTime, PLATFORM_TIME_ZONE, TripDto } from "@aptransit/shared";
 import { Button, Card, EmptyState, ErrorState, Skeleton, ToneChip } from "@aptransit/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bus, CalendarX, CircleCheck, Clock, LocateFixed, MapPinOff, ShieldAlert, Smartphone } from "lucide-react";
@@ -14,9 +14,9 @@ import { useNow } from "../../lib/use-browser-state";
 
 type LocationStep = "idle" | "explain" | "asking" | "denied";
 
-/** Hour of the day in Asia/Kolkata, for the greeting. */
+/** Hour of the day in IST, for the greeting. */
 function istHour(now: number): number {
-  return Number(new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hourCycle: "h23", timeZone: "Asia/Kolkata" }).format(new Date(now)));
+  return Number(new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hourCycle: "h23", timeZone: PLATFORM_TIME_ZONE }).format(new Date(now)));
 }
 
 export function DriverHome() {

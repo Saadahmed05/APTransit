@@ -580,6 +580,12 @@ export async function generateHistory(prisma: PrismaClient, days = 14, now = new
       code: codes.pass(),
       userId,
       passTypeId: type.id,
+      // The purchase time copy of the type (D-036)
+      pricePaise: type.pricePaise,
+      durationDays: type.durationDays,
+      validityMode: type.validityMode,
+      eligibleServiceTypes: type.eligibleServiceTypes,
+      groupSize: type.groupSize,
       status: validUntil < now ? "EXPIRED" : "ACTIVE",
       activatedAt: validFrom,
       validFrom,

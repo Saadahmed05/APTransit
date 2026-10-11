@@ -142,7 +142,8 @@ export default function TripDetailClient({ id }: { id: string }) {
             )}
           </div>
           <p className="text-muted">
-            {locale === "te" ? trip.routeNameTe : trip.routeNameEn} · {formatDate(trip.serviceDate, locale)}
+            {locale === "te" ? trip.routeNameTe : trip.routeNameEn} ·{" "}
+            {formatDate(trip.serviceDate, locale)}
           </p>
         </div>
 
@@ -193,7 +194,10 @@ export default function TripDetailClient({ id }: { id: string }) {
           <span className="text-small text-muted">{t("bus")}</span>
           <span className="text-body font-semibold">
             {trip.assignment?.busId ? (
-              <Link href={`/ops/buses/${trip.assignment.busId}`} className="text-primary hover:underline">
+              <Link
+                href={`/ops/buses/${trip.assignment.busId}`}
+                className="text-primary hover:underline"
+              >
                 {trip.assignment.busRegNo}
               </Link>
             ) : (
@@ -213,7 +217,9 @@ export default function TripDetailClient({ id }: { id: string }) {
               <div className="absolute -left-8 top-1 h-3 w-3 rounded-full bg-primary" />
               <div className="flex flex-col">
                 <span className="text-small font-semibold">{t("scheduled")}</span>
-                <span className="text-small text-muted">{formatTime(trip.scheduledDepartureAt)}</span>
+                <span className="text-small text-muted">
+                  {formatTime(trip.scheduledDepartureAt)}
+                </span>
               </div>
             </div>
 
@@ -223,7 +229,9 @@ export default function TripDetailClient({ id }: { id: string }) {
                 <div className="absolute -left-8 top-1 h-3 w-3 rounded-full bg-status-success-solid" />
                 <div className="flex flex-col">
                   <span className="text-small font-semibold">{t("departed")}</span>
-                  <span className="text-small text-muted">{formatTime(trip.actualDepartureAt)}</span>
+                  <span className="text-small text-muted">
+                    {formatTime(trip.actualDepartureAt)}
+                  </span>
                 </div>
               </div>
             )}
@@ -233,7 +241,9 @@ export default function TripDetailClient({ id }: { id: string }) {
               <div className="relative mb-6">
                 <div className="absolute -left-8 top-1 h-3 w-3 rounded-full bg-status-warning-solid" />
                 <div className="flex flex-col">
-                  <span className="text-small font-semibold text-status-warning">{t("replacementOccurred")}</span>
+                  <span className="text-small font-semibold text-status-warning">
+                    {t("replacementOccurred")}
+                  </span>
                   <span className="text-small text-muted">
                     {formatTime(trip.assignments[trip.assignments.length - 1]!.startedAt)}
                   </span>
@@ -246,9 +256,13 @@ export default function TripDetailClient({ id }: { id: string }) {
               <div className="relative">
                 <div className="absolute -left-8 top-1 h-3 w-3 rounded-full bg-status-success-solid" />
                 <div className="flex flex-col">
-                  <span className="text-small font-semibold text-status-success">{t("completed")}</span>
+                  <span className="text-small font-semibold text-status-success">
+                    {t("completed")}
+                  </span>
                   <span className="text-small text-muted">
-                    {trip.actualArrivalAt ? formatTime(trip.actualArrivalAt) : common("notAvailable")}
+                    {trip.actualArrivalAt
+                      ? formatTime(trip.actualArrivalAt)
+                      : common("notAvailable")}
                   </span>
                 </div>
               </div>
@@ -258,13 +272,60 @@ export default function TripDetailClient({ id }: { id: string }) {
               <div className="relative">
                 <div className="absolute -left-8 top-1 h-3 w-3 rounded-full bg-status-danger-solid" />
                 <div className="flex flex-col">
-                  <span className="text-small font-semibold text-status-danger">{t("cancelled")}</span>
+                  <span className="text-small font-semibold text-status-danger">
+                    {t("cancelled")}
+                  </span>
                 </div>
               </div>
             )}
           </div>
         </Card>
       </div>
+
+      {/* D-042: how many board and get off at each stage (stop) */}
+      {trip.stages && trip.stages.length > 0 ? (
+        <Card className="flex flex-col gap-3 p-4">
+          <h2 className="text-h2 text-fg">{t("stages.title")}</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-body">
+              <caption className="sr-only">{t("stages.title")}</caption>
+              <thead className="text-small text-muted">
+                <tr>
+                  <th scope="col" className="py-2 pr-3 font-medium">
+                    {t("stages.stop")}
+                  </th>
+                  <th scope="col" className="py-2 pr-3 text-right font-medium">
+                    {t("stages.booked")}
+                  </th>
+                  <th scope="col" className="py-2 pr-3 text-right font-medium">
+                    {t("stages.boarded")}
+                  </th>
+                  <th scope="col" className="py-2 text-right font-medium">
+                    {t("stages.alighting")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-hairline">
+                {trip.stages.map((s) => (
+                  <tr key={s.stopId}>
+                    <th scope="row" className="py-2 pr-3 font-normal text-fg">
+                      {locale === "te" ? s.nameTe : s.nameEn}
+                    </th>
+                    <td className="py-2 pr-3 text-right tabular-nums">{s.booked}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums font-semibold text-fg">
+                      {s.boarded}
+                    </td>
+                    <td className="py-2 text-right tabular-nums">{s.alighting}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-small text-muted">
+            {t("stages.passes", { count: trip.passBoardings ?? 0 })}
+          </p>
+        </Card>
+      ) : null}
 
       {/* Open Incidents */}
       {trip.incidents.length > 0 && (
@@ -304,9 +365,7 @@ export default function TripDetailClient({ id }: { id: string }) {
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>
           <DialogTitle>{t("cancelTrip")}</DialogTitle>
-          <DialogDescription>
-            {t("cancelWarning", { count: trip.passengers })}
-          </DialogDescription>
+          <DialogDescription>{t("cancelWarning", { count: trip.passengers })}</DialogDescription>
 
           <div className="flex flex-col gap-4 py-4">
             <Field id="trip-cancel-reason" label={t("cancellationReason")}>

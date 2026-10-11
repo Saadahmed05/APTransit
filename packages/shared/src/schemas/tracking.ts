@@ -195,8 +195,8 @@ export const TripStatusEvent = z.object({
 });
 export type TripStatusEvent = z.infer<typeof TripStatusEvent>;
 
-/** Rooms a client may ask for: trip:<id>, route:<id>, depot:<id>, district:<id>, state. */
-export const LiveRoom = z.string().regex(/^(?:(?:trip|route|depot|district):[a-z0-9]{8,40}|state)$/);
+/** Rooms a client may ask for: trip:<id>, route:<id>, depot:<id>, district:<id>, state:<id> (D-034). */
+export const LiveRoom = z.string().regex(/^(?:trip|route|depot|district|state):[a-z0-9]{8,40}$/);
 export const SubscribeInput = z.object({ room: LiveRoom });
 export type SubscribeInput = z.infer<typeof SubscribeInput>;
 

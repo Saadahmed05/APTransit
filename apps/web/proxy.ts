@@ -9,6 +9,8 @@ export const SESSION_COOKIE = "apt_session";
 
 /** Route prefixes that need a logged in user (permission checks happen in the page). */
 export const PROTECTED_PREFIXES = [
+  // D-042: the app opens on login first (exact "/" only; search, track and timetable stay public)
+  "/",
   "/book",
   "/tickets",
   "/passes",
@@ -23,7 +25,9 @@ export const PROTECTED_PREFIXES = [
 ] as const;
 
 export function needsLogin(pathname: string): boolean {
-  return PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  return PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
 export function proxy(request: NextRequest) {

@@ -43,6 +43,10 @@
     "COMPLAINT_UPDATE": {
       "title": "Complaint {code} updated",
       "body": "Status: {status}."
+    },
+    "CHILD_BOARDED": {
+      "title": "{child} boarded the bus",
+      "body": "{child} boarded {route} at {time}."
     }
   },
   "email": {

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { generateTicketCode } from "@aptransit/shared";
+import { generateTicketCode, splitGroupTotal } from "@aptransit/shared";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { sealSecret } from "../../common/crypto/secret-box";
@@ -12,7 +12,12 @@ import { AuditService } from "../audit/audit.service";
 import { holdKey, releaseSeats } from "../bookings/seat-holds";
 import { SEAT_TAKING_STATUSES } from "../network/network.repository";
 import { activationClosesAt, TICKET_SETTING_DEFAULTS } from "../tickets/ticket-rules";
-import { PAYMENT_PROVIDER, type PaymentProvider, type ProviderPayment, redactPaymentPayload } from "./payment-provider";
+import {
+  PAYMENT_PROVIDER,
+  type PaymentProvider,
+  type ProviderPayment,
+  redactPaymentPayload,
+} from "./payment-provider";
 
 export type ConfirmResult =
   | { outcome: "CONFIRMED"; bookingId: string; ticketIds: string[] }
@@ -49,7 +54,11 @@ export class BookingConfirmationService {
    * @param paymentRowId our payments.id
    * @param providerPayment the captured provider payment, already checked for order id and amount
    */
-  async confirmBooking(paymentRowId: string, providerPayment: ProviderPayment, now = new Date()): Promise<ConfirmResult> {
+  async confirmBooking(
+    paymentRowId: string,
+    providerPayment: ProviderPayment,
+    now = new Date(),
+  ): Promise<ConfirmResult> {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentRowId },
       include: {
@@ -59,7 +68,9 @@ export class BookingConfirmationService {
             passengers: { orderBy: { seatNo: "asc" } },
             trip: {
               include: {
-                route: { include: { routeStops: { select: { stopId: true, minutesFromOrigin: true } } } },
+                route: {
+                  include: { routeStops: { select: { stopId: true, minutesFromOrigin: true } } },
+                },
               },
             },
           },
@@ -81,20 +92,31 @@ export class BookingConfirmationService {
     const seatsOk = !paidTwice && (await this.seatsStillOurs(booking, seatNos));
 
     if (!seatsOk) {
-      return this.refundUnusable(payment.id, booking.id, providerPayment, paidTwice ? REFUND_REASON_DUPLICATE : REFUND_REASON_LATE);
+      return this.refundUnusable(
+        payment.id,
+        booking.id,
+        providerPayment,
+        paidTwice ? REFUND_REASON_DUPLICATE : REFUND_REASON_LATE,
+      );
     }
 
     const closesMinutes = await this.settingNumber("activation.closesMinutesAfter");
-    const boarding = booking.trip.route.routeStops.find((rs) => rs.stopId === booking.boardingStopId);
+    const boarding = booking.trip.route.routeStops.find(
+      (rs) => rs.stopId === booking.boardingStopId,
+    );
     const expiresAt = activationClosesAt(
       {
-        boardingDepartureAt: new Date(booking.trip.scheduledDepartureAt.getTime() + (boarding?.minutesFromOrigin ?? 0) * 60_000),
+        boardingDepartureAt: new Date(
+          booking.trip.scheduledDepartureAt.getTime() + (boarding?.minutesFromOrigin ?? 0) * 60_000,
+        ),
         delayMinutes: booking.trip.delayMinutes,
       },
       closesMinutes,
     );
-    const perPassenger = Math.floor(booking.totalPaise / booking.passengers.length);
-    const remainder = booking.totalPaise - perPassenger * booking.passengers.length;
+    const shares = splitGroupTotal(
+      booking.totalPaise,
+      booking.passengers.map((p) => p.age),
+    );
 
     let ticketIds: string[];
     try {
@@ -106,7 +128,11 @@ export class BookingConfirmationService {
           data: { status: "CONFIRMED" },
         });
         const clash = await tx.ticket.count({
-          where: { tripId: booking.tripId, seatNo: { in: seatNos }, status: { in: [...SEAT_TAKING_STATUSES] } },
+          where: {
+            tripId: booking.tripId,
+            seatNo: { in: seatNos },
+            status: { in: [...SEAT_TAKING_STATUSES] },
+          },
         });
         if (confirmed.count !== 1 || clash > 0) throw new SeatsGone();
 
@@ -126,7 +152,7 @@ export class BookingConfirmationService {
               boardingStopId: booking.boardingStopId,
               droppingStopId: booking.droppingStopId,
               seatNo: passenger.seatNo,
-              farePaise: perPassenger + (index === 0 ? remainder : 0),
+              farePaise: shares[index] ?? 0,
               expiresAt,
               qrSecret: sealSecret(randomBytes(32), this.qrSecretKey),
               giftable: true,
@@ -162,12 +188,20 @@ export class BookingConfirmationService {
    * FREE_TRAVEL ticket (farePaise 0, never giftable) without any payment. The caller has already
    * checked the active FREE_TRAVEL pass and the service type. Null when the seat went elsewhere.
    */
-  async confirmFreeTravel(bookingId: string): Promise<{ bookingId: string; ticketIds: string[] } | null> {
+  async confirmFreeTravel(
+    bookingId: string,
+  ): Promise<{ bookingId: string; ticketIds: string[] } | null> {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
         passengers: { orderBy: { seatNo: "asc" } },
-        trip: { include: { route: { include: { routeStops: { select: { stopId: true, minutesFromOrigin: true } } } } } },
+        trip: {
+          include: {
+            route: {
+              include: { routeStops: { select: { stopId: true, minutesFromOrigin: true } } },
+            },
+          },
+        },
       },
     });
     if (!booking || booking.totalPaise !== 0 || booking.passengers.length !== 1) {
@@ -175,10 +209,14 @@ export class BookingConfirmationService {
     }
     const passenger = booking.passengers[0]!;
     const closesMinutes = await this.settingNumber("activation.closesMinutesAfter");
-    const boarding = booking.trip.route.routeStops.find((rs) => rs.stopId === booking.boardingStopId);
+    const boarding = booking.trip.route.routeStops.find(
+      (rs) => rs.stopId === booking.boardingStopId,
+    );
     const expiresAt = activationClosesAt(
       {
-        boardingDepartureAt: new Date(booking.trip.scheduledDepartureAt.getTime() + (boarding?.minutesFromOrigin ?? 0) * 60_000),
+        boardingDepartureAt: new Date(
+          booking.trip.scheduledDepartureAt.getTime() + (boarding?.minutesFromOrigin ?? 0) * 60_000,
+        ),
         delayMinutes: booking.trip.delayMinutes,
       },
       closesMinutes,
@@ -187,9 +225,16 @@ export class BookingConfirmationService {
     let ticketId: string;
     try {
       ticketId = await this.prisma.$transaction(async (tx) => {
-        const confirmed = await tx.booking.updateMany({ where: { id: booking.id, status: "PENDING_PAYMENT" }, data: { status: "CONFIRMED" } });
+        const confirmed = await tx.booking.updateMany({
+          where: { id: booking.id, status: "PENDING_PAYMENT" },
+          data: { status: "CONFIRMED" },
+        });
         const clash = await tx.ticket.count({
-          where: { tripId: booking.tripId, seatNo: passenger.seatNo, status: { in: [...SEAT_TAKING_STATUSES] } },
+          where: {
+            tripId: booking.tripId,
+            seatNo: passenger.seatNo,
+            status: { in: [...SEAT_TAKING_STATUSES] },
+          },
         });
         if (confirmed.count !== 1 || clash > 0) throw new SeatsGone();
         const ticket = await tx.ticket.create({
@@ -217,7 +262,10 @@ export class BookingConfirmationService {
       });
     } catch (err) {
       if (err instanceof SeatsGone) {
-        await this.prisma.booking.updateMany({ where: { id: booking.id, status: "PENDING_PAYMENT" }, data: { status: "CANCELLED" } });
+        await this.prisma.booking.updateMany({
+          where: { id: booking.id, status: "PENDING_PAYMENT" },
+          data: { status: "CANCELLED" },
+        });
         await this.releaseHolds(booking.tripId, [passenger.seatNo], booking.id);
         return null;
       }
@@ -225,7 +273,12 @@ export class BookingConfirmationService {
     }
 
     await this.releaseHolds(booking.tripId, [passenger.seatNo], booking.id);
-    this.events.publish("booking.confirmed", { bookingId: booking.id, userId: booking.userId, tripId: booking.tripId, ticketIds: [ticketId] });
+    this.events.publish("booking.confirmed", {
+      bookingId: booking.id,
+      userId: booking.userId,
+      tripId: booking.tripId,
+      ticketIds: [ticketId],
+    });
     return { bookingId: booking.id, ticketIds: [ticketId] };
   }
 
@@ -249,12 +302,26 @@ export class BookingConfirmationService {
     });
     if (!claimed) return this.existingResult(bookingId, true);
 
-    const booking = await this.prisma.booking.findUnique({ where: { id: bookingId }, include: { passengers: true } });
-    if (booking) await this.releaseHolds(booking.tripId, booking.passengers.map((p) => p.seatNo), booking.id);
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { passengers: true },
+    });
+    if (booking)
+      await this.releaseHolds(
+        booking.tripId,
+        booking.passengers.map((p) => p.seatNo),
+        booking.id,
+      );
 
     const policy =
-      (await this.prisma.refundPolicy.findFirst({ where: { validFrom: { lte: new Date() } }, orderBy: { validFrom: "desc" } })) ??
-      (await this.prisma.refundPolicy.findFirst({ where: { validFrom: { lte: new Date() } }, orderBy: { validFrom: "desc" } }));
+      (await this.prisma.refundPolicy.findFirst({
+        where: { validFrom: { lte: new Date() } },
+        orderBy: { validFrom: "desc" },
+      })) ??
+      (await this.prisma.refundPolicy.findFirst({
+        where: { validFrom: { lte: new Date() } },
+        orderBy: { validFrom: "desc" },
+      }));
 
     let providerRefund: { id: string; status: string } | null = null;
     try {
@@ -264,7 +331,9 @@ export class BookingConfirmationService {
         notes: { bookingId, reason },
       });
     } catch (err) {
-      this.logger.error(`Refund for payment ${paymentRowId} failed, needs an operator: ${(err as Error).message}`);
+      this.logger.error(
+        `Refund for payment ${paymentRowId} failed, needs an operator: ${(err as Error).message}`,
+      );
     }
 
     if (policy) {
@@ -272,7 +341,11 @@ export class BookingConfirmationService {
         data: {
           paymentId: paymentRowId,
           amountPaise: providerPayment.amountPaise,
-          status: providerRefund ? (providerRefund.status === "processed" ? "PROCESSED" : "PENDING") : "FAILED",
+          status: providerRefund
+            ? providerRefund.status === "processed"
+              ? "PROCESSED"
+              : "PENDING"
+            : "FAILED",
           providerRefundId: providerRefund?.id ?? null,
           processedAt: providerRefund?.status === "processed" ? new Date() : null,
           policyId: policy.id,
@@ -283,7 +356,13 @@ export class BookingConfirmationService {
         action: "refund.create",
         entityType: "refund",
         entityId: refund.id,
-        after: { paymentId: paymentRowId, bookingId, amountPaise: providerPayment.amountPaise, reason, status: refund.status },
+        after: {
+          paymentId: paymentRowId,
+          bookingId,
+          amountPaise: providerPayment.amountPaise,
+          reason,
+          status: refund.status,
+        },
       });
     } else {
       this.logger.error(`No refund policy, refund row for payment ${paymentRowId} not written`);
@@ -335,12 +414,18 @@ export class BookingConfirmationService {
     if (booking.trip.status === "CANCELLED" || booking.trip.status === "COMPLETED") return false;
 
     const taken = await this.prisma.ticket.count({
-      where: { tripId: booking.tripId, seatNo: { in: seatNos }, status: { in: [...SEAT_TAKING_STATUSES] } },
+      where: {
+        tripId: booking.tripId,
+        seatNo: { in: seatNos },
+        status: { in: [...SEAT_TAKING_STATUSES] },
+      },
     });
     if (taken > 0) return false;
 
     try {
-      const holders = await this.redis.client.mget(seatNos.map((seatNo) => holdKey(booking.tripId, seatNo)));
+      const holders = await this.redis.client.mget(
+        seatNos.map((seatNo) => holdKey(booking.tripId, seatNo)),
+      );
       return holders.every((holder) => holder === null || holder === booking.id);
     } catch {
       // Redis down: the ticket check above and the transaction still guard the seats
@@ -352,7 +437,9 @@ export class BookingConfirmationService {
     try {
       await releaseSeats(this.redis.client, tripId, seatNos, bookingId);
     } catch (err) {
-      this.logger.warn(`Failed to release seat holds for booking ${bookingId}: ${(err as Error).message}`);
+      this.logger.warn(
+        `Failed to release seat holds for booking ${bookingId}: ${(err as Error).message}`,
+      );
     }
   }
 

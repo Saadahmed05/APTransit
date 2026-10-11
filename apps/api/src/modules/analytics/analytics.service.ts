@@ -7,13 +7,14 @@ import {
   formatIstDate,
   localTimeToUtc,
   type PassengerAnalyticsDto,
+  PLATFORM_TIME_ZONE,
   type Permission,
   type RouteAnalyticsDto,
 } from "@aptransit/shared";
 import { Injectable } from "@nestjs/common";
 import type { AuthenticatedUser } from "../../common/auth/auth.types";
 import { AppError } from "../../common/errors/app-error";
-import { depotScopeWhere, isStatewide } from "../../common/services/scope.service";
+import { depotScopeWhere, isPlatformWide, wholeStates } from "../../common/services/scope.service";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
@@ -27,13 +28,25 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 /** Longest range one analytics call may cover. History is 14 days; a quarter leaves room. */
 const MAX_RANGE_DAYS = 92;
+/** The platform zone as an SQL literal for AT TIME ZONE (a constant, never user input). */
+const TZ_SQL = Prisma.raw(`'${PLATFORM_TIME_ZONE}'`);
 
-/** The depots a caller may see for gov:read; `all` is true for statewide roles. */
+/** The depots a caller may see for gov:read; `all` is true for platform wide roles (SUPER_ADMIN). */
 export interface AnalyticsScope {
   all: boolean;
+  /** States the caller sees whole (state roles, or one picked state), so state rows may be shown. */
+  stateIds: string[];
   depotIds: string[];
   /** Districts whose every depot is in scope, so district level rows may be shown. */
   districtIds: string[];
+}
+
+/** Complaints in scope. A complaint without a depot has no place: state and platform roles see it. */
+export function complaintScopeOf(scope: AnalyticsScope): Prisma.ComplaintWhereInput {
+  if (scope.all) return {};
+  return scope.stateIds.length
+    ? { OR: [{ depotId: { in: scope.depotIds } }, { depotId: null }] }
+    : { depotId: { in: scope.depotIds } };
 }
 
 export interface Range {
@@ -64,7 +77,7 @@ export class AnalyticsService {
   /** Depots and whole districts the caller may see for one permission (gov:read unless given). */
   async scopeFor(user: AuthenticatedUser, permission: Permission = "gov:read"): Promise<AnalyticsScope> {
     const where = depotScopeWhere(user, permission);
-    const all = isStatewide(user, permission);
+    const all = isPlatformWide(user, permission);
     const [inScope, everyDepot] = await Promise.all([
       this.prisma.depot.findMany({ where, select: { id: true, districtId: true } }),
       all ? Promise.resolve([]) : this.prisma.depot.findMany({ select: { id: true, districtId: true } }),
@@ -75,7 +88,22 @@ export class AnalyticsService {
     if (!all) {
       for (const d of everyDepot) if (!allowed.has(d.id)) districts.delete(d.districtId);
     }
-    return { all, depotIds, districtIds: [...districts] };
+    return { all, stateIds: wholeStates(user, permission) ?? [], depotIds, districtIds: [...districts] };
+  }
+
+  /**
+   * One state of the caller's scope (the gov state picker). The caller must reach the whole
+   * state (SUPER_ADMIN or a role on that state); the result covers only that state.
+   */
+  async narrowToState(scope: AnalyticsScope, stateId: string): Promise<AnalyticsScope> {
+    if (!scope.all && !scope.stateIds.includes(stateId)) throw new AppError("FORBIDDEN", "State is outside your scope");
+    const depots = await this.prisma.depot.findMany({ where: { district: { stateId } }, select: { id: true, districtId: true } });
+    return {
+      all: false,
+      stateIds: [stateId],
+      depotIds: depots.map((d) => d.id),
+      districtIds: [...new Set(depots.map((d) => d.districtId))],
+    };
   }
 
   /** GET /analytics/routes: per route passengers, trips, load factor, delay, cancellations, revenue. */
@@ -208,7 +236,7 @@ export class AnalyticsService {
     const [rows, hours, passUsage, routes] = await Promise.all([
       this.statsRows(range),
       this.prisma.$queryRaw<Array<{ hour: number; tickets: bigint }>>(Prisma.sql`
-        SELECT EXTRACT(HOUR FROM (t."scheduledDepartureAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'))::int AS hour,
+        SELECT EXTRACT(HOUR FROM (t."scheduledDepartureAt" AT TIME ZONE 'UTC' AT TIME ZONE ${TZ_SQL}))::int AS hour,
                COUNT(*)::bigint AS tickets
         FROM tickets k JOIN trips t ON t.id = k."tripId" JOIN routes r ON r.id = t."routeId"
         WHERE t."serviceDate" BETWEEN ${range.fromDate} AND ${range.toDate}
@@ -265,7 +293,7 @@ export class AnalyticsService {
 
     const [byHour, byRoute] = await Promise.all([
       this.prisma.$queryRaw<Array<{ hour: number; avg: number }>>(Prisma.sql`
-        SELECT EXTRACT(HOUR FROM (t."scheduledDepartureAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'))::int AS hour,
+        SELECT EXTRACT(HOUR FROM (t."scheduledDepartureAt" AT TIME ZONE 'UTC' AT TIME ZONE ${TZ_SQL}))::int AS hour,
                AVG(t."delayMinutes")::float8 AS avg
         FROM trips t JOIN routes r ON r.id = t."routeId"
         WHERE t."serviceDate" BETWEEN ${range.fromDate} AND ${range.toDate} AND t.status = 'COMPLETED'
@@ -274,7 +302,7 @@ export class AnalyticsService {
         GROUP BY 1`),
       this.prisma.$queryRaw<Array<{ routeId: string; routeCode: string; hour: number; total: number; trips: bigint }>>(Prisma.sql`
         SELECT r.id AS "routeId", r.code AS "routeCode",
-               EXTRACT(HOUR FROM (t."scheduledDepartureAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'))::int AS hour,
+               EXTRACT(HOUR FROM (t."scheduledDepartureAt" AT TIME ZONE 'UTC' AT TIME ZONE ${TZ_SQL}))::int AS hour,
                SUM(t."delayMinutes")::float8 AS total, COUNT(*)::bigint AS trips
         FROM trips t JOIN routes r ON r.id = t."routeId"
         WHERE t."serviceDate" BETWEEN ${range.fromDate} AND ${range.toDate} AND t.status = 'COMPLETED'
@@ -295,7 +323,7 @@ export class AnalyticsService {
     const range = this.range(from, to);
     await this.assertRoute(await this.scopeFor(user), routeId);
     const rows = await this.prisma.$queryRaw<Array<{ hour: number; seats: bigint; tickets: bigint }>>(Prisma.sql`
-      SELECT EXTRACT(HOUR FROM (t."scheduledDepartureAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'))::int AS hour,
+      SELECT EXTRACT(HOUR FROM (t."scheduledDepartureAt" AT TIME ZONE 'UTC' AT TIME ZONE ${TZ_SQL}))::int AS hour,
              SUM(bt."totalSeats")::bigint AS seats,
              SUM((SELECT COUNT(*) FROM tickets k WHERE k."tripId" = t.id AND k.status NOT IN ('CANCELLED', 'REFUNDED')))::bigint AS tickets
       FROM trips t JOIN bus_types bt ON bt.id = t."busTypeId"

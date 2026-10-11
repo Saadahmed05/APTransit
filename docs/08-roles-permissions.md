@@ -12,13 +12,14 @@
 | DEPOT_STAFF | Field | One depot (`depotId`) | `/ops` |
 | DEPOT_MANAGER | Management | One depot (`depotId`) | `/ops` |
 | DISTRICT_OFFICER | Management | One district (`districtId`) | `/gov` |
-| TRANSPORT_OFFICER | Management | Whole state, read only | `/gov` |
-| STATE_ADMIN | Admin | Whole state | `/admin` |
-| SUPER_ADMIN | Admin | Everything, including roles of admins | `/admin` |
+| TRANSPORT_OFFICER | Management | One whole state (`stateId`), read only | `/gov` |
+| STATE_ADMIN | Admin | One whole state (`stateId`) | `/admin` |
+| SUPER_ADMIN | Admin | Every state (platform wide), including roles of admins | `/admin` |
 
 - Every user is a CITIZEN. Staff roles are added on top by an admin.
 - A user with several roles sees a role switcher in the account menu. Default is the highest role.
 - Scope check is on the server for every request: a DEPOT_MANAGER of Kurnool gets 403 `FORBIDDEN` on a Nandyal bus.
+- State scope (D-034): the network is State > District > Depot. A state role sees every depot of its state (`depot.district.stateId`) and nothing in another state; a state role without a `stateId` sees nothing. SUPER_ADMIN is the only platform wide role and picks a state on `/gov`. A STATE_ADMIN grants roles only inside their own state. Complaints without a depot have no place, so state and platform roles see them. Code: `depotScopeWhere`, `wholeStates` and `ScopeService.assertStateAccess` in `apps/api/src/common/services/scope.service.ts`.
 
 ## Permission keys
 
@@ -79,8 +80,9 @@ Created by `pnpm db:seed`. Login by email OTP. With `OTP_DEV_ECHO=1` the code is
 | staff.knl@aptransit.test | DEPOT_STAFF | Kurnool depot |
 | manager.knl@aptransit.test | DEPOT_MANAGER | Kurnool depot |
 | officer.knl@aptransit.test | DISTRICT_OFFICER | Kurnool district |
-| transport@aptransit.test | TRANSPORT_OFFICER | State |
-| admin@aptransit.test | STATE_ADMIN | State |
-| root@aptransit.test | SUPER_ADMIN | All |
+| transport@aptransit.test | TRANSPORT_OFFICER | Andhra Pradesh |
+| admin@aptransit.test | STATE_ADMIN | Andhra Pradesh |
+| root@aptransit.test | SUPER_ADMIN | All states |
+| admin.tg@aptransit.test | STATE_ADMIN | Telangana (only with `pnpm db:seed --with-tg`) |
 
 `.test` is a reserved domain, so these can never receive real email. In dev the email provider logs instead of sending for `.test` addresses.

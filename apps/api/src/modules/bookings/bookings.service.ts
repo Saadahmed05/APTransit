@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import {
   type BookingDto,
   calculateFare,
+  groupFare,
   type CreateBookingInput,
   generateBookingCode,
   SeatLayoutSchema,
@@ -10,7 +11,11 @@ import { Injectable, Logger, Optional } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import type { Queue } from "bullmq";
 import { AppError } from "../../common/errors/app-error";
-import { idempotencySlot, readIdempotent, writeIdempotent } from "../../common/services/idempotency";
+import {
+  idempotencySlot,
+  readIdempotent,
+  writeIdempotent,
+} from "../../common/services/idempotency";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { SEAT_TAKING_STATUSES } from "../network/network.repository";
@@ -116,17 +121,23 @@ export class BookingsService {
 
     // Free travel needs an active FREE_TRAVEL pass checked on the server (docs/06, docs/07 section 9).
     // Never take the client's word for eligibility.
-    const freePass = input.useFreeTravel ? await this.activeFreeTravelPass(userId, input.passengers.length, now) : null;
+    const freePass = input.useFreeTravel
+      ? await this.activeFreeTravelPass(userId, input.passengers.length, now)
+      : null;
 
     // 2. Validate settings
     const settings = await this.getSettingNumbers();
     const maxPassengers = settings.get("booking.maxPassengers") ?? DEFAULT_MAX_PASSENGERS;
     const daysAhead = settings.get("booking.daysAhead") ?? DEFAULT_DAYS_AHEAD;
-    const closeMinutesBefore = settings.get("booking.closeMinutesBefore") ?? DEFAULT_CLOSE_MINUTES_BEFORE;
+    const closeMinutesBefore =
+      settings.get("booking.closeMinutesBefore") ?? DEFAULT_CLOSE_MINUTES_BEFORE;
     const holdMinutes = settings.get("booking.holdMinutes") ?? DEFAULT_HOLD_MINUTES;
 
     if (input.passengers.length > maxPassengers) {
-      throw new AppError("VALIDATION_FAILED", `Maximum ${maxPassengers} passengers allowed per booking`);
+      throw new AppError(
+        "VALIDATION_FAILED",
+        `Maximum ${maxPassengers} passengers allowed per booking`,
+      );
     }
 
     // 3. Find trip and route stops
@@ -148,7 +159,11 @@ export class BookingsService {
     if (!trip || trip.status === "CANCELLED") {
       throw new AppError("NOT_FOUND", "Trip not found or cancelled");
     }
-    if (freePass && (!trip.busType.freeTravelEligible || !passCoversService(freePass.eligibleServiceTypes, trip.busType.serviceType))) {
+    if (
+      freePass &&
+      (!trip.busType.freeTravelEligible ||
+        !passCoversService(freePass.eligibleServiceTypes, trip.busType.serviceType))
+    ) {
       throw new AppError("PASS_NOT_ELIGIBLE", "Free travel is not available on this service");
     }
     if (trip.status === "COMPLETED") {
@@ -158,18 +173,31 @@ export class BookingsService {
     // Check days ahead
     const maxDate = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
     if (trip.scheduledDepartureAt.getTime() > maxDate.getTime()) {
-      throw new AppError("VALIDATION_FAILED", `Bookings are open up to ${daysAhead} days in advance`);
+      throw new AppError(
+        "VALIDATION_FAILED",
+        `Bookings are open up to ${daysAhead} days in advance`,
+      );
     }
 
     const boardingStop = trip.route.routeStops.find((rs) => rs.stopId === input.boardingStopId);
     const droppingStop = trip.route.routeStops.find((rs) => rs.stopId === input.droppingStopId);
 
-    if (!boardingStop || !droppingStop || boardingStop.seq >= droppingStop.seq || !boardingStop.isBoarding || !droppingStop.isDropping) {
-      throw new AppError("VALIDATION_FAILED", "Boarding stop must be before dropping stop on the route");
+    if (
+      !boardingStop ||
+      !droppingStop ||
+      boardingStop.seq >= droppingStop.seq ||
+      !boardingStop.isBoarding ||
+      !droppingStop.isDropping
+    ) {
+      throw new AppError(
+        "VALIDATION_FAILED",
+        "Boarding stop must be before dropping stop on the route",
+      );
     }
 
     // Check booking close time
-    const boardingDepartureMs = trip.scheduledDepartureAt.getTime() + boardingStop.minutesFromOrigin * 60_000;
+    const boardingDepartureMs =
+      trip.scheduledDepartureAt.getTime() + boardingStop.minutesFromOrigin * 60_000;
     if (boardingDepartureMs <= now.getTime() + closeMinutesBefore * 60_000) {
       throw new AppError("VALIDATION_FAILED", "Booking is closed for this trip");
     }
@@ -209,7 +237,9 @@ export class BookingsService {
 
     if (existingTickets.length > 0) {
       const takenSeat = existingTickets[0]?.seatNo ?? seatNos[0] ?? "unknown";
-      throw new AppError("SEAT_TAKEN", `Seat ${takenSeat} is no longer available`, { seatNo: takenSeat });
+      throw new AppError("SEAT_TAKEN", `Seat ${takenSeat} is no longer available`, {
+        seatNo: takenSeat,
+      });
     }
 
     // 6. Compute fare on the server, never from the client
@@ -236,7 +266,13 @@ export class BookingsService {
         reservationFeePaise: fareRule.reservationFeePaise,
       },
     });
-    const totalPaise = freePass ? 0 : singleFare.totalPaise * input.passengers.length;
+    // D-042: children under CHILD_MAX_AGE pay half (group tickets with ages)
+    const totalPaise = freePass
+      ? 0
+      : groupFare(
+          singleFare.totalPaise,
+          input.passengers.map((p) => p.age),
+        ).totalPaise;
 
     // 7. Hold all seats in one atomic Redis command. A hold we cannot place is never assumed free.
     const bookingId = newBookingId();
@@ -249,7 +285,9 @@ export class BookingsService {
       throw new AppError("INTERNAL", "Could not hold seats, please try again");
     }
     if (takenSeat) {
-      throw new AppError("SEAT_TAKEN", `Seat ${takenSeat} is no longer available`, { seatNo: takenSeat });
+      throw new AppError("SEAT_TAKEN", `Seat ${takenSeat} is no longer available`, {
+        seatNo: takenSeat,
+      });
     }
 
     // 8. Create booking and passengers in one transaction. On failure give the seats back.
@@ -288,7 +326,10 @@ export class BookingsService {
     // 9a. Free travel: no payment step, the seat becomes a FREE_TRAVEL ticket now
     if (freePass) {
       const confirmed = await this.confirmation.confirmFreeTravel(booking.id);
-      if (!confirmed) throw new AppError("SEAT_TAKEN", `Seat ${seatNos[0]} is no longer available`, { seatNo: seatNos[0] });
+      if (!confirmed)
+        throw new AppError("SEAT_TAKEN", `Seat ${seatNos[0]} is no longer available`, {
+          seatNo: seatNos[0],
+        });
       const bookingDto = toBookingDto({ ...booking, status: "CONFIRMED" });
       await writeIdempotent(this.redis.client, slot, bookingDto);
       return bookingDto;
@@ -310,7 +351,9 @@ export class BookingsService {
           ),
         );
       } catch (err) {
-        this.logger.warn(`Failed to schedule hold expiry job for ${booking.id}: ${(err as Error).message}`);
+        this.logger.warn(
+          `Failed to schedule hold expiry job for ${booking.id}: ${(err as Error).message}`,
+        );
       }
     }
 
@@ -358,7 +401,11 @@ export class BookingsService {
       throw new AppError("VALIDATION_FAILED", "Only pending bookings can be cancelled");
     }
 
-    await this.release(booking.tripId, booking.passengers.map((p) => p.seatNo), booking.id);
+    await this.release(
+      booking.tripId,
+      booking.passengers.map((p) => p.seatNo),
+      booking.id,
+    );
     await this.removeExpiryJob(booking.id);
   }
 
@@ -371,7 +418,11 @@ export class BookingsService {
       include: { passengers: true },
     });
 
-    if (!booking || booking.status !== "PENDING_PAYMENT" || booking.holdExpiresAt.getTime() > now.getTime()) {
+    if (
+      !booking ||
+      booking.status !== "PENDING_PAYMENT" ||
+      booking.holdExpiresAt.getTime() > now.getTime()
+    ) {
       return;
     }
 
@@ -381,19 +432,23 @@ export class BookingsService {
     });
     if (count === 0) return;
 
-    await this.release(booking.tripId, booking.passengers.map((p) => p.seatNo), booking.id);
+    await this.release(
+      booking.tripId,
+      booking.passengers.map((p) => p.seatNo),
+      booking.id,
+    );
   }
 
   /** One passenger, and an ACTIVE, unexpired FREE_TRAVEL pass of this user. */
   private async activeFreeTravelPass(userId: string, passengers: number, now: Date) {
-    if (passengers !== 1) throw new AppError("PASS_NOT_ELIGIBLE", "Free travel books one seat at a time");
+    if (passengers !== 1)
+      throw new AppError("PASS_NOT_ELIGIBLE", "Free travel books one seat at a time");
     const passes = await this.prisma.pass.findMany({
       where: { userId, status: "ACTIVE", passType: { kind: "FREE_TRAVEL" } },
-      include: { passType: { select: { eligibleServiceTypes: true } } },
     });
     const live = passes.find((p) => isPassLive(p, now));
     if (!live) throw new AppError("PASS_NOT_ELIGIBLE", "Free travel needs an active free travel pass");
-    return { id: live.id, eligibleServiceTypes: live.passType.eligibleServiceTypes };
+    return { id: live.id, eligibleServiceTypes: live.eligibleServiceTypes };
   }
 
   private async release(tripId: string, seatNos: string[], bookingId: string): Promise<void> {
@@ -401,7 +456,9 @@ export class BookingsService {
       await releaseSeats(this.redis.client, tripId, seatNos, bookingId);
     } catch (err) {
       // Holds still expire on their own TTL.
-      this.logger.warn(`Failed to release seat holds for trip ${tripId}: ${(err as Error).message}`);
+      this.logger.warn(
+        `Failed to release seat holds for trip ${tripId}: ${(err as Error).message}`,
+      );
     }
   }
 

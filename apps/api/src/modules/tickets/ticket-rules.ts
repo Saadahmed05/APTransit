@@ -11,7 +11,11 @@ import type {
 
 const MS_PER_MIN = 60_000;
 
-/** docs/07 section 5, checks 5 to 11 after parsing, signature, code and existence. */
+/**
+ * docs/07 section 5, checks 5 to 11a after parsing, signature, code and existence. The segment
+ * checks (D-035) use the resolved boarding stop: `stopSeq` null means the stop source is NONE and
+ * every stop check is skipped. `boardingSeq` and `droppingSeq` are the ticket's own stops (null for passes).
+ */
 export function scanStatusReason(input: {
   status: string;
   validUntil: Date | null;
@@ -20,6 +24,13 @@ export function scanStatusReason(input: {
   wrongTrip: boolean;
   wrongDate: boolean;
   serviceEligible: boolean;
+  stopSeq?: number | null;
+  boardingSeq?: number | null;
+  droppingSeq?: number | null;
+  /** Pass: its validity start (activation). Null or absent for tickets. */
+  validFrom?: Date | null;
+  /** Route restricted pass: the trip's route holds both pass stops. True for everything else. */
+  routeCovered?: boolean;
 }): ScanReason {
   if (["CANCELLED", "REFUNDED"].includes(input.status)) return "CANCELLED";
   if (input.status === "EXPIRED" || (input.validUntil !== null && input.now > input.validUntil))
@@ -28,7 +39,18 @@ export function scanStatusReason(input: {
   if (["SCANNED", "USED"].includes(input.status) || input.alreadyScanned) return "ALREADY_SCANNED";
   if (input.wrongTrip) return "WRONG_TRIP";
   if (input.wrongDate) return "WRONG_DATE";
+  const stopSeq = input.stopSeq ?? null;
+  const droppingSeq = input.droppingSeq ?? null;
+  const boardingSeq = input.boardingSeq ?? null;
+  // 10a: the bus is at or past the stop where this ticket ends
+  if (stopSeq !== null && droppingSeq !== null && stopSeq >= droppingSeq) return "PAST_DESTINATION";
+  // 10b: more than one stop before the ticket's boarding stop
+  if (stopSeq !== null && boardingSeq !== null && stopSeq < boardingSeq - 1) return "BEFORE_BOARDING_STOP";
+  // 10c: a pass scanned before its validity starts
+  if (input.validFrom && input.now < input.validFrom) return "NOT_YET_VALID";
   if (!input.serviceEligible) return "SERVICE_NOT_ELIGIBLE";
+  // 11a: a route restricted pass on a route without both of its stops
+  if (input.routeCovered === false) return "ROUTE_NOT_COVERED";
   return "OK";
 }
 

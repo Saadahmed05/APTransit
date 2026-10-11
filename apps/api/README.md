@@ -53,7 +53,7 @@ src/
     guards/app-throttler.guard.ts      global: 120 per user or IP per minute, @Throttle to tighten
     interceptors/audit.interceptor.ts  writes the audit row for routes marked @Audit(action)
     pipes/zod-validation.pipe.ts       new ZodValidationPipe(Schema) on @Body, @Query, @Param
-    services/             ScopeService (depot, district checks), RateLimitService (OTP target limits), redis-window,
+    services/             ScopeService (state, district, depot checks; D-034), RateLimitService (OTP target limits), redis-window,
                           TtlCache (small per process cache with TTL and size cap)
     throttler/            Redis storage for @nestjs/throttler (one Lua command per hit, fails open)
     logger.ts             pino params: request ids, redaction list, health requests not logged
@@ -111,7 +111,7 @@ export class HealthController {
 | --- | --- |
 | No login | `@Public()` on the handler. A valid Bearer token still fills `req.user` |
 | Permission | `@Can("ticket:validate")` (names from `packages/shared/src/permissions.ts`), 403 `FORBIDDEN` |
-| Scope | inject `ScopeService`, call `assertDepotAccess(user, depotId)` or `assertDistrictAccess` in the service |
+| Scope | inject `ScopeService`, `await assertDepotAccess(user, depotId)`, `await assertDistrictAccess(...)` or `assertStateAccess(user, stateId)` in the service (D-034) |
 | Who is calling | `@CurrentUser() user: AuthenticatedUser` (null on public routes without a token) |
 | Tighter rate limit | `@Throttle({ default: { limit: 60, ttl: 60_000 } })` from `@nestjs/throttler`. Keyed by user id when logged in, else IP |
 | No default limit | `@SkipThrottle()` (health, and auth routes that use `RateLimitService` target limits) |
@@ -165,10 +165,19 @@ Day 14 adds the guarded admin module for stops, routes, timetables, date-range t
 ## Days 15 to 19
 
 - Analytics, gov and reports read `daily_stats` for past days and compute today with the same code (`RollupsService.rowsForDate`). Levels: route rows have routeId, depot rows depotId, district rows districtId only, one state row has none. Revenue is captured payments minus processed refunds (D-030).
-- Scope for staff data: `depotScopeWhere(user, permission)` in `common/services/scope.service.ts`. Only roles that hold the permission count; district officers get the depots of their district.
+- Scope for staff data: `depotScopeWhere(user, permission)` in `common/services/scope.service.ts`. Only roles that hold the permission count; district officers get the depots of their district, STATE_ADMIN and TRANSPORT_OFFICER the depots of their `stateId`, SUPER_ADMIN everything (`isPlatformWide`). `wholeStates` lists the states a caller sees whole. Never test role names for "statewide" by hand (D-034).
+- Time zone: use `PLATFORM_TIME_ZONE` from `@aptransit/shared`; in raw SQL use a parameter or `Prisma.raw` of the constant (see `analytics.service.ts`).
 - Reports stream (`ReportsService.lines` is an async generator); CSV has a BOM, ISO dates, IST times and formula injection protection (`reports/csv-helper.ts`).
 - Feedback and complaints: `modules/feedback` (public intake with per IP limits, one step status moves, guest emails through the `send-complaint-email` job).
 - Worker jobs on the maintenance queue: generate trips 00:30 IST, retention 02:00 IST (10,000 row batches), failed jobs summary 07:00 IST. `GET /health` adds `workerAgeSec` and queue depth; `GET /admin/jobs/failed` lists the last 50 failures.
 - Load tests (repo root): `pnpm load:pool` (load conductors on running trips, never production), `pnpm load:validate`, `pnpm load:search`; results in `.local/load`.
 - Contract check (repo root): `pnpm check:endpoints` compares controllers with docs/06.
 - Bulk inserts in the history seed use `INSERT ... SELECT FROM unnest` (`bulkInsert` in `prisma/seed-history.ts`): createMany manages about 1,000 rows a second.
+
+## v3 (D-042, D-043)
+
+- `POST /auth/google` (`AuthService.googleSignIn`): verifies the Google ID token with tokeninfo, then shares `signIn()` with OTP verify. Needs `GOOGLE_CLIENT_ID`, else 403.
+- `GET /places/nearby` uses a cached `allStops()` and `haversineKm`.
+- Search runs `villageFit` on the rows (`villageEnd` comes from the trip query).
+- Passes: zone (`zoneDistrictId`) and child cards (`holderName`, `holderAge`). A valid child card scan publishes `pass.child_boarded`; the notifications subscriber sends `CHILD_BOARDED`.
+- `GET /ops/trips/:id` returns `stages` and `passBoardings`.

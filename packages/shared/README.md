@@ -26,7 +26,8 @@ The contract between web and API: zod schemas, enums, error codes, the status ma
 | `src/schemas/health.ts` | `HealthDto`, `ProbeState` |
 | `src/fare.ts` | `calculateFare({ distanceKm, rule, isFreeTravel })` (per km with a minimum, nearest rupee, plus reservation fee), `refundQuote(...)` (docs/07 section 6 tiers, operator cancel, free tickets), `DEFAULT_REFUND_TIERS`, `FareRuleInput`, `RefundTier`. The only place fares are computed |
 | `src/schemas/search.ts` | `PublicId`, `ServiceDateString` (real YYYY-MM-DD), `LocalTimeString` (HH:mm), `SearchTripsQuery`, `TripSummaryDto`, `SearchTripsResponse` |
-| `src/schemas/network.ts` | `PlacesSearchQuery`, `PlaceDto`, `DistrictDto`, `BusStandDto`, `BusStandRouteDto`, `RouteDto` (ordered `stops`), `TimetableQuery`, `TimetableDto`, and array `...Response` schemas for the web client |
+| `src/time.ts` | `PLATFORM_TIME_ZONE` (the one zone, D-034; never write the zone literal elsewhere), `localTimeToUtc`, `utcToIstParts`, `formatIstDate`, `formatIstTime`, `computeTripSchedule` |
+| `src/schemas/network.ts` | `PlacesSearchQuery`, `PlaceDto`, `StateDto` and `StatesResponse` (GET /states), `DistrictDto` (with `stateId`), `BusStandDto`, `BusStandRouteDto`, `RouteDto` (ordered `stops`), `TimetableQuery`, `TimetableDto`, and array `...Response` schemas for the web client |
 
 Planned next (see the day prompts): `codes.ts`, `polyline.ts`, `time.ts`, `permissions.ts` (Day 2), `schemas/auth.ts` and `messages/` (Day 3), `format.ts` (Day 5), `qr.ts` (Day 7).
 
@@ -60,3 +61,9 @@ schemas/ops.ts provides strict request schemas and response DTOs for the operati
 ## Day 14
 
 Day 14 adds schemas/admin.ts for strict admin mutation inputs and validated responses. Ops DTOs include scoped depot/bus-type lookups, optional current fleet details and an inferred OpsTripDto type. INCIDENT_STATUS_MAP centralizes incident labels, icons and tones. Shared changes require the other dev review (D-029).
+
+## v3 (D-042)
+
+- `fare.ts`: `CHILD_MAX_AGE`, `CHILD_FARE_PERCENT`, `passengerCategory`, `passengerFarePaise`, `groupFare`, `splitGroupTotal`.
+- `enums.ts`: `VILLAGE_SERVICE_TYPES`, `PassKind.DAILY`, `NotificationType.CHILD_BOARDED`. `qr.ts`: `QR_PERIOD_SEC = 3`.
+- Schemas: `GoogleSignInInput`, `PlacesNearbyQuery`, `NearbyPlaceDto`, `StageBoardingDto`, pass zone and child fields, `CHILD_CARD_MAX_AGE`.

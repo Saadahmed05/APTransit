@@ -2,6 +2,7 @@ import type {
   BusStandDto,
   BusStandRouteDto,
   DistrictDto,
+  StateDto,
   FareRuleInput,
   RouteDto,
   ServiceType,
@@ -19,6 +20,8 @@ export interface StopSearchRow {
   isBusStand: boolean;
   districtNameEn: string;
   districtNameTe: string;
+  lat?: number;
+  lng?: number;
 }
 
 /** One trip that serves a stop pair, with everything search needs to build a TripSummaryDto. */
@@ -39,6 +42,8 @@ export interface TripRow {
   toKm: number;
   /** Fare rule valid on the service date, null when none exists (the trip is not sold). */
   fare: FareRuleInput | null;
+  /** D-042: the from or the to stop is a village stop (no bus stand). */
+  villageEnd?: boolean;
 }
 
 export interface TripRowsArgs {
@@ -71,6 +76,7 @@ interface RawTripRow {
   perKmPaise: number | null;
   minFarePaise: number | null;
   reservationFeePaise: number | null;
+  villageEnd: boolean;
 }
 
 /**
@@ -91,6 +97,8 @@ export class NetworkRepository {
         nameEn: true,
         nameTe: true,
         busStandId: true,
+        lat: true,
+        lng: true,
         district: { select: { nameEn: true, nameTe: true } },
       },
       orderBy: { nameEn: "asc" },
@@ -103,12 +111,53 @@ export class NetworkRepository {
       isBusStand: s.busStandId !== null,
       districtNameEn: s.district.nameEn,
       districtNameTe: s.district.nameTe,
+      lat: s.lat,
+      lng: s.lng,
+    }));
+  }
+
+  /** D-042: every stop with coordinates (a few hundred rows; the service caches it). */
+  async allStops(): Promise<Required<StopSearchRow>[]> {
+    const rows = await this.prisma.stop.findMany({
+      select: {
+        id: true,
+        nameEn: true,
+        nameTe: true,
+        busStandId: true,
+        lat: true,
+        lng: true,
+        district: { select: { nameEn: true, nameTe: true } },
+      },
+    });
+    return rows.map((s) => ({
+      id: s.id,
+      nameEn: s.nameEn,
+      nameTe: s.nameTe,
+      isBusStand: s.busStandId !== null,
+      districtNameEn: s.district.nameEn,
+      districtNameTe: s.district.nameTe,
+      lat: s.lat,
+      lng: s.lng,
+    }));
+  }
+
+  /** Active states by code. Bounds are [minLng, minLat, maxLng, maxLat]. */
+  async states(): Promise<StateDto[]> {
+    const rows = await this.prisma.state.findMany({ where: { isActive: true }, orderBy: [{ code: "asc" }] });
+    return rows.map((s) => ({
+      id: s.id,
+      code: s.code,
+      nameEn: s.nameEn,
+      nameTe: s.nameTe,
+      center: { lat: s.centerLat, lng: s.centerLng },
+      bounds: [s.minLng, s.minLat, s.maxLng, s.maxLat],
+      zoom: s.defaultZoom,
     }));
   }
 
   async districts(): Promise<DistrictDto[]> {
     const rows = await this.prisma.district.findMany({
-      select: { id: true, code: true, nameEn: true, nameTe: true, _count: { select: { busStands: true } } },
+      select: { id: true, code: true, nameEn: true, nameTe: true, stateId: true, _count: { select: { busStands: true } } },
       orderBy: { nameEn: "asc" },
     });
     return rows.map((d) => ({
@@ -116,6 +165,7 @@ export class NetworkRepository {
       code: d.code,
       nameEn: d.nameEn,
       nameTe: d.nameTe,
+      stateId: d.stateId,
       busStandCount: d._count.busStands,
     }));
   }
@@ -137,7 +187,9 @@ export class NetworkRepository {
     const routes = await this.routesLeaving(allStopIds);
     return district.busStands.map((b) => {
       const stopIds = new Set(b.stops.map((s) => s.id));
-      const routeIds = new Set(routes.filter((r) => stopIds.has(r.fromStopId)).map((r) => r.route.id));
+      const routeIds = new Set(
+        routes.filter((r) => stopIds.has(r.fromStopId)).map((r) => r.route.id),
+      );
       return { id: b.id, nameEn: b.nameEn, nameTe: b.nameTe, routeCount: routeIds.size };
     });
   }
@@ -161,7 +213,9 @@ export class NetworkRepository {
   }
 
   /** Active routes a passenger can board at one of these stops (the stop is not the route's last stop). */
-  private async routesLeaving(stopIds: string[]): Promise<{ fromStopId: string; route: BusStandRouteDto }[]> {
+  private async routesLeaving(
+    stopIds: string[],
+  ): Promise<{ fromStopId: string; route: BusStandRouteDto }[]> {
     if (stopIds.length === 0) return [];
     const rows = await this.prisma.routeStop.findMany({
       where: { stopId: { in: stopIds }, isBoarding: true, route: { isActive: true } },
@@ -174,7 +228,10 @@ export class NetworkRepository {
             nameEn: true,
             nameTe: true,
             destinationStop: { select: { id: true, nameEn: true, nameTe: true } },
-            timetables: { where: { isActive: true }, select: { busType: { select: { serviceType: true } } } },
+            timetables: {
+              where: { isActive: true },
+              select: { busType: { select: { serviceType: true } } },
+            },
           },
         },
       },
@@ -216,7 +273,16 @@ export class NetworkRepository {
             minutesFromOrigin: true,
             isBoarding: true,
             isDropping: true,
-            stop: { select: { id: true, nameEn: true, nameTe: true, lat: true, lng: true, busStandId: true } },
+            stop: {
+              select: {
+                id: true,
+                nameEn: true,
+                nameTe: true,
+                lat: true,
+                lng: true,
+                busStandId: true,
+              },
+            },
           },
         },
       },
@@ -251,7 +317,13 @@ export class NetworkRepository {
    * One round trip: trips on the service date whose route visits `from` before `to`, with the bus type
    * and the fare rule valid that day. Uses the (routeId, serviceDate) and route_stops (stopId) indexes.
    */
-  async tripRows({ fromStopId, toStopId, serviceDate, routeId, includeCancelled = false }: TripRowsArgs): Promise<TripRow[]> {
+  async tripRows({
+    fromStopId,
+    toStopId,
+    serviceDate,
+    routeId,
+    includeCancelled = false,
+  }: TripRowsArgs): Promise<TripRow[]> {
     const rows = await this.prisma.$queryRaw<RawTripRow[]>`
       SELECT
         t.id AS "tripId",
@@ -270,7 +342,10 @@ export class NetworkRepository {
         fr."baseFarePaise" AS "baseFarePaise",
         fr."perKmPaise" AS "perKmPaise",
         fr."minFarePaise" AS "minFarePaise",
-        fr."reservationFeePaise" AS "reservationFeePaise"
+        fr."reservationFeePaise" AS "reservationFeePaise",
+        EXISTS (
+          SELECT 1 FROM stops s WHERE s.id IN (${fromStopId}, ${toStopId}) AND s."busStandId" IS NULL
+        ) AS "villageEnd"
       FROM route_stops rf
       JOIN route_stops rt ON rt."routeId" = rf."routeId" AND rt."stopId" = ${toStopId} AND rt.seq > rf.seq AND rt."isDropping"
       JOIN routes r ON r.id = rf."routeId" AND r."isActive"
@@ -314,6 +389,7 @@ export class NetworkRepository {
               minFarePaise: row.minFarePaise ?? 0,
               reservationFeePaise: row.reservationFeePaise ?? 0,
             },
+      villageEnd: row.villageEnd,
     }));
   }
 

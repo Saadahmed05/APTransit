@@ -205,3 +205,88 @@ For a native Telugu speaker (docs/18 item I1). Please read each line in context 
 | packages/shared/src/messages | email.complaint.status.IN_REVIEW | In review | పరిశీలనలో ఉంది | |
 | packages/shared/src/messages | email.complaint.status.RESOLVED | Resolved | పరిష్కరించబడింది | |
 | packages/shared/src/messages | email.complaint.status.CLOSED | Closed | మూసివేయబడింది | |
+| apps/web/messages | scan.reasons.PAST_DESTINATION | INVALID: past destination | చెల్లదు: గమ్యం దాటింది | v2 P3 |
+| apps/web/messages | conductorApp.reasons.PAST_DESTINATION.line | Past destination | గమ్యం దాటింది | v2 P3 |
+| apps/web/messages | conductorApp.reasons.PAST_DESTINATION.helper | This ticket ends at {stop} | ఈ టికెట్ {stop} వద్ద ముగుస్తుంది | v2 P3 |
+| apps/web/messages | scan.reasons.BEFORE_BOARDING_STOP | INVALID: before boarding stop | చెల్లదు: ఎక్కే స్టాప్ కంటే ముందు | v2 P3 |
+| apps/web/messages | conductorApp.reasons.BEFORE_BOARDING_STOP.line | Too early to board | ఎక్కడానికి ఇంకా సమయం కాలేదు | v2 P3 |
+| apps/web/messages | conductorApp.reasons.BEFORE_BOARDING_STOP.helper | This ticket starts at {stop} | ఈ టికెట్ {stop} నుండి మొదలవుతుంది | v2 P3 |
+| apps/web/messages | scan.reasons.NOT_YET_VALID | INVALID: not valid yet | చెల్లదు: ఇంకా చెల్లుబాటు కాలేదు | v2 P3 |
+| apps/web/messages | conductorApp.reasons.NOT_YET_VALID.line | Not valid yet | ఇంకా చెల్లుబాటు కాలేదు | v2 P3 |
+| apps/web/messages | conductorApp.reasons.NOT_YET_VALID.helper | Valid from {time} | {time} నుండి చెల్లుతుంది | v2 P3 |
+| apps/web/messages | scan.reasons.ROUTE_NOT_COVERED | INVALID: route not covered | చెల్లదు: ఈ మార్గానికి వర్తించదు | v2 P3 |
+| apps/web/messages | conductorApp.reasons.ROUTE_NOT_COVERED.line | Not valid on this route | ఈ మార్గంలో చెల్లదు | v2 P3 |
+| apps/web/messages | conductorApp.reasons.ROUTE_NOT_COVERED.helper | This pass does not cover this route | ఈ పాస్ ఈ మార్గానికి వర్తించదు | v2 P3 |
+| apps/web/messages | schoolPass.title | School pass | విద్యార్థి పాస్ | v2 P4 |
+| apps/web/messages | schoolPass.intro | For students travelling between home and their school or college. You declare that you study there; we never ask for or keep an ID number. | ఇంటి నుండి స్కూల్ లేదా కాలేజీకి ప్రయాణించే విద్యార్థులకు. మీరు అక్కడ చదువుతున్నారని ప్రకటిస్తారు; మేము ఏ గుర్తింపు నంబరూ అడగము, ఉంచుకోము. | v2 P4 |
+| apps/web/messages | schoolPass.formTitle | Check eligibility | అర్హత చూడండి | v2 P4 |
+| apps/web/messages | schoolPass.consent | I agree that this declaration is checked to give me a school pass. | విద్యార్థి పాస్ కోసం ఈ ప్రకటనను తనిఖీ చేయడానికి అంగీకరిస్తున్నాను. | v2 P4 |
+| apps/web/messages | schoolPass.isStudent | I am a student at a school or college | నేను స్కూల్ లేదా కాలేజీలో చదువుతున్నాను | v2 P4 |
+| apps/web/messages | schoolPass.institution | Name of your school or college | మీ స్కూల్ లేదా కాలేజీ పేరు | v2 P4 |
+| apps/web/messages | schoolPass.institutionHint | Used only for this check. We do not store it. | ఈ తనిఖీకి మాత్రమే. మేము దీనిని దాచుకోము. | v2 P4 |
+| apps/web/messages | schoolPass.submit | Check eligibility | అర్హత చూడండి | v2 P4 |
+| apps/web/messages | schoolPass.errorSummary | Please fix these: | దయచేసి వీటిని సరిచేయండి: | v2 P4 |
+| apps/web/messages | schoolPass.errors.consent | Agree to the check to continue. | కొనసాగడానికి తనిఖీకి అంగీకరించండి. | v2 P4 |
+| apps/web/messages | schoolPass.errors.isStudent | Confirm that you are a student. | మీరు విద్యార్థి అని నిర్ధారించండి. | v2 P4 |
+| apps/web/messages | schoolPass.errors.institution | Enter the name of your school or college. | మీ స్కూల్ లేదా కాలేజీ పేరు ఇవ్వండి. | v2 P4 |
+| apps/web/messages | schoolPass.errors.stops | Choose both stops. | రెండు స్టాప్‌లనూ ఎంచుకోండి. | v2 P4 |
+| apps/web/messages | schoolPass.errors.sameStop | Home and school stops must be different. | ఇంటి స్టాప్, స్కూల్ స్టాప్ వేర్వేరుగా ఉండాలి. | v2 P4 |
+| apps/web/messages | schoolPass.eligibleTitle | You can buy a school pass | మీరు విద్యార్థి పాస్ కొనవచ్చు | v2 P4 |
+| apps/web/messages | schoolPass.stopsTitle | Your route | మీ మార్గం | v2 P4 |
+| apps/web/messages | schoolPass.stopsHint | The pass works on buses whose route has both stops. | ఈ రెండు స్టాప్‌లు ఉన్న మార్గాల బస్సుల్లో పాస్ చెల్లుతుంది. | v2 P4 |
+| apps/web/messages | schoolPass.homeLabel | Stop near home | ఇంటి దగ్గరి స్టాప్ | v2 P4 |
+| apps/web/messages | schoolPass.destLabel | Stop near school or college | స్కూల్ లేదా కాలేజీ దగ్గరి స్టాప్ | v2 P4 |
+| apps/web/messages | schoolPass.placeholder | Type a stop name | స్టాప్ పేరు టైప్ చేయండి | v2 P4 |
+| apps/web/messages | schoolPass.notEligibleTitle | We could not confirm a school pass | విద్యార్థి పాస్ నిర్ధారించలేకపోయాము | v2 P4 |
+| apps/web/messages | schoolPass.reasons.CONSENT_REQUIRED | We need your agreement to run the check. | తనిఖీకి మీ అంగీకారం కావాలి. | v2 P4 |
+| apps/web/messages | schoolPass.reasons.NOT_A_STUDENT | The school pass is for students. You can buy a day, weekly or monthly pass. | విద్యార్థి పాస్ విద్యార్థులకు మాత్రమే. మీరు రోజు, వారపు లేదా నెలవారీ పాస్ కొనవచ్చు. | v2 P4 |
+| apps/web/messages | schoolPass.reasons.INSTITUTION_REQUIRED | Enter the name of your school or college and try again. | మీ స్కూల్ లేదా కాలేజీ పేరు ఇచ్చి మళ్లీ ప్రయత్నించండి. | v2 P4 |
+| apps/web/messages | schoolPass.reasons.OTHER | Something did not match. Try again or choose another pass. | ఏదో సరిపోలలేదు. మళ్లీ ప్రయత్నించండి లేదా వేరే పాస్ ఎంచుకోండి. | v2 P4 |
+| apps/web/messages | schoolPass.checkAgain | Check again | మళ్లీ చూడండి | v2 P4 |
+| apps/web/messages | schoolPass.otherPasses | See other passes | ఇతర పాస్‌లు చూడండి | v2 P4 |
+| apps/web/messages | schoolPass.errorTitle | School pass could not load | విద్యార్థి పాస్ లోడ్ కాలేదు | v2 P4 |
+| apps/web/messages | schoolPass.done | School pass bought. Activate it when you start travelling. | విద్యార్థి పాస్ కొన్నారు. ప్రయాణం మొదలుపెట్టినప్పుడు యాక్టివేట్ చేయండి. | v2 P4 |
+| apps/web/messages | passBuy.demoPrice | Demo price | నమూనా ధర | v2 P4 |
+| apps/web/messages | passBuy.demoNote | Prices marked Demo price are placeholders until the transport department confirms them. | నమూనా ధర అని ఉన్నవి రవాణా శాఖ ఖరారు చేసే వరకు తాత్కాలిక ధరలు. | v2 P4 |
+| apps/web/messages | passBuy.validityDay | Until midnight on the day you activate it | యాక్టివేట్ చేసిన రోజు అర్ధరాత్రి వరకు | v2 P4 |
+| apps/web/messages | passBuy.covers | Covers up to {count} people on the same bus | ఒకే బస్సులో {count} మంది వరకు ప్రయాణించవచ్చు | v2 P4 |
+| apps/web/messages | passBuy.buy | Buy for {amount} | {amount}కు కొనండి | v2 P4 |
+| apps/web/messages | passBuy.buyLabel | Buy {name} for {amount} | {name}ను {amount}కు కొనండి | v2 P4 |
+| apps/web/messages | passBuy.schoolCta | Check eligibility and buy | అర్హత చూసి కొనండి | v2 P4 |
+| apps/web/messages | passBuy.emptyTitle | No passes are on sale right now. | ప్రస్తుతం అమ్మకంలో పాస్‌లు లేవు. | v2 P4 |
+| apps/web/messages | passBuy.emptyHint | Check again later, or travel with a single ticket. | తర్వాత మళ్లీ చూడండి, లేదా సింగిల్ టికెట్‌తో ప్రయాణించండి. | v2 P4 |
+| apps/web/messages | passBuy.forWho.DAY | For a day of trips, as many as you need. | ఒక రోజంతా ఎన్ని ప్రయాణాలైనా. | v2 P4 |
+| apps/web/messages | passBuy.forWho.WEEKLY | For daily travel through the week. | వారమంతా రోజువారీ ప్రయాణానికి. | v2 P4 |
+| apps/web/messages | passBuy.forWho.MONTHLY | For regular commuters. | క్రమం తప్పకుండా ప్రయాణించే వారికి. | v2 P4 |
+| apps/web/messages | passBuy.forWho.FAMILY | For a family travelling together. | కలిసి ప్రయాణించే కుటుంబానికి. | v2 P4 |
+| apps/web/messages | passBuy.forWho.SCHOOL | For students, between home and school or college. | విద్యార్థులకు, ఇంటి నుండి స్కూల్ లేదా కాలేజీకి. | v2 P4 |
+| apps/web/messages | passBuy.forWho.ANNUAL | For a whole year of travel. | ఏడాది పొడవునా ప్రయాణానికి. | v2 P4 |
+| apps/web/messages | passes.covers | Covers up to {count} people on the same bus | ఒకే బస్సులో {count} మంది వరకు ప్రయాణించవచ్చు | v2 P4 |
+| apps/web/messages | passes.route | {from} to {to} | {from} నుండి {to} | v2 P4 |
+| apps/web/messages | conductorApp.groupBoarded | {boarded} of {size} boarded | {size}లో {boarded} మంది ఎక్కారు | v2 P4 |
+| apps/web/messages | adminApp.passTypes.title | Pass types | పాస్ రకాలు | v2 P4 |
+| apps/web/messages | adminApp.passTypes.desc | Prices and rules for new sales. Passes already sold keep what they were bought with. | కొత్త అమ్మకాలకు ధరలు, నియమాలు. ఇప్పటికే అమ్మిన పాస్‌లు కొన్నప్పటి విలువలే ఉంచుకుంటాయి. | v2 P4 |
+| apps/web/messages | adminApp.passTypes.openLink | Manage pass types | పాస్ రకాలు నిర్వహించండి | v2 P4 |
+| apps/web/messages | adminApp.passTypes.name | Pass | పాస్ | v2 P4 |
+| apps/web/messages | adminApp.passTypes.price | Price | ధర | v2 P4 |
+| apps/web/messages | adminApp.passTypes.validity | Validity | చెల్లుబాటు | v2 P4 |
+| apps/web/messages | adminApp.passTypes.group | People | వ్యక్తులు | v2 P4 |
+| apps/web/messages | adminApp.passTypes.sold | Sold | అమ్మినవి | v2 P4 |
+| apps/web/messages | adminApp.passTypes.demo | Demo price | నమూనా ధర | v2 P4 |
+| apps/web/messages | adminApp.passTypes.active | On sale | అమ్మకంలో | v2 P4 |
+| apps/web/messages | adminApp.passTypes.edit | Edit | మార్చండి | v2 P4 |
+| apps/web/messages | adminApp.passTypes.editTitle | Edit {name} | {name} మార్చండి | v2 P4 |
+| apps/web/messages | adminApp.passTypes.priceRupees | Price in rupees | ధర రూపాయల్లో | v2 P4 |
+| apps/web/messages | adminApp.passTypes.durationDays | Days | రోజులు | v2 P4 |
+| apps/web/messages | adminApp.passTypes.groupSize | People covered | ఎంతమందికి | v2 P4 |
+| apps/web/messages | adminApp.passTypes.sortOrder | Order in the list | జాబితాలో క్రమం | v2 P4 |
+| apps/web/messages | adminApp.passTypes.save | Save for new sales | కొత్త అమ్మకాలకు సేవ్ చేయండి | v2 P4 |
+| apps/web/messages | adminApp.passTypes.saved | Pass type saved. New sales use it now. | పాస్ రకం సేవ్ అయింది. కొత్త అమ్మకాలకు ఇది వర్తిస్తుంది. | v2 P4 |
+| apps/web/messages | adminApp.passTypes.untilDayEnd | Until midnight | అర్ధరాత్రి వరకు | v2 P4 |
+| apps/web/messages | adminApp.passTypes.rollingDays | {days, plural, one {# day} other {# days}} | {days, plural, one {# రోజు} other {# రోజులు}} | v2 P4 |
+| apps/web/messages | adminApp.passTypes.yes | Yes | అవును | v2 P4 |
+| apps/web/messages | adminApp.passTypes.no | No | కాదు | v2 P4 |
+| apps/web/messages | adminApp.passTypes.empty | No pass types yet. | ఇంకా పాస్ రకాలు లేవు. | v2 P4 |
+| apps/web/messages | adminApp.passTypes.errors.price | Enter a price of 0 or more. | 0 లేదా అంతకంటే ఎక్కువ ధర ఇవ్వండి. | v2 P4 |
+| apps/web/messages | adminApp.passTypes.errors.days | Enter 1 to 366 days. | 1 నుండి 366 రోజులు ఇవ్వండి. | v2 P4 |
+| apps/web/messages | adminApp.passTypes.errors.group | Enter 1 to 10 people. | 1 నుండి 10 మంది ఇవ్వండి. | v2 P4 |

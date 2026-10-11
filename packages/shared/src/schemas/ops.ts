@@ -113,7 +113,24 @@ export const OpsTripDto = TripDto.extend({
   assignment: AssignmentDto.nullable(),
 });
 export type OpsTripDto = z.infer<typeof OpsTripDto>;
+/** D-042: passengers per stage (stop) of one trip. Scans with no recorded stop are counted in passBoardings. */
+export const StageBoardingDto = z.object({
+  stopId: z.string(),
+  seq: z.number().int(),
+  nameEn: z.string(),
+  nameTe: z.string(),
+  /** Tickets booked to board here (not cancelled or refunded). */
+  booked: z.number().int().nonnegative(),
+  /** VALID scans (tickets and passes) recorded at this stop (D-035 boarding record). */
+  boarded: z.number().int().nonnegative(),
+  /** Tickets that get off here. */
+  alighting: z.number().int().nonnegative(),
+});
+export type StageBoardingDto = z.infer<typeof StageBoardingDto>;
+
 export const OpsTripProfileDto = OpsTripDto.extend({
+  stages: z.array(StageBoardingDto).optional(),
+  passBoardings: z.number().int().nonnegative().optional(),
   assignments: z.array(AssignmentDto),
   incidents: z.array(IncidentDto),
 });

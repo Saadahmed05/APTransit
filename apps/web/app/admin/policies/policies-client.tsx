@@ -1,13 +1,9 @@
 "use client";
+import Link from "next/link";
 
 import { useState } from "react";
 import { z } from "zod";
-import {
-  AdminFareDto,
-  AdminRefundDto,
-  AdminSettingDto,
-  formatDate,
-} from "@aptransit/shared";
+import { AdminFareDto, AdminRefundDto, AdminSettingDto, formatDate } from "@aptransit/shared";
 import {
   Button,
   Card,
@@ -68,7 +64,9 @@ export default function PoliciesClient() {
   // Refund policy form
   const [policyName, setPolicyName] = useState("Standard AP Transport Refund Policy");
   const [cancellationFeeRupees, setCancellationFeeRupees] = useState("0");
-  const [refundTiers, setRefundTiers] = useState<Array<{ minHoursBefore: number; percent: number }>>([
+  const [refundTiers, setRefundTiers] = useState<
+    Array<{ minHoursBefore: number; percent: number }>
+  >([
     { minHoursBefore: 24, percent: 90 },
     { minHoursBefore: 12, percent: 75 },
     { minHoursBefore: 1, percent: 50 },
@@ -81,7 +79,7 @@ export default function PoliciesClient() {
   const [maxPassengers, setMaxPassengers] = useState(6);
   const [daysAhead, setDaysAhead] = useState(30);
   const [closeMinutesBefore, setCloseMinutesBefore] = useState(10);
-  const [qrPeriodSec, setQrPeriodSec] = useState(30);
+  const [qrPeriodSec, setQrPeriodSec] = useState(3);
 
   const [prevSettings, setPrevSettings] = useState<AdminSettingDto[] | null>(null);
   if (settings && settings !== prevSettings) {
@@ -169,6 +167,9 @@ export default function PoliciesClient() {
           <h1 className="text-h1 font-bold">{t("policiesTitle")}</h1>
         </div>
         <p className="text-muted">{t("policiesDesc")}</p>
+        <Button asChild variant="secondary" className="mt-3">
+          <Link href="/admin/policies/pass-types">{t("passTypes.openLink")}</Link>
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -257,10 +258,18 @@ export default function PoliciesClient() {
                         </span>
                       </div>
                       <div className="text-small text-muted">
-                        <p>{t("baseFare")}: ₹{(f.baseFarePaise / 100).toFixed(2)}</p>
-                        <p>{t("perKmFare")}: ₹{(f.perKmPaise / 100).toFixed(2)} / km</p>
-                        <p>{t("minFare")}: ₹{(f.minFarePaise / 100).toFixed(2)}</p>
-                        <p className="mt-1 text-small">Valid from: {formatDate(f.validFrom, locale)}</p>
+                        <p>
+                          {t("baseFare")}: ₹{(f.baseFarePaise / 100).toFixed(2)}
+                        </p>
+                        <p>
+                          {t("perKmFare")}: ₹{(f.perKmPaise / 100).toFixed(2)} / km
+                        </p>
+                        <p>
+                          {t("minFare")}: ₹{(f.minFarePaise / 100).toFixed(2)}
+                        </p>
+                        <p className="mt-1 text-small">
+                          Valid from: {formatDate(f.validFrom, locale)}
+                        </p>
                       </div>
                     </Card>
                   );
@@ -278,10 +287,7 @@ export default function PoliciesClient() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field id="refund-policy-name" label={t("policyName")}>
-                <Input
-                  value={policyName}
-                  onChange={(e) => setPolicyName(e.target.value)}
-                />
+                <Input value={policyName} onChange={(e) => setPolicyName(e.target.value)} />
               </Field>
 
               <Field id="refund-cancel-fee" label={`${t("cancellationFee")} (₹)`}>
@@ -380,10 +386,10 @@ export default function PoliciesClient() {
               <Field id="settings-qr-period" label={t("qrPeriodSec")}>
                 <Input
                   type="number"
-                  min="10"
-                  max="120"
+                  min="3"
+                  max="3"
                   value={qrPeriodSec}
-                  onChange={(e) => setQrPeriodSec(parseInt(e.target.value, 10) || 30)}
+                  onChange={(e) => setQrPeriodSec(parseInt(e.target.value, 10) || 3)}
                 />
               </Field>
             </div>
@@ -439,7 +445,11 @@ export default function PoliciesClient() {
             <Button variant="ghost" onClick={() => setConfirmSettingsOpen(false)}>
               {common("close")}
             </Button>
-            <Button variant="primary" onClick={handleSaveSettings} loading={settingsMutation.isPending}>
+            <Button
+              variant="primary"
+              onClick={handleSaveSettings}
+              loading={settingsMutation.isPending}
+            >
               {t("confirmAndSave")}
             </Button>
           </div>

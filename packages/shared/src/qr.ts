@@ -1,11 +1,12 @@
 import { z } from "zod";
 
 // docs/07 section 4 and ADR 003. QR content = APT1.<payload>.<signature>~<code>.
-// The rotating code is base32(HMAC_SHA256(rotSecret, step)).slice(0, 8), step = 30 s window.
+// The rotating code is base32(HMAC_SHA256(rotSecret, step)).slice(0, 8), step = QR_PERIOD_SEC window.
 // HMAC is injected: the web passes Web Crypto, the API passes Node crypto.
 
 export const QR_PREFIX = "APT1";
-export const QR_PERIOD_SEC = 30;
+// D-042: 3 s so a screenshot or a forwarded code stops working almost at once.
+export const QR_PERIOD_SEC = 3;
 export const QR_CODE_LENGTH = 8;
 
 /** RFC 4648 base32 alphabet. */
@@ -36,7 +37,8 @@ export function qrStep(nowMs: number, offsetMs = 0, periodSec = QR_PERIOD_SEC): 
 
 /** The HMAC message for a step: 8 bytes, big endian (as in TOTP). */
 export function stepMessage(step: number): Uint8Array {
-  if (!Number.isSafeInteger(step) || step < 0) throw new RangeError("step must be a non negative safe integer");
+  if (!Number.isSafeInteger(step) || step < 0)
+    throw new RangeError("step must be a non negative safe integer");
   const bytes = new Uint8Array(8);
   let rest = step;
   for (let i = 7; i >= 0; i--) {
@@ -65,7 +67,11 @@ export function formatCode(hmacBytes: Uint8Array): string {
   return out;
 }
 
-export async function rotatingCode(hmac: HmacSha256, rotSecret: Uint8Array, step: number): Promise<string> {
+export async function rotatingCode(
+  hmac: HmacSha256,
+  rotSecret: Uint8Array,
+  step: number,
+): Promise<string> {
   return formatCode(await hmac(rotSecret, stepMessage(step)));
 }
 

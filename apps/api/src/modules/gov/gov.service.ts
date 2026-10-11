@@ -15,7 +15,7 @@ import { AppError } from "../../common/errors/app-error";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { calculateLoadFactor, type DailyStatsRow, serviceDateOf } from "../rollups/rollups.service";
-import { type AnalyticsScope, AnalyticsService } from "../analytics/analytics.service";
+import { type AnalyticsScope, AnalyticsService, complaintScopeOf } from "../analytics/analytics.service";
 import { displayStatusOf, toTripDto } from "../tracking/trip-context.service";
 import { TrackingService } from "../tracking/tracking.service";
 
@@ -75,14 +75,18 @@ export function sumRows(rows: readonly DailyStatsRow[]) {
 }
 
 /**
- * Rows that cover the caller's scope exactly once: the state row for statewide roles, else the
- * district rows of whole districts in scope plus depot rows for any other depot in scope.
+ * Rows that cover the caller's scope exactly once: every state row for platform roles, the state
+ * row of each whole state in scope, else the district rows of whole districts in scope plus depot
+ * rows for any other depot in scope.
  */
 export function areaRows(scope: AnalyticsScope, rows: readonly DailyStatsRow[], depotDistrict: ReadonlyMap<string, string>) {
-  if (scope.all) return rows.filter((r) => !r.routeId && !r.depotId && !r.districtId);
+  const isStateRow = (r: DailyStatsRow) => !r.routeId && !r.depotId && !r.districtId;
+  if (scope.all) return rows.filter(isStateRow);
+  const states = new Set(scope.stateIds);
   const districts = new Set(scope.districtIds);
   return rows.filter((r) => {
     if (r.routeId) return false;
+    if (r.stateId && states.has(r.stateId)) return isStateRow(r);
     if (!r.depotId) return r.districtId !== null && districts.has(r.districtId);
     return scope.depotIds.includes(r.depotId) && !districts.has(depotDistrict.get(r.depotId) ?? "");
   });
@@ -101,10 +105,16 @@ export class GovService {
     private readonly tracking: TrackingService,
   ) {}
 
-  /** GET /gov/overview */
-  async overview(user: AuthenticatedUser, dateStr?: string): Promise<GovOverviewDto> {
-    const date = dateStr ?? formatIstDate(new Date());
+  /** The caller's scope, narrowed to one state when the state picker sent one (D-034). */
+  private async scope(user: AuthenticatedUser, stateId?: string): Promise<AnalyticsScope> {
     const scope = await this.analytics.scopeFor(user);
+    return stateId ? this.analytics.narrowToState(scope, stateId) : scope;
+  }
+
+  /** GET /gov/overview */
+  async overview(user: AuthenticatedUser, dateStr?: string, stateId?: string): Promise<GovOverviewDto> {
+    const date = dateStr ?? formatIstDate(new Date());
+    const scope = await this.scope(user, stateId);
     const depotFilter = scope.all ? {} : { depotId: { in: scope.depotIds } };
     const since = new Date(Date.now() - 30 * DAY_MS);
     const range = this.analytics.range(date, date);
@@ -138,8 +148,8 @@ export class GovService {
   }
 
   /** GET /gov/map: per district HQ live counts, live buses and open incidents in scope. */
-  async map(user: AuthenticatedUser): Promise<GovMapDto> {
-    const scope = await this.analytics.scopeFor(user);
+  async map(user: AuthenticatedUser, stateId?: string): Promise<GovMapDto> {
+    const scope = await this.scope(user, stateId);
     const today = formatIstDate(new Date());
     const [districts, trips, incidents, buses] = await Promise.all([
       this.prisma.district.findMany({
@@ -384,8 +394,8 @@ export class GovService {
     });
   }
 
-  /** Complaints of depots in scope; statewide also sees complaints without a depot. */
+  /** Complaints of depots in scope; state and platform roles also see complaints without a depot. */
   private complaintScope(scope: AnalyticsScope): Prisma.ComplaintWhereInput {
-    return scope.all ? {} : { depotId: { in: scope.depotIds } };
+    return complaintScopeOf(scope);
   }
 }

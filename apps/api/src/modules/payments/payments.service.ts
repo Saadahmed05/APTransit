@@ -92,19 +92,19 @@ export class PaymentsService {
     };
   }
 
-  /** Order for a PENDING_PAYMENT pass. The price comes from pass_types, never from the client. */
+  /** Order for a PENDING_PAYMENT pass. The price is the one copied onto the pass at purchase (D-036), never from the client. */
   private async createPassOrder(userId: string, passId: string, now: Date): Promise<PaymentOrderDto> {
     const pass = await this.prisma.pass.findUnique({
       where: { id: passId },
-      include: { passType: { select: { pricePaise: true } }, user: { select: { name: true, email: true, phone: true } } },
+      include: { user: { select: { name: true, email: true, phone: true } } },
     });
     if (!pass || pass.userId !== userId) throw new AppError("NOT_FOUND", "Pass not found");
     const abandoned = now.getTime() - pass.createdAt.getTime() > PASS_PAYMENT_ABANDON_MINUTES * 60_000;
-    if (pass.status !== "PENDING_PAYMENT" || abandoned || pass.passType.pricePaise <= 0) {
+    if (pass.status !== "PENDING_PAYMENT" || abandoned || pass.pricePaise <= 0) {
       throw new AppError("BOOKING_NOT_PAYABLE", "This pass cannot be paid");
     }
 
-    const amountPaise = pass.passType.pricePaise;
+    const amountPaise = pass.pricePaise;
     let payment = await this.prisma.payment.findFirst({
       where: { passId: pass.id, status: "CREATED", amountPaise },
       orderBy: { createdAt: "desc" },

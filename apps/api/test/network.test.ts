@@ -7,6 +7,7 @@ import {
   PlacesSearchResponse,
   RouteDto,
   SearchTripsResponse,
+  StatesResponse,
   TimetableDto,
 } from "@aptransit/shared";
 import type { NestExpressApplication } from "@nestjs/platform-express";
@@ -18,6 +19,7 @@ import { configureHttpApp } from "../src/http-app";
 import { NetworkRepository } from "../src/modules/network/network.repository";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { RedisService } from "../src/redis/redis.service";
+import { AP_STATE_ID } from "../prisma/seed-data";
 import { busStandId, districtId, FakeNetworkRepository, routeId, stopId } from "./network-fixture";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -119,14 +121,31 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
     });
   });
 
+  it("GET /places/nearby lists the closest stops first (D-042)", async () => {
+    const res = await get("/places/nearby?lat=15.67&lng=78.11&limit=3");
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toMatchObject({ id: stopId("ORV"), distanceKm: 0 });
+    expect(res.body).toHaveLength(3);
+    expect((await get("/places/nearby?lat=200&lng=1")).status).toBe(400);
+  });
+
   describe("districts and bus stands", () => {
     it("lists districts with bus stand counts", async () => {
       const res = await get("/districts");
       expect(res.status).toBe(200);
       const districts = DistrictsResponse.parse(res.body);
-      expect(districts).toHaveLength(10);
+      expect(districts).toHaveLength(12);
       expect(districts.find((d) => d.code === "NDL")?.busStandCount).toBe(2);
+      expect(districts.every((d) => d.stateId === AP_STATE_ID)).toBe(true);
       expect(res.headers["x-ratelimit-limit"]).toBe("120");
+    });
+
+    it("lists states with their map view, public (D-034)", async () => {
+      const res = await get("/states");
+      expect(res.status).toBe(200);
+      expect(StatesResponse.parse(res.body)).toEqual([
+        expect.objectContaining({ id: AP_STATE_ID, code: "AP", bounds: [76.7, 12.6, 84.8, 19.95], center: { lat: 16, lng: 78 }, zoom: 7 }),
+      ]);
     });
 
     it("lists bus stands of a district with route counts", async () => {
@@ -134,7 +153,12 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
       expect(res.status).toBe(200);
       expect(BusStandsResponse.parse(res.body)).toEqual([
         { id: busStandId("DHN"), nameEn: "Dhone", nameTe: "డోన్", routeCount: 2 },
-        { id: busStandId("NDL"), nameEn: "Nandyal Bus Stand", nameTe: "నంద్యాల బస్ స్టాండ్", routeCount: 5 },
+        {
+          id: busStandId("NDL"),
+          nameEn: "Nandyal Bus Stand",
+          nameTe: "నంద్యాల బస్ స్టాండ్",
+          routeCount: 5,
+        },
       ]);
     });
 
@@ -170,7 +194,11 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
       const route = RouteDto.parse(res.body);
       expect(route.stops.map((s) => s.seq)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
       expect(route.stops[0]?.nameEn).toBe("Kurnool Bus Stand");
-      expect(route.stops[7]).toMatchObject({ nameEn: "Vijayawada PNBS", kmFromOrigin: 365, minutesFromOrigin: 340 });
+      expect(route.stops[7]).toMatchObject({
+        nameEn: "Vijayawada PNBS",
+        kmFromOrigin: 365,
+        minutesFromOrigin: 340,
+      });
     });
 
     it("answers 404 for an unknown route", async () => {
@@ -257,8 +285,14 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
     });
 
     it("filters by departure time with after", async () => {
-      const trips = SearchTripsResponse.parse((await search("KNL", "VJA", tomorrow, "&after=10:00")).body);
-      expect(trips.map((t) => formatIstTime(new Date(t.departureAt)))).toEqual(["10:00", "13:00", "21:30"]);
+      const trips = SearchTripsResponse.parse(
+        (await search("KNL", "VJA", tomorrow, "&after=10:00")).body,
+      );
+      expect(trips.map((t) => formatIstTime(new Date(t.departureAt)))).toEqual([
+        "10:00",
+        "13:00",
+        "21:30",
+      ]);
     });
 
     it("counts taken seats and never goes below zero", async () => {
@@ -304,7 +338,10 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
       ["a date in another format", `from=${stopId("KNL")}&to=${stopId("VJA")}&date=01-10-2026`],
       ["a missing from", `to=${stopId("VJA")}&date=${tomorrow}`],
       ["the same stop twice", `from=${stopId("KNL")}&to=${stopId("KNL")}&date=${tomorrow}`],
-      ["a bad after time", `from=${stopId("KNL")}&to=${stopId("VJA")}&date=${tomorrow}&after=25:00`],
+      [
+        "a bad after time",
+        `from=${stopId("KNL")}&to=${stopId("VJA")}&date=${tomorrow}&after=25:00`,
+      ],
     ])("answers VALIDATION_FAILED for %s", async (_label, qs) => {
       const res = await get(`/search/trips?${qs}`);
       expect(res.status).toBe(400);
@@ -329,7 +366,10 @@ describe("Search on a one way network", () => {
       .useValue({ $queryRaw: async () => [1], onModuleDestroy: async () => undefined })
       .overrideProvider(RedisService)
       // Not ready: the throttler fails open, which is fine for this test
-      .useValue({ client: { status: "end", ping: async () => "PONG" }, onModuleDestroy: async () => undefined })
+      .useValue({
+        client: { status: "end", ping: async () => "PONG" },
+        onModuleDestroy: async () => undefined,
+      })
       .overrideProvider(NetworkRepository)
       .useValue(repo)
       .compile();

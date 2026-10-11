@@ -20,7 +20,8 @@ import { RedisService } from "../src/redis/redis.service";
 import { createFakeRedis } from "./fake-redis";
 
 const MIN = 60_000;
-const hmac = (key: Uint8Array, message: Uint8Array) => new Uint8Array(createHmac("sha256", key).update(message).digest());
+const hmac = (key: Uint8Array, message: Uint8Array) =>
+  new Uint8Array(createHmac("sha256", key).update(message).digest());
 
 function matches(row: any, where: any = {}): boolean {
   return Object.entries(where).every(([key, cond]: [string, any]) => {
@@ -82,7 +83,8 @@ describe("Tickets (Day 7)", () => {
     $queryRaw: async () => [1],
     $transaction: async (cb: any) => cb(prisma),
     ticket: {
-      findMany: async ({ where }: any) => tickets.filter((t) => matches(t, where)).map(withRelations),
+      findMany: async ({ where }: any) =>
+        tickets.filter((t) => matches(t, where)).map(withRelations),
       findFirst: async ({ where }: any) => {
         const t = tickets.find((x) => matches(x, where));
         return t ? withRelations(t) : null;
@@ -90,7 +92,11 @@ describe("Tickets (Day 7)", () => {
       findUnique: async ({ where }: any) => tickets.find((t) => t.id === where.id) ?? null,
       updateMany: async ({ where, data }: any) => {
         const rows = tickets.filter((t) => matches(t, where));
-        for (const t of rows) Object.assign(t, { ...data, version: data.version?.increment ? t.version + data.version.increment : t.version });
+        for (const t of rows)
+          Object.assign(t, {
+            ...data,
+            version: data.version?.increment ? t.version + data.version.increment : t.version,
+          });
         return { count: rows.length };
       },
       update: async ({ where, data }: any) => {
@@ -115,12 +121,19 @@ describe("Tickets (Day 7)", () => {
     fareRule: { findFirst: async () => ({ reservationFeePaise: 3_000 }) },
     setting: { findMany: async () => [], findUnique: async () => null },
     payment: {
-      findFirst: async ({ where }: any) => payments.find((p) => p.bookingId === where.bookingId && where.status.in.includes(p.status)) ?? null,
+      findFirst: async ({ where }: any) =>
+        payments.find(
+          (p) => p.bookingId === where.bookingId && where.status.in.includes(p.status),
+        ) ?? null,
       findUnique: async ({ where }: any) => {
         const p = payments.find((x) => x.id === where.id);
         return p ? { ...p, refunds: refunds.filter((r) => r.paymentId === p.id) } : null;
       },
-      update: async ({ where, data }: any) => Object.assign(payments.find((p) => p.id === where.id), data),
+      update: async ({ where, data }: any) =>
+        Object.assign(
+          payments.find((p) => p.id === where.id),
+          data,
+        ),
     },
     refund: {
       create: async ({ data }: any) => {
@@ -128,7 +141,8 @@ describe("Tickets (Day 7)", () => {
         refunds.push(row);
         return row;
       },
-      findUnique: async ({ where }: any) => refunds.find((r) => r.providerRefundId === where.providerRefundId) ?? null,
+      findUnique: async ({ where }: any) =>
+        refunds.find((r) => r.providerRefundId === where.providerRefundId) ?? null,
       updateMany: async ({ where, data }: any) => {
         const rows = refunds.filter((r) => r.id === where.id && r.status !== where.status.not);
         rows.forEach((r) => Object.assign(r, data));
@@ -169,12 +183,21 @@ describe("Tickets (Day 7)", () => {
       droppingStopId: "stopto000001",
       ...overrides,
     });
-    payments.push({ id: "pmt0000000001", bookingId: "bkg0000000001", status: "CAPTURED", providerPaymentId: "pay_paid000001", amountPaise: 54_100, capturedAt: new Date() });
+    payments.push({
+      id: "pmt0000000001",
+      bookingId: "bkg0000000001",
+      status: "CAPTURED",
+      providerPaymentId: "pay_paid000001",
+      amountPaise: 54_100,
+      capturedAt: new Date(),
+    });
     return id;
   }
 
-  const get = (path: string, auth = token) => request(app.getHttpServer()).get(`/api/v1${path}`).set("Authorization", `Bearer ${auth}`);
-  const post = (path: string, auth = token) => request(app.getHttpServer()).post(`/api/v1${path}`).set("Authorization", `Bearer ${auth}`);
+  const get = (path: string, auth = token) =>
+    request(app.getHttpServer()).get(`/api/v1${path}`).set("Authorization", `Bearer ${auth}`);
+  const post = (path: string, auth = token) =>
+    request(app.getHttpServer()).post(`/api/v1${path}`).set("Authorization", `Bearer ${auth}`);
 
   beforeAll(async () => {
     provider = new FakePaymentProvider();
@@ -188,13 +211,20 @@ describe("Tickets (Day 7)", () => {
       .overrideProvider(getQueueToken(QUEUES.EXPIRY))
       .useValue({ add: async () => ({}), remove: async () => 1 })
       .compile();
-    app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: true, rawBody: true });
+    app = moduleRef.createNestApplication<NestExpressApplication>({
+      bufferLogs: true,
+      rawBody: true,
+    });
     configureHttpApp(app);
     await app.init();
 
     const auth = moduleRef.get(AuthService) as any;
-    token = await auth.generateAccessToken(userId, [{ role: "CITIZEN", depotId: null, districtId: null }]);
-    otherToken = await auth.generateAccessToken(otherUserId, [{ role: "CITIZEN", depotId: null, districtId: null }]);
+    token = await auth.generateAccessToken(userId, [
+      { role: "CITIZEN", depotId: null, districtId: null },
+    ]);
+    otherToken = await auth.generateAccessToken(otherUserId, [
+      { role: "CITIZEN", depotId: null, districtId: null },
+    ]);
     qr = moduleRef.get(QrService);
     moduleRef.get(DomainEventsService).on("ticket.status", (e) => {
       events.push(e);
@@ -220,7 +250,11 @@ describe("Tickets (Day 7)", () => {
     tickets.push({ ...tickets[0], id: "tktold0000001", status: "USED" });
     const upcoming = await get("/tickets?scope=upcoming").expect(200);
     expect(upcoming.body.map((t: any) => t.id)).toEqual([tickets[0].id]);
-    expect(upcoming.body[0]).toMatchObject({ seatNo: "7", serviceType: "EXPRESS", boarding: { nameEn: "Kurnool" } });
+    expect(upcoming.body[0]).toMatchObject({
+      seatNo: "7",
+      serviceType: "EXPRESS",
+      boarding: { nameEn: "Kurnool" },
+    });
     const past = await get("/tickets?scope=past").expect(200);
     expect(past.body.map((t: any) => t.id)).toEqual(["tktold0000001"]);
     expect((await get("/tickets", otherToken).expect(200)).body).toEqual([]);
@@ -244,9 +278,13 @@ describe("Tickets (Day 7)", () => {
       const res = await post(`/tickets/${id}/activate`).expect(200);
       expect(res.body.status).toBe("ACTIVE");
       // validUntil = arrival (340 min) + delay 0 + grace 60
-      expect(new Date(res.body.validUntil).getTime()).toBe(trip.scheduledDepartureAt.getTime() + 400 * MIN);
+      expect(new Date(res.body.validUntil).getTime()).toBe(
+        trip.scheduledDepartureAt.getTime() + 400 * MIN,
+      );
       expect(tickets[0].version).toBe(2);
-      expect(events).toEqual([{ ticketId: id, holderUserId: userId, from: "BOOKED", to: "ACTIVE" }]);
+      expect(events).toEqual([
+        { ticketId: id, holderUserId: userId, from: "BOOKED", to: "ACTIVE" },
+      ]);
       expect(audit.some((a) => a.action === "ticket.activate")).toBe(true);
 
       const again = await post(`/tickets/${id}/activate`).expect(409);
@@ -265,7 +303,9 @@ describe("Tickets (Day 7)", () => {
       const id = seedTicket(180);
       const res = await post(`/tickets/${id}/activate`).expect(422);
       expect(res.body.error.code).toBe("ACTIVATION_WINDOW_CLOSED");
-      expect(new Date(res.body.error.details.activationOpensAt).getTime()).toBe(trip.scheduledDepartureAt.getTime() - 60 * MIN);
+      expect(new Date(res.body.error.details.activationOpensAt).getTime()).toBe(
+        trip.scheduledDepartureAt.getTime() - 60 * MIN,
+      );
       expect(tickets[0].status).toBe("BOOKED");
     });
   });
@@ -275,8 +315,13 @@ describe("Tickets (Day 7)", () => {
       const id = seedTicket(30);
       const before = TicketQrDto.parse((await get(`/tickets/${id}/qr`).expect(200)).body);
       expect(before.rotSecret).toBeNull();
-      expect(before.periodSec).toBe(30);
-      expect(qr.verifyToken(before.token)).toMatchObject({ t: "T", i: id, tr: trip.id, d: "2026-10-04" });
+      expect(before.periodSec).toBe(3);
+      expect(qr.verifyToken(before.token)).toMatchObject({
+        t: "T",
+        i: id,
+        tr: trip.id,
+        d: "2026-10-04",
+      });
 
       await post(`/tickets/${id}/activate`).expect(200);
       const after = TicketQrDto.parse((await get(`/tickets/${id}/qr`).expect(200)).body);
@@ -299,19 +344,36 @@ describe("Tickets (Day 7)", () => {
     ])("%s", async (_label, minutesAway, percent, amount) => {
       const id = seedTicket(minutesAway);
       const quote = await get(`/tickets/${id}/refund-quote`).expect(200);
-      expect(quote.body).toEqual({ cancellable: true, percent, amountPaise: amount, feePaise: 3_000, policyName: "Standard AP Transport Refund Policy" });
+      expect(quote.body).toEqual({
+        cancellable: true,
+        percent,
+        amountPaise: amount,
+        feePaise: 3_000,
+        policyName: "Standard AP Transport Refund Policy",
+      });
 
       const res = await post(`/tickets/${id}/cancel`).expect(200);
       expect(res.body.ticket.status).toBe("CANCELLED");
       expect(res.body.refund).toEqual({ amountPaise: amount, status: "PENDING" });
-      expect(provider.refunds).toEqual([{ id: expect.any(String), paymentId: "pay_paid000001", amountPaise: amount }]);
-      expect(refunds[0]).toMatchObject({ ticketId: id, amountPaise: amount, status: "PENDING", reason: "HOLDER_CANCELLED" });
-      expect(audit.map((a) => a.action)).toEqual(expect.arrayContaining(["ticket.cancel", "refund.create"]));
+      expect(provider.refunds).toEqual([
+        { id: expect.any(String), paymentId: "pay_paid000001", amountPaise: amount },
+      ]);
+      expect(refunds[0]).toMatchObject({
+        ticketId: id,
+        amountPaise: amount,
+        status: "PENDING",
+        reason: "HOLDER_CANCELLED",
+      });
+      expect(audit.map((a) => a.action)).toEqual(
+        expect.arrayContaining(["ticket.cancel", "refund.create"]),
+      );
     });
 
     it("under 1 hour or after activation is not cancellable, and a double cancel refunds once", async () => {
       const soon = seedTicket(30);
-      expect((await post(`/tickets/${soon}/cancel`).expect(409)).body.error.code).toBe("TICKET_NOT_CANCELLABLE");
+      expect((await post(`/tickets/${soon}/cancel`).expect(409)).body.error.code).toBe(
+        "TICKET_NOT_CANCELLABLE",
+      );
 
       tickets = [];
       const id = seedTicket(300);
@@ -325,7 +387,16 @@ describe("Tickets (Day 7)", () => {
       await post(`/tickets/${id}/cancel`).expect(200);
       const body = JSON.stringify({
         event: "refund.processed",
-        payload: { refund: { entity: { id: refunds[0].providerRefundId, payment_id: "pay_paid000001", amount: 25_550, status: "processed" } } },
+        payload: {
+          refund: {
+            entity: {
+              id: refunds[0].providerRefundId,
+              payment_id: "pay_paid000001",
+              amount: 25_550,
+              status: "processed",
+            },
+          },
+        },
       });
       const send = () =>
         request(app.getHttpServer())

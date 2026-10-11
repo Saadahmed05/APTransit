@@ -117,3 +117,10 @@ Day 14 adds /ops, /ops/buses, /ops/trips and /ops/incidents with live query upda
 6. An E2E or unit test, and an axe check for a new journey.
 
 New shared components go in `packages/ui/src/components`, exported from `index.ts`, with a test. Design rules: docs/09 and docs/10.
+
+## v3 (D-042, D-043)
+
+- `components/bus-splash.tsx` is in the root layout: pure CSS, no state. Change timing with `--dur-splash`.
+- `/` needs login (proxy). Home = `home-search.tsx` plus `map-picker.tsx` (dynamic MapView, tappable markers via `onMarkerClick`, list fallback for keyboard and screen readers).
+- `components/google-sign-in.tsx` loads Google Identity Services only when `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is set. CSP entries live in `lib/csp.ts`.
+- Pass buy handles zone district and child card fields. `/terms` is public.

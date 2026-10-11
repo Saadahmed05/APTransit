@@ -12,13 +12,18 @@ import {
   DialogTitle,
   Field,
   Input,
-  MapView,
   Skeleton,
 } from "@aptransit/ui";
 import { useTranslations } from "next-intl";
 import { useAdminMutation, useAdminQuery } from "../../../lib/admin";
 import { OpsEmpty, OpsError, WriteError } from "../../ops/ops-common";
 import { Edit2, MapPin, Plus } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const MapView = dynamic(() => import("@aptransit/ui/map-view"), {
+  ssr: false,
+  loading: () => <Skeleton className="h-64 w-full" />,
+});
 
 export default function StopsClient() {
   const t = useTranslations("adminApp");

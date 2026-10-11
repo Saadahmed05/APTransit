@@ -6,9 +6,9 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { delayTone, useGovLive, useGovQuery, useGovScope } from "../../lib/gov";
+import { boundsOf, delayTone, useGovLive, useGovQuery, useGovScope, useStates } from "../../lib/gov";
 import { OpsEmpty, OpsError } from "../ops/ops-common";
-import { GovKpiRow, LiveIndicator, placeName } from "./gov-common";
+import { GovBreadcrumb, GovKpiRow, LiveIndicator, placeName } from "./gov-common";
 
 const GovMap = dynamic(() => import("@aptransit/ui/map-view").then((m) => m.GovMap), {
   ssr: false,
@@ -17,21 +17,30 @@ const GovMap = dynamic(() => import("@aptransit/ui/map-view").then((m) => m.GovM
 
 const MAP_STYLE = process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/liberty";
 
-/** /gov command center (plan sec 35). District officers go straight to their district. */
-export function CommandCenter() {
+/**
+ * Command center (plan sec 35). /gov shows everything in the caller's scope (every state for
+ * SUPER_ADMIN, with the state picker); /gov/state/[id] shows one state (D-034). District officers
+ * go straight to their district.
+ */
+export function CommandCenter({ stateId }: { stateId?: string } = {}) {
   const t = useTranslations("govApp"),
     all = useTranslations(),
     locale = useLocale(),
     router = useRouter(),
-    scope = useGovScope();
+    scope = useGovScope(),
+    { states } = useStates();
   const officer = scope.ready && !scope.statewide && scope.districtId;
   useEffect(() => {
     if (officer) router.replace(`/gov/district/${scope.districtId}`);
   }, [officer, router, scope.districtId]);
 
-  useGovLive();
-  const overview = useGovQuery("/gov/overview", GovOverviewDto, {}, scope.statewide);
-  const map = useGovQuery("/gov/map", GovMapDto, {}, scope.statewide);
+  useGovLive(stateId);
+  const query = stateId ? { stateId } : {};
+  const overview = useGovQuery("/gov/overview", GovOverviewDto, query, scope.statewide);
+  const map = useGovQuery("/gov/map", GovMapDto, query, scope.statewide);
+  // The map shows the picked state, the caller's states, or every state for the platform view
+  const shown = states.filter((s) => (stateId ? s.id === stateId : scope.platform || scope.stateIds.includes(s.id)));
+  const state = stateId ? shown[0] : undefined;
 
   if (!scope.ready || officer) return <Skeleton className="h-tracking-map w-full" />;
 
@@ -52,10 +61,34 @@ export function CommandCenter() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
+      {stateId && scope.platform && (
+        <GovBreadcrumb items={[{ href: "/gov", label: t("allStates") }, { label: placeName(locale, state) || t("state") }]} />
+      )}
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <h1 className="text-h1">{t("title")}</h1>
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="text-h1">{t("title")}</h1>
+          {state && <p className="text-body text-muted">{placeName(locale, state)}</p>}
+        </div>
         <LiveIndicator updatedAt={overview.dataUpdatedAt} />
       </div>
+
+      {!stateId && scope.platform && states.length > 0 && (
+        <nav aria-label={t("statePicker")}>
+          <ul className="flex flex-wrap gap-2">
+            {states.map((s) => (
+              <li key={s.id}>
+                <Link
+                  href={`/gov/state/${s.id}`}
+                  aria-label={t("openState", { name: placeName(locale, s) })}
+                  className="inline-flex min-h-11 items-center rounded-md border border-default bg-surface px-4 hover:bg-surface-raised"
+                >
+                  {placeName(locale, s)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
 
       {overview.isError ? (
         <OpsError error={overview.error} retry={() => void overview.refetch()} />
@@ -86,6 +119,7 @@ export function CommandCenter() {
           ) : (
             <GovMap
               mapStyle={MAP_STYLE}
+              bounds={boundsOf(shown)}
               buses={map.data.buses}
               districts={map.data.districts
                 .filter((d) => d.lat !== null && d.lng !== null)

@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import { PLATFORM_TIME_ZONE } from "@aptransit/shared";
 import { getQueueToken } from "@nestjs/bullmq";
 import { NestFactory } from "@nestjs/core";
 import type { Queue } from "bullmq";
@@ -34,7 +35,7 @@ async function bootstrap(): Promise<void> {
     // Upsert, so restarts never stack duplicate schedules.
     await maintenanceQueue.upsertJobScheduler(
       "generate-trips",
-      { pattern: "30 0 * * *", tz: "Asia/Kolkata" },
+      { pattern: "30 0 * * *", tz: PLATFORM_TIME_ZONE },
       { name: "generate-trips" },
     );
     logger.log("Scheduled repeatable generate-trips job at 00:30 IST daily", "Worker");
@@ -47,7 +48,7 @@ async function bootstrap(): Promise<void> {
     const rollupsQueue = app.get<Queue>(getQueueToken(QUEUES.ROLLUPS));
     await rollupsQueue.upsertJobScheduler(
       "daily-rollups",
-      { pattern: "15 0 * * *", tz: "Asia/Kolkata" },
+      { pattern: "15 0 * * *", tz: PLATFORM_TIME_ZONE },
       { name: "daily-rollups" },
     );
     logger.log("Scheduled repeatable daily-rollups job at 00:15 IST daily", "Worker");
@@ -58,8 +59,8 @@ async function bootstrap(): Promise<void> {
   // Retention 02:00 IST and the failed jobs summary 07:00 IST (Day 18)
   try {
     const maintenanceQueue = app.get<Queue>(getQueueToken(QUEUES.MAINTENANCE));
-    await maintenanceQueue.upsertJobScheduler(RETENTION_JOB, { pattern: "0 2 * * *", tz: "Asia/Kolkata" }, { name: RETENTION_JOB });
-    await maintenanceQueue.upsertJobScheduler(FAILED_JOBS_SUMMARY_JOB, { pattern: "0 7 * * *", tz: "Asia/Kolkata" }, { name: FAILED_JOBS_SUMMARY_JOB });
+    await maintenanceQueue.upsertJobScheduler(RETENTION_JOB, { pattern: "0 2 * * *", tz: PLATFORM_TIME_ZONE }, { name: RETENTION_JOB });
+    await maintenanceQueue.upsertJobScheduler(FAILED_JOBS_SUMMARY_JOB, { pattern: "0 7 * * *", tz: PLATFORM_TIME_ZONE }, { name: FAILED_JOBS_SUMMARY_JOB });
     logger.log("Scheduled retention at 02:00 IST and the failed jobs summary at 07:00 IST", "Worker");
   } catch (err) {
     logger.warn(`Could not schedule retention jobs: ${(err as Error).message}`, "Worker");

@@ -17,7 +17,7 @@ sequenceDiagram
   A->>A: trust checks (see 12-security)
   A->>R: SET bus:live:{tripId} (TTL 120 s)
   A->>A: progress + ETA + delay
-  A->>S: emit bus:position to trip, route, depot, district, state rooms
+  A->>S: emit bus:position to trip, route, depot, district, state:{id} rooms
   A->>P: insert gps_locations if 30 s since last sample
   A->>P: update trips.delayMinutes, lastStopSeq when changed
 ```
@@ -63,9 +63,9 @@ Implemented in `apps/api/src/modules/tracking/progress.ts`, pure functions with 
 | --- | --- | --- |
 | `trip:{id}` | anyone | `bus:position`, `trip:status`, `incident:*` for that trip |
 | `route:{id}` | anyone | positions of all running trips on the route |
-| `depot:{id}` | ops roles scoped to that depot, district and state roles | all trips of the depot, incidents, `kpi:update` |
-| `district:{id}` | DISTRICT_OFFICER of that district and up | all trips of the district |
-| `state` | TRANSPORT_OFFICER and up | everything, positions throttled to one per trip per 10 s |
+| `depot:{id}` | ops roles scoped to that depot, its district or its state, and SUPER_ADMIN | all trips of the depot, incidents, `kpi:update` |
+| `district:{id}` | DISTRICT_OFFICER of that district, state roles of its state, SUPER_ADMIN | all trips of the district |
+| `state:{id}` | TRANSPORT_OFFICER and STATE_ADMIN of that state, SUPER_ADMIN (any state) | everything in that state, positions throttled to one per trip per 10 s, `kpi:update` with that state's totals. The trip's state comes from route > depot > district > state (D-034). The old bare `state` room is refused; web and API deploy together |
 | `user:{id}` | the user (auto) | notifications, ticket status |
 
 ## Maps
@@ -74,7 +74,7 @@ Implemented in `apps/api/src/modules/tracking/progress.ts`, pure functions with 
 - Citizen map: route line (done part in success tone, ahead in neutral), stops as dots, bus as a marker with a bus icon and heading, next stop highlighted. Map is decorative for screen readers; RouteProgress list carries the same facts.
 - Ops map: depot buses coloured by status tone, each with an icon (plan sec 29 colours resolved in [09](09-design-system.md)).
 - Gov map: one marker per district at its HQ (from `bus_stands` of the district) coloured and labelled by delay level, clustered bus markers, incident markers. No district polygons in the MVP (no boundary data to license or maintain). Click drills down (plan sec 36).
-- Default view: AP bounds `[76.7, 12.6, 84.8, 19.95]`.
+- Default view: the bounds of the state from `GET /states` (AP `[76.7, 12.6, 84.8, 19.95]`). The SUPER_ADMIN platform view fits every state; `/gov/state/[id]` fits one (D-034).
 
 ## GPS simulator (for demos and tests)
 

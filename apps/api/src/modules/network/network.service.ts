@@ -1,9 +1,13 @@
 import { performance } from "node:perf_hooks";
 import {
+  VILLAGE_SERVICE_TYPES,
+  type NearbyPlaceDto,
+  type PlacesNearbyQuery,
   type BusStandDto,
   type BusStandRouteDto,
   type DistrictDto,
   formatIstDate,
+  type StateDto,
   formatIstTime,
   localTimeToUtc,
   type PlaceDto,
@@ -18,7 +22,7 @@ import { AppError } from "../../common/errors/app-error";
 import { TtlCache } from "../../common/services/ttl-cache";
 import { RedisService } from "../../redis/redis.service";
 import { holdCountKey } from "../bookings/seat-holds";
-import { NetworkRepository, type StopSearchRow } from "./network.repository";
+import { NetworkRepository, type StopSearchRow, type TripRow } from "./network.repository";
 import { boardingDepartureMs, hasFare, medianGapMinutes, toTripSummary } from "./trip-summary";
 
 const CACHE_TTL_MS = 60_000;
@@ -32,9 +36,11 @@ export class NetworkService {
   private readonly logger = new Logger(NetworkService.name);
   private readonly placesCache = new TtlCache<PlaceDto[]>(CACHE_TTL_MS);
   private readonly districtsCache = new TtlCache<DistrictDto[]>(CACHE_TTL_MS, 1);
+  private readonly stopsCache = new TtlCache<Required<StopSearchRow>[]>(CACHE_TTL_MS, 1);
+  private readonly statesCache = new TtlCache<StateDto[]>(CACHE_TTL_MS, 1);
   private readonly settingsCache = new TtlCache<number>(CACHE_TTL_MS, 50);
 
-  invalidateAdminChanges(): void { this.placesCache.clear(); this.districtsCache.clear(); this.settingsCache.clear(); }
+  invalidateAdminChanges(): void { this.placesCache.clear(); this.districtsCache.clear(); this.statesCache.clear(); this.stopsCache.clear(); this.settingsCache.clear(); }
 
   constructor(
     private readonly repo: NetworkRepository,
@@ -56,8 +62,32 @@ export class NetworkService {
           nameTe: s.nameTe,
           districtNameEn: s.districtNameEn,
           districtNameTe: s.districtNameTe,
+          ...(s.lat !== undefined && s.lng !== undefined ? { lat: s.lat, lng: s.lng } : {}),
         }));
     });
+  }
+
+  /** D-042: the stops nearest a point, for the map picker and "use my location". */
+  async nearbyPlaces({ lat, lng, limit }: PlacesNearbyQuery): Promise<NearbyPlaceDto[]> {
+    const stops = await this.stopsCache.getOrLoad("all", () => this.repo.allStops());
+    return stops
+      .map((s) => ({
+        id: s.id,
+        kind: s.isBusStand ? ("BUS_STAND" as const) : ("STOP" as const),
+        nameEn: s.nameEn,
+        nameTe: s.nameTe,
+        districtNameEn: s.districtNameEn,
+        districtNameTe: s.districtNameTe,
+        lat: s.lat,
+        lng: s.lng,
+        distanceKm: Math.round(haversineKm(lat, lng, s.lat, s.lng) * 10) / 10,
+      }))
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, limit);
+  }
+
+  states(): Promise<StateDto[]> {
+    return this.statesCache.getOrLoad("all", () => this.repo.states());
   }
 
   districts(): Promise<DistrictDto[]> {
@@ -83,7 +113,11 @@ export class NetworkService {
   }
 
   /** Trips of one route on a date, origin to destination, cancelled ones included with their status. */
-  async timetable(routeId: string, date: string | undefined, now = new Date()): Promise<TimetableDto> {
+  async timetable(
+    routeId: string,
+    date: string | undefined,
+    now = new Date(),
+  ): Promise<TimetableDto> {
     const route = await this.route(routeId);
     const serviceDate = date ?? formatIstDate(now);
     const rows = (
@@ -123,18 +157,30 @@ export class NetworkService {
    */
   async searchTrips(query: SearchTripsQuery, now = new Date()): Promise<TripSummaryDto[]> {
     const started = performance.now();
-    const closeMinutes = await this.settingNumber("booking.closeMinutesBefore", DEFAULT_CLOSE_MINUTES_BEFORE);
-    const rows = await this.repo.tripRows({ fromStopId: query.from, toStopId: query.to, serviceDate: query.date });
+    const closeMinutes = await this.settingNumber(
+      "booking.closeMinutesBefore",
+      DEFAULT_CLOSE_MINUTES_BEFORE,
+    );
+    const rows = villageFit(
+      await this.repo.tripRows({
+        fromStopId: query.from,
+        toStopId: query.to,
+        serviceDate: query.date,
+      }),
+    );
 
     const bookableFrom = now.getTime() + closeMinutes * 60_000;
-    const afterMs = query.after ? localTimeToUtc(query.date, query.after).getTime() : Number.NEGATIVE_INFINITY;
+    const afterMs = query.after
+      ? localTimeToUtc(query.date, query.after).getTime()
+      : Number.NEGATIVE_INFINITY;
     const kept = rows.filter((r) => {
       const departure = boardingDepartureMs(r);
       return departure > bookableFrom && departure >= afterMs;
     });
 
     const missingFare = kept.filter((r) => !hasFare(r)).length;
-    if (missingFare > 0) this.logger.warn(`search: ${missingFare} trips skipped, no fare rule on ${query.date}`);
+    if (missingFare > 0)
+      this.logger.warn(`search: ${missingFare} trips skipped, no fare rule on ${query.date}`);
     const priced = kept.filter(hasFare);
 
     const tripIds = priced.map((r) => r.tripId);
@@ -145,7 +191,9 @@ export class NetworkService {
         const totalTaken = (taken.get(r.tripId) ?? 0) + (holdCounts.get(r.tripId) ?? 0);
         return toTripSummary(r, totalTaken);
       })
-      .sort((a, b) => a.departureAt.localeCompare(b.departureAt) || a.tripId.localeCompare(b.tripId));
+      .sort(
+        (a, b) => a.departureAt.localeCompare(b.departureAt) || a.tripId.localeCompare(b.tripId),
+      );
 
     const ms = Math.round(performance.now() - started);
     this.logger.log(`search: ${result.length} trips in ${ms} ms`);
@@ -168,8 +216,34 @@ export class NetworkService {
   }
 
   private async settingNumber(key: string, fallback: number): Promise<number> {
-    return this.settingsCache.getOrLoad(key, async () => (await this.repo.settingNumber(key)) ?? fallback);
+    return this.settingsCache.getOrLoad(
+      key,
+      async () => (await this.repo.settingNumber(key)) ?? fallback,
+    );
   }
+}
+
+/** Great circle distance in km. */
+export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLng = (lng2 - lng1) * rad;
+  const a =
+    Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(a));
+}
+
+/**
+ * D-042 service fit: a journey to or from a village stop lists only the services that stop in
+ * villages (VILLAGE_SERVICE_TYPES) when there are any, so Kurnool to Orvakal shows village buses and
+ * not the express that passes through. A village served only by express buses still gets them.
+ */
+export function villageFit<T extends Pick<TripRow, "serviceType" | "villageEnd">>(rows: T[]): T[] {
+  if (!rows.some((r) => r.villageEnd)) return rows;
+  const village = rows.filter((r) =>
+    (VILLAGE_SERVICE_TYPES as readonly string[]).includes(r.serviceType),
+  );
+  return village.length > 0 ? village : rows;
 }
 
 /** Sort order for places: bus stands, then names that start with the text, then English name. */

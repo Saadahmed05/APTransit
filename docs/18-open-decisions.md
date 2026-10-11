@@ -20,6 +20,10 @@
 | G12 | Government system connections | None in MVP | |
 | G13 | Retention periods for tickets, payments, audit logs | Keep everything during the pilot | [05](05-data-model.md) |
 | G14 | Login method for citizens | Email OTP (real), phone OTP (dev only, SMS needs DLT registration) | [06](06-api-contract.md) |
+| G15 | Platform name when more states join (v2 P2) | Code and data are state neutral (D-034); the product name stays "AP TransitOS" and the `APT-` and `APT1` prefixes stay platform wide until the client decides | [05](05-data-model.md) |
+| G16 | Prices, durations and eligibility of the Day, Family, School and Annual passes (v2 P4) | DEMO values: Day 120, Weekly 450, Monthly 1,600, Family 1,000 (7 days, 4 people), School 600 (30 days, route restricted), Annual 15,000 rupees; shown with a "Demo price" chip (D-036) | [07](07-ticket-and-pass-rules.md) section 8 |
+| G17 | Family pass group size and whether children count | Up to 4 VALID scans per trip, children count as people | [07](07-ticket-and-pass-rules.md) section 8 |
+| G18 | School pass proof | Self declaration (consent, student, institution name not stored) with a mock provider; an institution letter, ID card or DigiLocker check later | [12](12-security.md) |
 
 ## Ticket rules to decide (plan sec 106)
 
@@ -34,6 +38,17 @@
 | T7 | QR format | Ed25519 signed token + 30 s rotating code |
 | T8 | Offline checking | Stretch goal: signature and expiry check offline, sync scans later, first scan wins |
 | T9 | Pass validity | 7 or 30 days from activation, activate within 30 days of purchase |
+
+## v3 values to confirm (D-042, assumptions)
+
+| Item | Value used | Confirm with |
+| --- | --- | --- |
+| Child age and fare | Under 12 pays 50 percent of the adult ticket | APSRTC concession rules |
+| Day pass price | 150 rupees, statewide ordinary to express | Transport authority |
+| Zone day and monthly pass | 60 and 900 rupees, one district, village and city ordinary services | Transport authority |
+| Child card age limit | Under 18 | Product owner |
+| QR period | 3 s with one step either side | Field test on low end phones and slow scanners |
+| Service fit | Village stop shows village services when any exist | Depot managers |
 
 ## Product conflicts we resolved (flag to product owner)
 

@@ -30,6 +30,8 @@
 | `POST /tickets/validate` | 120 per conductor per minute |
 | `POST /tracking/ping` | 30 per device per minute |
 | `POST /feedback` | 5 per IP per hour |
+| `POST /auth/google` | 10 per IP per minute (D-043) |
+| `GET /places/nearby` | 60 per IP per minute (same as search) |
 | Default for everything else | 120 per user or IP per minute |
 
 Over the limit: 429 `RATE_LIMITED` with `Retry-After`.
@@ -47,9 +49,16 @@ Over the limit: 429 `RATE_LIMITED` with `Retry-After`.
 - Refresh token is the httpOnly cookie, same origin through the Next rewrite.
 - On 401 the API client calls `/auth/refresh` once, retries once, then sends the user to `/login?next=`.
 
+## Sign in with Google (D-043)
+
+- The browser gets a Google ID token from Google Identity Services and posts it to `POST /auth/google`. The API never trusts the token itself: it asks Google (`oauth2.googleapis.com/tokeninfo`), then checks `aud` equals `GOOGLE_CLIENT_ID`, issuer, expiry and `email_verified`.
+- The account is found by email or created as CITIZEN; the same refresh cookie and `auth.login` audit (with `method: google`) as OTP.
+- CSP adds `https://accounts.google.com/gsi/client` (script), `/gsi/style` (style), `/gsi/` (connect and frame). Without the client id the button is hidden and the endpoint answers 403.
+- QR period is 3 s (D-042); the server accepts the previous, current and next step only, so a shared screenshot stops working in seconds.
+
 ## GPS trust (plan sec 62)
 
-A ping is accepted only when all are true: the caller is a DRIVER, the `X-Device-Key` matches an approved, not revoked device of that driver, the trip is RUNNING and assigned to that driver now, and the point is sane (inside the AP bounding box plus 50 km, speed under 120 km/h, timestamp within 2 min of server time). Rejected pings are counted, not stored.
+A ping is accepted only when all are true: the caller is a DRIVER, the `X-Device-Key` matches an approved, not revoked device of that driver, the trip is RUNNING and assigned to that driver now, and the point is sane (inside the bounding box of the trip's state plus about 50 km, from the `states` row, D-034, speed under 120 km/h, timestamp within 2 min of server time). Rejected pings are counted, not stored.
 
 ## Identity data (plan sec 51)
 

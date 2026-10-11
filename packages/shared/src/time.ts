@@ -4,6 +4,12 @@
  * Pure JS using Intl and standard Date methods, safe for browser and Node.
  */
 
+/**
+ * The one time zone of the platform (D-034). Every state row must use it until per state zones
+ * exist (every Indian state is IST). Never write the zone name as a literal anywhere else.
+ */
+export const PLATFORM_TIME_ZONE = "Asia/Kolkata";
+
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 
 export interface IstParts {

@@ -25,6 +25,7 @@ NODE_ENV=development
 APP_ENV=development                                                   # development, staging or production. Dev only features need a non production APP_ENV
 PORT=4000
 WEB_ORIGIN=http://localhost:3000
+GOOGLE_CLIENT_ID=                                                    # D-043 optional. OAuth web client id (ends .apps.googleusercontent.com). Empty hides Google sign in
 DATABASE_URL=postgresql://...-pooler.../aptransit?sslmode=require     # Neon pooled, used by the app
 DIRECT_URL=postgresql://.../aptransit?sslmode=require                 # Neon direct, used by prisma migrate
 REDIS_URL=rediss://default:...@...upstash.io:6379
@@ -62,6 +63,12 @@ Generate keys once:
 node -e "const {generateKeyPairSync}=require('crypto');const {privateKey}=generateKeyPairSync('ed25519');console.log(Buffer.from(privateKey.export({type:'pkcs8',format:'pem'})).toString('base64'))"
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
+
+### Google sign in setup (D-043)
+
+1. Google Cloud console, APIs and services, Credentials, Create OAuth client ID, type Web application.
+2. Authorised JavaScript origins: `http://localhost:3000` and the Vercel staging and production origins. No redirect URI is needed (popup mode).
+3. Put the client id in `apps/api/.env` as `GOOGLE_CLIENT_ID` and in `apps/web/.env.local` as `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (same value). Restart both. No client secret is used.
 
 ## Upstash and BullMQ budget
 

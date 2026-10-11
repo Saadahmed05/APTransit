@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+import { PLATFORM_TIME_ZONE } from "@aptransit/shared";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 
@@ -44,7 +45,7 @@ async function main(): Promise<void> {
     // Timetable departure (IST wall clock) on the trip's service date, stored as UTC
     const shifted = await prisma.$executeRaw`
       WITH m AS (
-        SELECT t.id, (((t."serviceDate"::date + tt."departureLocal"::time) AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'UTC') - t."scheduledDepartureAt" AS shift
+        SELECT t.id, (((t."serviceDate"::date + tt."departureLocal"::time) AT TIME ZONE ${PLATFORM_TIME_ZONE}) AT TIME ZONE 'UTC') - t."scheduledDepartureAt" AS shift
         FROM trips t JOIN timetables tt ON tt.id = t."timetableId" WHERE t.id = ${ticket.tripId}
       ), trip AS (
         UPDATE trips t SET "scheduledDepartureAt" = t."scheduledDepartureAt" + m.shift, "scheduledArrivalAt" = t."scheduledArrivalAt" + m.shift, "updatedAt" = now()

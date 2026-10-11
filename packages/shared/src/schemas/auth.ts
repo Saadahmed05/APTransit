@@ -89,10 +89,15 @@ export const OtpVerifyInput = z
   .transform(lowerCaseEmail);
 export type OtpVerifyInput = z.infer<typeof OtpVerifyInput>;
 
+/** D-043: POST /auth/google. The Google Identity Services ID token (a JWT), checked by the API with Google. */
+export const GoogleSignInInput = z.object({ credential: z.string().min(20).max(4096) }).strict();
+export type GoogleSignInInput = z.infer<typeof GoogleSignInInput>;
+
 export const UserRoleDto = z.object({
   role: Role,
   depotId: z.string().nullable().optional(),
   districtId: z.string().nullable().optional(),
+  stateId: z.string().nullable().optional(),
 });
 export type UserRoleDto = z.infer<typeof UserRoleDto>;
 

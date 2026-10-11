@@ -5,6 +5,7 @@ import {
   GovMapDto,
   GovOverviewDto,
   GovRouteSummaryDto,
+  GovStateQuery,
   PublicId,
 } from "@aptransit/shared";
 import { Controller, Get, Param, Query } from "@nestjs/common";
@@ -17,6 +18,7 @@ import { GovService } from "./gov.service";
 
 const idPipe = new ZodValidationPipe(PublicId);
 const dateQueryPipe = new ZodValidationPipe(GovDateQuery);
+const stateQueryPipe = new ZodValidationPipe(GovStateQuery);
 
 @Controller("gov")
 @Throttle({ default: { limit: 120, ttl: 60_000 } })
@@ -27,15 +29,18 @@ export class GovController {
   @Can("gov:read")
   async overview(
     @CurrentUser() user: AuthenticatedUser,
-    @Query(dateQueryPipe) query: GovDateQuery,
+    @Query(stateQueryPipe) query: GovStateQuery,
   ): Promise<GovOverviewDto> {
-    return this.govService.overview(user, query.date);
+    return this.govService.overview(user, query.date, query.stateId);
   }
 
   @Get("map")
   @Can("gov:read")
-  async map(@CurrentUser() user: AuthenticatedUser): Promise<GovMapDto> {
-    return this.govService.map(user);
+  async map(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(stateQueryPipe) query: GovStateQuery,
+  ): Promise<GovMapDto> {
+    return this.govService.map(user, query.stateId);
   }
 
   @Get("districts/:id")

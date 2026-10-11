@@ -11,30 +11,30 @@
 :root {
   --map-line-width: 4px;
   /* surfaces and borders */
-  --bg: #f8f9fb;
-  --surface: #f1f3f6;
+  --bg: #f3f8fe;
+  --surface: #e9f3fd;
   --surface-raised: #ffffff;
-  --surface-sunken: #eceff3;
-  --border: #e3e6eb;
-  --border-subtle: #eceef2;
-  --border-strong: #7a8495;
+  --surface-sunken: #ddebfa;
+  --border: #cfe1f4;
+  --border-subtle: #e3eefa;
+  --border-strong: #5f7f9f;
 
   /* text */
-  --text: #0f1729;
-  --text-muted: #475265;
-  --text-subtle: #5d6778;
+  --text: #0a2540;
+  --text-muted: #3b5672;
+  --text-subtle: #4b6681;
 
-  /* brand */
-  --primary: #1d4ed8;
-  --primary-hover: #1e40af;
-  --primary-soft: #edf2ff;
+  /* brand: light blue and white (D-042) */
+  --primary: #0966c2;
+  --primary-hover: #0857a6;
+  --primary-soft: #e1f0fd;
   --on-primary: #ffffff;
 
   /* status tones: text colour, soft background, solid background (white text on solid) */
   --success: #157a3c;
   --success-soft: #ecf7f0;
-  --info: #1d4ed8;
-  --info-soft: #edf2ff;
+  --info: #0966c2;
+  --info-soft: #e1f0fd;
   --warning: #a14a06;
   --warning-soft: #fdf3e7;
   --danger: #b42318;
@@ -69,14 +69,14 @@
     --text: #e8ecf2;
     --text-muted: #a7b0bd;
     --text-subtle: #8c96a4;
-    --primary: #86a8ff;
-    --primary-hover: #a5bfff;
-    --primary-soft: #16224a;
+    --primary: #7cc2ff;
+    --primary-hover: #a6d5ff;
+    --primary-soft: #0f2a44;
     --on-primary: #0a0d12;
     --success: #4fd18b;
     --success-soft: #10291b;
-    --info: #86a8ff;
-    --info-soft: #16224a;
+    --info: #7cc2ff;
+    --info-soft: #0f2a44;
     --warning: #f5b83d;
     --warning-soft: #2e220b;
     --danger: #ff8f87;
@@ -107,14 +107,14 @@
   --text: #e8ecf2;
   --text-muted: #a7b0bd;
   --text-subtle: #8c96a4;
-  --primary: #86a8ff;
-  --primary-hover: #a5bfff;
-  --primary-soft: #16224a;
+  --primary: #7cc2ff;
+  --primary-hover: #a6d5ff;
+  --primary-soft: #0f2a44;
   --on-primary: #0a0d12;
   --success: #4fd18b;
   --success-soft: #10291b;
-  --info: #86a8ff;
-  --info-soft: #16224a;
+  --info: #7cc2ff;
+  --info-soft: #0f2a44;
   --warning: #f5b83d;
   --warning-soft: #2e220b;
   --danger: #ff8f87;
@@ -136,7 +136,7 @@
 :root {
   /* Solid status backgrounds use the light text colour in both themes (docs/09), white text on top. */
   --success-solid: #157a3c;
-  --info-solid: #1d4ed8;
+  --info-solid: #0966c2;
   --warning-solid: #a14a06;
   --danger-solid: #b42318;
   --maintenance-solid: #6941c6;
@@ -174,6 +174,8 @@
   --dur-slow: 320ms;
   /* Press and hold (SOS) and the scan result auto reset both take 3 seconds */
   --dur-hold: 3s;
+  /* D-042: the opening bus animation */
+  --dur-splash: 2.2s;
 
   /* Telugu glyphs are taller: line heights go up by this factor when lang is te */
   --leading-te: 1.15;
@@ -383,6 +385,54 @@
   animation: drain var(--dur-hold) linear both;
   transform-origin: left;
 }
+/* D-042 splash: a bus drives across the road, wheels turn, the road dashes slide. Transform only. */
+@keyframes bus-drive {
+  0% {
+    transform: translateX(-120%);
+  }
+  55% {
+    transform: translateX(0);
+  }
+  70% {
+    transform: translateX(0) translateY(-2%);
+  }
+  100% {
+    transform: translateX(160%);
+  }
+}
+@utility animate-bus-drive {
+  animation: bus-drive var(--dur-splash) cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+@keyframes wheel-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@utility animate-wheel-spin {
+  animation: wheel-spin 0.5s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes road-slide {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@utility animate-road-slide {
+  animation: road-slide 0.8s linear infinite;
+}
+@keyframes splash-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@utility animate-splash-out {
+  animation: splash-out var(--dur-slow) var(--ease-out) var(--dur-splash) both;
+}
 /* Press: tappable things shrink to 0.98 while pressed. The reduced motion block drops it. */
 @utility press-scale {
   transition-property: transform;
@@ -460,8 +510,14 @@
     scroll-behavior: auto !important;
     transition-property: opacity !important;
   }
+  /* The splash has nothing to show without motion: leave quickly */
+  .animate-splash-out {
+    animation-delay: 0.4s !important;
+  }
 }
 
 @theme {
   --spacing-tracking-map: 40svh;
+  /* D-042: the home map picker */
+  --spacing-home-map: 52svh;
 }
