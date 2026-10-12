@@ -14,6 +14,19 @@ Read order for a new session:
 
 ---
 
+## Current state (D-044 bus classes, 2026-10-12)
+
+Branch `a/bus-classes` (from upstream main, not merged yet). Bus classes with one ticket for all buses, and who gets down where for conductors: see D-044 and docs/07 section 7c.
+
+| New | Where |
+| --- | --- |
+| Classes and the cover rule | `packages/shared/src/bus-class.ts` |
+| Ticket on another bus | `ValidateService` (`otherBus`, `segmentOnRoute`), test `apps/api/test/day12-validation.test.ts` |
+| Get down counts | `GET /conductor/trips/:id/alighting`, `apps/api/src/modules/conductor/alighting.ts`, `apps/web/components/alighting-panel.tsx` |
+| Rules page and class note | `apps/web/app/(citizen)/bus-types/page.tsx`, `apps/web/components/bus-class-note.tsx` |
+
+Gotcha: the memory Prisma fixture in `day12-validation.test.ts` now needs `busTypeId` on trips and `routeStop` rows; a ticket stop missing from the fixture names fails the result schema with a 500.
+
 ## Current state (v3 owner feedback round, 2026-10-11)
 
 v3 is merged on `main` (PR #9). Decisions D-042 (citizen features) and D-043 (Sign in with Google). **Next work: `prompts/v3/README.md`**: full context in `prompts/v3/00-context.md`, four phase prompts (tests, checks and fixes), and `prompts/v3/human-tasks.md` (Google OAuth client, real browser map check, QR phone test, owner sign off of the assumed values, Telugu and screen reader review).

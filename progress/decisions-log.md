@@ -373,6 +373,17 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
 - **Decision:** Google Identity Services button on `/login` (popup). `POST /auth/google { credential }` verifies the ID token with Google tokeninfo (no new dependency), checks aud, issuer, expiry and verified email, finds or creates the user by email, issues the normal session. Optional env `GOOGLE_CLIENT_ID` (API) and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (web); unset hides the button and the API answers 403. CSP allows accounts.google.com/gsi. 10 per IP per minute.
 - **Status:** Built. Needs a Google Cloud OAuth client id (docs/15) before it shows.
 
+### D-044: Bus classes, one ticket for all buses, who gets down where
+- **Date:** 2026-10-12
+- **Raised by:** Product owner ("Our bus types and ticket rules" board, and a conductor request), built on branch `a/bus-classes`
+- **Docs affected:** 06, 07 (section 5 checks 9 and 11, new section 7c), 11, 18
+- **Decision:**
+  - Three classes over the ten service types (`BusClass`, `SERVICE_BUS_CLASS`, `classCovers` in `packages/shared/src/bus-class.ts`). A ticket covers its own class and lower ones. The mapping is an assumption **(A)** in docs/18.
+  - A ticket boards another bus the same day when that route runs through both of its stops in order and the class allows it. Server only, in `ValidateService`; no new scan reason (route failure stays `WRONG_TRIP`, class failure is `SERVICE_NOT_ELIGIBLE` with `context.ticketClass` and `busClass`). No seat on the other bus, no fare difference refunded **(A)**. No schema change, no migration.
+  - `GET /conductor/trips/:id/alighting` (pure `alightingPlan` in `apps/api/src/modules/conductor/alighting.ts`): checked tickets per dropping stop ahead of the bus. Scanner banner and conductor home panel; refreshed after each scan and by the `conductor:counts` socket event.
+  - Citizen: `/bus-types` page, class note on bus and ticket details, links from home, account and terms.
+- **Status:** Built and tested locally. Needs the other dev review (shared contract change) and owner confirmation of the (A) items.
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |

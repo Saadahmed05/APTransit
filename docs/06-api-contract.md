@@ -98,7 +98,7 @@ Rule: tickets or passes are created **only** inside the verify or webhook handle
 | GET | /tickets/:id/qr | holder | | `{ token, rotSecret, periodSec: 30, serverTime }`. `rotSecret` only when ACTIVE. See [07](07-ticket-and-pass-rules.md) | 7 |
 | POST | /tickets/:id/cancel | holder | | `{ ticket: TicketDto, refund: { amountPaise, status } }` | 7 |
 | POST | /tickets/:id/transfer | holder | `{ recipient: phone or email }` | `{ ticketId, recipientMasked }` | 8 |
-| POST | /tickets/validate | CONDUCTOR | `{ qr, tripId, deviceTime, offline?: false, position?: { lat, lng, accuracyM? } }` | `{ result: VALID or INVALID, reason: ScanReason, ticket?: { passengerName, seatNo, routeName, boarding, dropping, type }, context?: { ..., boardingStop: { stopId, nameEn, nameTe, source } or null, ticketFrom?, ticketTo?, validFrom? } }`. `position` is the scanning device's, used when the bus GPS is stale (D-035). p95 under 300 ms | 12 |
+| POST | /tickets/validate | CONDUCTOR | `{ qr, tripId, deviceTime, offline?: false, position?: { lat, lng, accuracyM? } }` | `{ result: VALID or INVALID, reason: ScanReason, ticket?: { passengerName, seatNo, routeName, boarding, dropping, type }, context?: { ..., boardingStop: { stopId, nameEn, nameTe, source } or null, ticketFrom?, ticketTo?, validFrom?, ticketClass?, busClass?, anyBus? } }`. `position` is the scanning device's, used when the bus GPS is stale (D-035). A ticket of another bus the same day is accepted by the class rule (D-044, docs/07 section 7c); its `seatNo` is null. p95 under 300 ms | 12 |
 
 ### Passes and free travel
 
@@ -137,7 +137,8 @@ No ID number is sent or stored. The mock provider returns ELIGIBLE when consent 
 | GET | /tracking/live | DEPOT_STAFF and up | `depotId?`, `districtId?` | `LiveBusDto[]` | 11 |
 | POST | /driver/incidents | DRIVER | `{ type, severity?, note? }` | `IncidentDto` (trip, bus, GPS filled by server) | 11 |
 | GET | /conductor/today | CONDUCTOR | | `{ trip, counts: { passengers, checked, pending } }` | 12 |
-| GET | /conductor/trips/:id/manifest | CONDUCTOR | | `{ counts, seats: [{ seatNo, state: CHECKED or PENDING }] }` | 12 |
+| GET | /conductor/trips/:id/manifest | CONDUCTOR | | `{ counts, seats: [{ seatNo, state: CHECKED or PENDING }] }`. Counts include tickets of other buses checked here (D-044) | 12 |
+| GET | /conductor/trips/:id/alighting | CONDUCTOR | | D-044. `{ nextStop: { stopId, seq, nameEn, nameTe } or null, onBoard, stops: [{ stopId, seq, nameEn, nameTe, count, next }] }`: tickets checked on this bus per dropping stop, stops ahead only, nearest first. Next stop from live GPS, else the trip's last stop plus one | v3 |
 | GET | /conductor/trips/:id/offline-pack | CONDUCTOR | | Stretch. `{ publicKeys: [{ keyId, pem }], tickets: [{ id, status, validUntil }], passes: [{ id, status, validUntil, eligibleServiceTypes }], generatedAt }` | 16 |
 | POST | /tickets/validate/batch | CONDUCTOR | `{ tripId, scans: [{ qr, deviceTime }] }` | Stretch. Replays offline scans in device time order, first scan wins. Returns per scan result | 16 |
 

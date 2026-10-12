@@ -807,3 +807,23 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 - Ports 5432 and 6379 can be unavailable on Windows even without a listener. High local ports 15432 and 6380 worked.
 - Root Vitest may exhaust parallel worker starts on Windows. `TURBO_CONCURRENCY=1 pnpm test` passed.
 
+
+## D-044 bus classes and getting down, 2026-10-12, Dev A, branch a/bus-classes
+
+**Done**
+- Bus classes Normal, Express, Super Luxury over the ten services (`packages/shared/src/bus-class.ts`). A ticket rides its class and lower ones.
+- One ticket for all buses: the scan accepts a ticket of another bus the same day when this route runs through both of its stops and the class allows it. No seat on the other bus.
+- `GET /conductor/trips/:id/alighting` and the "Nandyal, next stop: 2 passengers get down" banner on the scanner (also on the VALID overlay) and panel on /conductor.
+- `/bus-types` page (classes, one ticket for all buses, benefits, book, track and plan links), class note on bus and ticket details, links from home, account and terms.
+
+**Checks**
+- API 498 passed (9 skipped), shared 141, web 44. Typecheck, lint, i18n, dashes, endpoints, classes, `next build` passed.
+
+**Contract changes (packages/shared)**
+- `BusClass`, `SERVICE_BUS_CLASS`, `classCovers`; `ValidateTicketResult.context` gains `ticketClass`, `busClass`, `anyBus`; `ConductorAlightingDto`. Needs Dev B review.
+
+**Not done**
+- Not checked on a real phone or in a browser with a running trip. Telugu strings need a native review. Ops "getting off" counts still use booked tickets only. Pass holders are not in the get down counts (no dropping stop).
+
+**Decisions needed (also added to decisions-log.md)**
+- D-044: owner to confirm the class mapping and "no seat, no fare difference refunded" on another bus (docs/18).

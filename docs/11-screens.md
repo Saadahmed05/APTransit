@@ -26,7 +26,8 @@
 | `/free-travel` | Free travel (sec 19) | Explainer, consent, declaration, ID type, result (eligible or reason), Activate pass | | 9 |
 | `/track` | Track entry | Enter ticket or pick from upcoming tickets, or search route | | 12 |
 | `/track/[tripId]` | Live tracking (sec 22 to 24) | Map (top half), RouteProgress (bottom sheet), next stop, ETA, delay chip, status badge, last updated time | Trip not started: "Tracking starts when the bus leaves {stop} at {time}." | 12 |
-| `/terms` | Terms and conditions (D-042) | Public. Tickets, groups, passes, child cards, live QR, refunds, conduct, data, account | | v3 |
+| `/terms` | Terms and conditions (D-042) | Public. Tickets, bus classes, groups, passes, child cards, live QR, refunds, conduct, data, account | | v3 |
+| `/bus-types` | Bus types and ticket rules (D-044) | Public. Normal, Express and Super Luxury cards (what each ticket covers, services in the class), "One ticket for all buses" with benefits, links to book, track and plan. Linked from home, account, and the class note on bus and ticket details | | v3 |
 | `/updates` | Notifications inbox | Grouped by day, icon, title, body, time, unread dot, Mark all read | "You are all caught up." | 9 |
 | `/feedback` | Feedback (sec 40) | Email (prefilled when logged in), category chips, message, optional ticket, bus, route, date. Submit shows complaint code | | 17 |
 | `/feedback/status` | Complaint status (sec 41) | Code + email lookup, status timeline | | 17 |
@@ -47,8 +48,8 @@ Booking step 2 shows "Under 12 travels at half fare" under each age; step 3 show
 
 | Route | Purpose | Key elements | Day |
 | --- | --- | --- | --- |
-| `/conductor` | Trip for today (sec 27) | Route, Passengers, Checked, Pending counts, Scan ticket (64 px) | 13 |
-| `/conductor/scan` | Scanner (sec 28) | Full screen camera, frame with "Place QR inside the frame", torch toggle, manual code entry fallback | 13 |
+| `/conductor` | Trip for today (sec 27) | Route, Passengers, Checked, Pending counts, Scan ticket (64 px). While running: "Getting down ahead" panel (D-044) | 13 |
+| `/conductor/scan` | Scanner (sec 28) | Full screen camera, frame with "Place QR inside the frame", torch toggle, manual code entry fallback. Banner "Nandyal, next stop: 2 passengers get down" (D-044), also on the VALID overlay | 13 |
 | `/conductor/scan` (overlay) | Result overlay, part of the scanner page, not a separate route, so the camera stays warm | Full screen success or danger colour, icon, VALID or INVALID, reason line, passenger name, seat, route. Auto returns to scanner after 3 s or on tap. Haptic + sound | 13 |
 | `/conductor/manifest` | Seat list | Seats with Checked or Pending | 13 |
 
