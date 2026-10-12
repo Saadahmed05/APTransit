@@ -77,7 +77,9 @@
       "empty": "No stops found here.",
       "distance": "{km} km away",
       "from": "From",
-      "to": "To"
+      "to": "To",
+      "fromStop": "From {stop}",
+      "toStop": "To {stop}"
     }
   },
   "search": {

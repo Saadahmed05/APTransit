@@ -123,7 +123,9 @@ export function MapPicker({
       ) : (
         <MapView
           className="h-home-map"
-          mapStyle={process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/liberty"}
+          mapStyle={
+            process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/liberty"
+          }
           markers={markers}
           fitBounds
           onMarkerClick={(id) => setSelected(list.find((s) => s.id === id) ?? null)}
@@ -182,10 +184,18 @@ export function MapPicker({
                   </span>
                 </span>
                 <span className="flex shrink-0 gap-1">
-                  <Button variant="ghost" onClick={() => onPick("from", s)}>
+                  <Button
+                    variant="ghost"
+                    aria-label={t("fromStop", { stop: name(s) })}
+                    onClick={() => onPick("from", s)}
+                  >
                     {t("from")}
                   </Button>
-                  <Button variant="ghost" onClick={() => onPick("to", s)}>
+                  <Button
+                    variant="ghost"
+                    aria-label={t("toStop", { stop: name(s) })}
+                    onClick={() => onPick("to", s)}
+                  >
                     {t("to")}
                   </Button>
                 </span>

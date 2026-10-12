@@ -787,3 +787,23 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 
 **Decisions:** D-042, D-043.
 
+## v3 Phase 3, 2026-10-12, Dev A and Dev B
+
+**Done**
+- Added seeded database coverage for village service filtering, higher services between major bus stands, and the 21:00 Vijayawada to Dwaraka trip arriving on the next IST date.
+- Added `v3-map-home.spec.ts` for accessible stop selection, village-only trip cards, allowed and denied geolocation, and the next day arrival.
+- Added stop-specific From and To screen reader labels in English and Telugu.
+- Fixed the E2E denial setup to remove a cached mocked position before checking the fallback alert.
+
+**Checks**
+- Database integration: 7 passed.
+- Phase 3 E2E: Desktop Chrome and Pixel 7, 2 passed.
+- Dashes, i18n, lint, root typecheck, root tests, build, endpoints, and classes passed.
+
+**Open human task**
+- Confirm map tiles, dot tapping, and A and B pins in a real browser.
+
+**New gotchas**
+- Ports 5432 and 6379 can be unavailable on Windows even without a listener. High local ports 15432 and 6380 worked.
+- Root Vitest may exhaust parallel worker starts on Windows. `TURBO_CONCURRENCY=1 pnpm test` passed.
+
