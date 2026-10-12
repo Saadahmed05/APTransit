@@ -152,6 +152,10 @@ ConductorModule exposes POST /tickets/validate, GET /conductor/today and GET /co
 
 Tracking progress persists physically reached stops (150 m), delay changes of at least 2 min, and clamped pace ETA. TripNotificationsService uses durable notification IDs to deduplicate departure, delay bands and boarding proximity. Timing is logged without QR data. The development-only scripts/demo-tracking.ts prepares the seeded driver trip for E2E-7.
 
+## D-044 bus classes and who gets down where
+
+`busClassOf` and `classCovers` (packages/shared `bus-class.ts`) decide which bus a ticket may board. ValidateService accepts a ticket of another trip the same day when this route runs through its boarding stop and then its dropping stop (else WRONG_TRIP) and this bus's class is the ticket's class or lower (else SERVICE_NOT_ELIGIBLE with `context.ticketClass` and `busClass`); the scan result has no seat then. GET /conductor/trips/:id/alighting groups the dropping stops of tickets checked on the bus with the pure `alightingPlan` (`conductor/alighting.ts`); the next stop comes from `bus:live` or the trip's last stop plus one.
+
 ## Day 13 operations and manual validation
 
 OpsModule provides scoped dashboard, fleet, trip assignment and replacement, operator cancellation, staff, device and incident endpoints. Permission-specific scope prevents a lower-permission role from widening a mutation. Assignment and fleet changes lock resources before availability checks. Replacement preserves the trip and seats, rejects smaller layouts, notifies holders and publishes domain events. Cancellation creates full-fare refunds including fees; paid tickets move to REFUNDED only on the signed refund webhook. Provider failures persist FAILED refund rows for operations reconciliation.

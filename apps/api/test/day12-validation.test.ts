@@ -34,8 +34,10 @@ const STOPS = [
   { id: "stoporv0000001", seq: 2, lat: 15.67, lng: 78.11, nameEn: "Orvakal", nameTe: "ఓర్వకల్లు" },
   { id: "stopndl0000001", seq: 3, lat: 15.4786, lng: 78.4836, nameEn: "Nandyal", nameTe: "నంద్యాల" },
 ];
+/** A stop that is not on the route of this trip. */
+const OFF_ROUTE = { id: "stopvja0000001", nameEn: "Vijayawada", nameTe: "విజయవాడ" };
 const stopName = (stopId: unknown) => {
-  const stop = STOPS.find((x) => x.id === stopId);
+  const stop = [...STOPS, OFF_ROUTE].find((x) => x.id === stopId);
   return stop ? { nameEn: stop.nameEn, nameTe: stop.nameTe } : null;
 };
 const routeWithStops = () => ({
@@ -50,8 +52,18 @@ const prisma = createMemoryPrisma(tables, {
     trip: (a) => ({ ...by("trip", a.tripId), route: routeWithStops() }),
     bus: (a) => ({ ...by("bus", a.busId), busType: by("busType", "bustype0000001") }),
   },
+  routeStop: {
+    stop: (rs) => STOPS.find((x) => x.id === rs.stopId) ?? null,
+  },
+  ticketScan: {
+    ticket: (s) => (s.ticketId ? by("ticket", s.ticketId) : null),
+  },
   ticket: {
-    trip: (t) => by("trip", t.tripId),
+    // D-044: the booked trip's bus type gives the ticket its class
+    trip: (t) => {
+      const trip = by("trip", t.tripId);
+      return trip ? { ...trip, busType: by("busType", trip.busTypeId ?? "bustype0000001") } : null;
+    },
     scans: (t) =>
       (tables.ticketScan ?? []).filter(
         (s) => s.ticketId === t.id && s.tripId === id.trip && s.result === "VALID",
@@ -132,13 +144,20 @@ describe("Day 12 validation HTTP order", () => {
           delayMinutes: 0,
           lastStopSeq: 1,
           hasOpenIncident: false,
+          routeId: "routevalidate01",
+          busTypeId: "bustype0000001",
         },
       ],
       route: [
         { id: "routevalidate01", nameEn: "Kurnool to Nandyal", nameTe: "\u0c15\u0c30\u0c4d\u0c28\u0c42\u0c32\u0c41" },
       ],
       bus: [{ id: "bus00000000001" }],
-      busType: [{ id: "bustype0000001", serviceType: "EXPRESS" }],
+      busType: [
+        { id: "bustype0000001", serviceType: "EXPRESS" },
+        { id: "bustypesl00001", serviceType: "SUPER_LUXURY" },
+        { id: "bustypepv00001", serviceType: "PALLEVELUGU" },
+      ],
+      routeStop: STOPS.map((x) => ({ id: "rs" + x.id, routeId: "routevalidate01", stopId: x.id, seq: x.seq })),
       ticket: [
         {
           id: id.ticket,
@@ -360,6 +379,106 @@ describe("Day 12 validation HTTP order", () => {
     tables.ticket![0]!.status = status;
     expect((await scan(await content()).expect(200)).body.reason).toBe(reason);
   });
+  describe("one ticket, all buses (D-044)", () => {
+    const OTHER = "othertrip00001";
+    /** The ticket was booked on another bus of the same day, of the given bus type. */
+    const bookedOn = (busTypeId: string) => {
+      tables.trip!.push({ ...tables.trip![0], id: OTHER, busTypeId, status: "SCHEDULED" });
+      tables.ticket![0]!.tripId = OTHER;
+    };
+
+    it("a Super Luxury ticket boards this Express bus, without its reserved seat", async () => {
+      bookedOn("bustypesl00001");
+      const res = await scan(await content("T", 0, { tr: OTHER })).expect(200);
+      expect(res.body).toMatchObject({ result: "VALID", reason: "OK" });
+      expect(res.body.ticket.seatNo).toBeNull();
+      expect(res.body.context).toMatchObject({ ticketClass: "SUPER_LUXURY", busClass: "EXPRESS", anyBus: true });
+      expect(tables.ticket![0]!.status).toBe("SCANNED");
+      expect(tables.ticketScan![0]).toMatchObject({ tripId: id.trip, result: "VALID" });
+    });
+
+    it("a Normal ticket cannot board an Express bus", async () => {
+      bookedOn("bustypepv00001");
+      const res = await scan(await content("T", 0, { tr: OTHER })).expect(200);
+      expect(res.body).toMatchObject({ result: "INVALID", reason: "SERVICE_NOT_ELIGIBLE" });
+      expect(res.body.context).toMatchObject({ ticketClass: "NORMAL", busClass: "EXPRESS" });
+      expect(tables.ticket![0]!.status).toBe("ACTIVE");
+    });
+
+    it("a ticket whose stops this route does not run through is the wrong bus", async () => {
+      bookedOn("bustypesl00001");
+      tables.ticket![0]!.droppingStopId = "stopvja0000001";
+      expect((await scan(await content("T", 0, { tr: OTHER })).expect(200)).body.reason).toBe("WRONG_TRIP");
+      tables.ticket![0]!.boardingStopId = "stopndl0000001";
+      tables.ticket![0]!.droppingStopId = "stopknl0000001";
+      expect((await scan(await content("T", 0, { tr: OTHER })).expect(200)).body.reason).toBe("WRONG_TRIP");
+    });
+
+    it("its own bus always accepts a ticket, whatever the class of the bus that runs it", async () => {
+      tables.trip![0]!.busTypeId = "bustypepv00001";
+      const res = await scan(await content()).expect(200);
+      expect(res.body.reason).toBe("OK");
+      expect(res.body.ticket.seatNo).toBe("1");
+      expect(res.body.context.anyBus).toBe(false);
+    });
+
+    it("counts a ticket of another bus in this bus's manifest", async () => {
+      bookedOn("bustypesl00001");
+      await scan(await content("T", 0, { tr: OTHER })).expect(200);
+      const res = await request(app.getHttpServer())
+        .get("/api/v1/conductor/today")
+        .set("Authorization", "Bearer " + token)
+        .expect(200);
+      expect(res.body.counts).toEqual({ passengers: 1, checked: 1, pending: 0 });
+    });
+  });
+
+  describe("who gets down where (D-044)", () => {
+    const alighting = (auth = token) =>
+      request(app.getHttpServer())
+        .get("/api/v1/conductor/trips/" + id.trip + "/alighting")
+        .set("Authorization", "Bearer " + auth);
+
+    it("lists the dropping stops of checked tickets ahead of the bus, next stop first", async () => {
+      expect((await alighting().expect(200)).body).toMatchObject({ onBoard: 0, stops: [] });
+      tables.ticket!.push({ ...tables.ticket![0], id: "ticketvalidate02", code: "APT-1234-5679", droppingStopId: "stoporv0000001" });
+      await scan(await content()).expect(200);
+      const second = tables.ticket![1]!;
+      tables.ticket!.reverse();
+      await scan(await content()).expect(200);
+      expect(second.status).toBe("SCANNED");
+      const res = await alighting().expect(200);
+      // lastStopSeq 1 and no live GPS: Orvakal (seq 2) is next
+      expect(res.body.nextStop).toMatchObject({ stopId: "stoporv0000001", nameEn: "Orvakal" });
+      expect(res.body.onBoard).toBe(2);
+      expect(res.body.stops.map((s: any) => [s.nameEn, s.count, s.next])).toEqual([
+        ["Orvakal", 1, true],
+        ["Nandyal", 1, false],
+      ]);
+    });
+
+    it("follows live GPS and forgets stops already passed", async () => {
+      tables.ticket!.push({ ...tables.ticket![0], id: "ticketvalidate02", code: "APT-1234-5679", droppingStopId: "stoporv0000001" });
+      await scan(await content()).expect(200);
+      tables.ticket!.reverse();
+      await scan(await content()).expect(200);
+      busAt(STOPS[1]!, 5_000, 3);
+      const res = await alighting().expect(200);
+      expect(res.body.nextStop.nameEn).toBe("Nandyal");
+      expect(res.body.stops).toEqual([
+        { stopId: "stopndl0000001", seq: 3, nameEn: "Nandyal", nameTe: "నంద్యాల", count: 1, next: true },
+      ]);
+    });
+
+    it("is only for the conductor of the trip", async () => {
+      await alighting(citizen).expect(403);
+      await request(app.getHttpServer())
+        .get("/api/v1/conductor/trips/othertrip00001/alighting")
+        .set("Authorization", "Bearer " + token)
+        .expect(403);
+    });
+  });
+
   it("WRONG_TRIP precedes WRONG_DATE", async () => {
     tables.ticket![0]!.tripId = "othertrip00001";
     tables.trip!.push({ ...tables.trip![0], id: "othertrip00001" });
