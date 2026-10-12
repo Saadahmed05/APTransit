@@ -401,7 +401,8 @@
       "passes": "My passes",
       "childCard": "Buy a pass or child card",
       "help": "Help and complaints",
-      "terms": "Terms and conditions"
+      "terms": "Terms and conditions",
+      "busTypes": "Bus types and ticket rules"
     }
   },
   "roles": {
@@ -1038,7 +1039,20 @@
         "helper": "This pass does not cover this route"
       }
     },
-    "groupBoarded": "{boarded} of {size} boarded"
+    "groupBoarded": "{boarded} of {size} boarded",
+    "classHelper": "This is a {ticketClass} ticket. It is not valid on {busClass} buses.",
+    "anyBus": "Booked on another bus. No reserved seat on this bus.",
+    "getDown": {
+      "title": "Getting down ahead",
+      "atStop": "{stop}, next stop: {count, plural, one {# passenger gets down} other {# passengers get down}}",
+      "nobodyAt": "{stop}, next stop: nobody gets down",
+      "nextUnknown": "Next stop not known yet. See the stops below.",
+      "empty": "No checked ticket passengers on board",
+      "count": "{count, plural, one {# gets down} other {# get down}}",
+      "onBoard": "{count, plural, one {# checked ticket passenger on board} other {# checked ticket passengers on board}}",
+      "passesNote": "Pass holders are not counted: a pass has no dropping stop.",
+      "loadFailed": "Could not load who gets down"
+    }
   },
   "opsApp": {
     "dashboard": "Depot dashboard",
@@ -1630,6 +1644,54 @@
     "account": {
       "title": "Your account",
       "body": "You can sign in with an email or phone code, or with Google. Keep your phone safe. You can ask us to delete your account at any time."
+    },
+    "classes": {
+      "title": "Bus types and one ticket for all buses",
+      "body": "Buses are Normal, Express or Super Luxury. A ticket works on its own class and on lower classes: Normal on Normal buses, Express on Express and Normal, Super Luxury on all three. On the same day you may board another bus that runs through both of your stops; your reserved seat stays on the bus you booked."
+    }
+  },
+  "busClass": {
+    "NORMAL": "Normal",
+    "EXPRESS": "Express",
+    "SUPER_LUXURY": "Super Luxury"
+  },
+  "busTypes": {
+    "title": "Bus types and ticket rules",
+    "description": "Which buses your ticket works on, and how one ticket can take you on any bus of your class.",
+    "servicesLabel": "Buses in this class",
+    "ticketOf": "{class} ticket",
+    "learnMore": "Bus types and ticket rules",
+    "classes": {
+      "NORMAL": {
+        "rule": "Can travel only in Normal buses.",
+        "note": "Best for short and local routes."
+      },
+      "EXPRESS": {
+        "rule": "Can travel in Express and Normal buses.",
+        "note": "Faster and more comfortable."
+      },
+      "SUPER_LUXURY": {
+        "rule": "Can travel in Super Luxury, Express and Normal buses.",
+        "note": "Most comfort and a premium experience."
+      }
+    },
+    "oneTicket": {
+      "title": "One ticket for all buses",
+      "lead": "Your ticket is for your stops and your date, not only for one bus.",
+      "how": "If your bus is late or full, board any other bus that day of your class or a lower class that runs through both of your stops. Show the live QR to the conductor. Your reserved seat stays on the bus you booked, so on another bus you may have to stand.",
+      "benefitsTitle": "Benefits",
+      "benefits": {
+        "easy": "No confusion, easy travel",
+        "flexible": "Flexible travel options",
+        "convenient": "Better convenience for passengers",
+        "usage": "More use of Super Luxury and Express buses"
+      }
+    },
+    "actions": {
+      "title": "Get started",
+      "book": "Book tickets",
+      "track": "Track buses",
+      "plan": "Plan your journey"
     }
   }
 }

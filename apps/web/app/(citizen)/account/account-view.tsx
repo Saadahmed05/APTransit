@@ -151,6 +151,7 @@ function AccountDetails({ me }: { me: MeDto }) {
               ["/passes", "account.links.passes"],
               ["/passes/buy", "account.links.childCard"],
               ["/feedback", "account.links.help"],
+              ["/bus-types", "account.links.busTypes"],
               ["/terms", "account.links.terms"],
             ] as const
           ).map(([href, key]) => (

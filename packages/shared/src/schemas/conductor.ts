@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BusClass } from "../bus-class";
 import { ScanReason, StopSource, TicketType } from "../enums";
 import { PublicId } from "./search";
 import { TripDto } from "./tracking";
@@ -60,6 +61,11 @@ export const ValidateTicketResult = z.object({
       /** Ticket: its own boarding and dropping stops (BEFORE_BOARDING_STOP, PAST_DESTINATION). */
       ticketFrom: StopNames.optional(),
       ticketTo: StopNames.optional(),
+      /** Ticket: its class and the class of this bus (D-044, SERVICE_NOT_ELIGIBLE copy). */
+      ticketClass: BusClass.optional(),
+      busClass: BusClass.optional(),
+      /** Ticket: booked on another bus of the same day and accepted here by the class rule (D-044). */
+      anyBus: z.boolean().optional(),
       /** Where the bus is, from bus or device GPS; null when unknown (D-035). */
       boardingStop: z
         .object({ stopId: z.string(), nameEn: z.string(), nameTe: z.string(), source: StopSource })
@@ -99,3 +105,29 @@ export const ConductorTodayDto = z.object({
   route: z.object({ nameEn: z.string(), nameTe: z.string() }).nullable().default(null),
 });
 export type ConductorTodayDto = z.infer<typeof ConductorTodayDto>;
+
+/**
+ * GET /conductor/trips/:id/alighting (D-044): passengers checked on this bus who get down ahead,
+ * per stop, so the conductor hears "Nandyal: 2 get down" before the stop. Only stops ahead of the
+ * bus with at least one passenger are listed, nearest first. Passes have no dropping stop.
+ */
+export const AlightingStopDto = z.object({
+  stopId: z.string(),
+  seq: z.number().int().positive(),
+  nameEn: z.string(),
+  nameTe: z.string(),
+  count: z.number().int().positive(),
+  /** The next stop the bus reaches. */
+  next: z.boolean(),
+});
+export type AlightingStopDto = z.infer<typeof AlightingStopDto>;
+export const ConductorAlightingDto = z.object({
+  /** The next stop of the bus, from live GPS or the trip record; null before the first stop report. */
+  nextStop: z
+    .object({ stopId: z.string(), seq: z.number().int().positive(), nameEn: z.string(), nameTe: z.string() })
+    .nullable(),
+  /** Ticket passengers checked on this bus who have not reached their stop yet. */
+  onBoard: z.number().int().nonnegative(),
+  stops: z.array(AlightingStopDto),
+});
+export type ConductorAlightingDto = z.infer<typeof ConductorAlightingDto>;

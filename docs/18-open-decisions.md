@@ -49,6 +49,8 @@
 | Child card age limit | Under 18 | Product owner |
 | QR period | 3 s with one step either side | Field test on low end phones and slow scanners |
 | Service fit | Village stop shows village services when any exist | Depot managers |
+| Bus classes (D-044) | Normal: Pallevelugu, Ultra Pallevelugu, City Ordinary. Express: Metro Express, Express, Ultra Deluxe. Super Luxury: Super Luxury and the AC services | Transport authority |
+| Ticket on another bus (D-044) | Same day, both stops on the route, same class or lower; no seat, no fare difference refunded | Product owner |
 
 ## Product conflicts we resolved (flag to product owner)
 

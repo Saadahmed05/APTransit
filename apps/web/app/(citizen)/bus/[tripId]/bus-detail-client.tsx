@@ -37,6 +37,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { useAuth } from "../../../../components/auth-provider";
+import { BusClassNote } from "../../../../components/bus-class-note";
 import { api, errorKey, isApiError } from "../../../../lib/api";
 import { queryKeys } from "../../../../lib/query-keys";
 import { useNow } from "../../../../lib/use-browser-state";
@@ -247,6 +248,9 @@ export function BusDetailClient({
             <span className="text-small font-medium text-muted">{destName}</span>
           </div>
         </div>
+
+        {/* D-044: the class of this bus and where its ticket is valid */}
+        <BusClassNote serviceType={trip.busType.serviceType} />
 
         {/* Seats and Fare Row */}
         <div className="mt-2 flex items-center justify-between gap-4 border-t border-default pt-4 flex-wrap">

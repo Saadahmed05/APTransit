@@ -94,6 +94,10 @@ public/          manifest icons, static files
 
 E2E-8 injects decoded text through apt:test-scan when NEXT_PUBLIC_PAYMENTS_FAKE=1 was set at build time. It follows the regular validation request path; the flag is disabled in a normal production build. Browser result tests mock API responses, while API integration tests separately verify real validation rules and race protection. Physical phone/HTTPS scan latency remains a release check.
 
+## D-044 bus classes and getting down
+
+`components/alighting-panel.tsx` (`useAlighting`, query key `["conductor", "alighting", tripId]`, so scans and the conductor:counts event refresh it) shows "Nandyal, next stop: 2 passengers get down" on /conductor (full panel) and on /conductor/scan (compact banner, also on the VALID overlay). `components/bus-class-note.tsx` shows a trip's or ticket's class and what it covers on the bus and ticket details; `/bus-types` is the public rules page.
+
 ## Day 14
 
 Day 14 adds /ops, /ops/buses, /ops/trips and /ops/incidents with live query updates, a depot URL scope, fleet creation, assignment and incident acknowledgement/resolution. Ops tables use shared DataTable and KPIs use KpiTile. Browser coverage lives in e2e/operations.spec.ts. MapLibre stays behind the lazy UI map-view import.

@@ -1,4 +1,5 @@
 import {
+  ConductorAlightingDto,
   ConductorManifestDto,
   ConductorTodayDto,
   PublicId,
@@ -30,6 +31,13 @@ export class ConductorController {
     @Param("id", new ZodValidationPipe(PublicId)) id: string,
   ) {
     return ConductorManifestDto.parse(await this.conductor.manifest(user.id, id));
+  }
+  @Get("trips/:id/alighting")
+  async alighting(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", new ZodValidationPipe(PublicId)) id: string,
+  ) {
+    return ConductorAlightingDto.parse(await this.conductor.alighting(user.id, id));
   }
 }
 

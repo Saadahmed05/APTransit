@@ -113,12 +113,12 @@ The server checks in this exact order and returns the first failing reason. Ever
 | 6 | Status EXPIRED, or now after `validUntil` | `EXPIRED` |
 | 7 | Status BOOKED (ticket) or READY (pass) | `NOT_ACTIVATED` |
 | 8 | Ticket status SCANNED or USED, or pass already scanned on this trip | `ALREADY_SCANNED` |
-| 9 | Ticket `tripId` equals the conductor's current trip | `WRONG_TRIP` |
+| 9 | Ticket `tripId` equals the conductor's current trip, or (D-044, section 7c) this trip's route runs through the ticket's boarding stop and then its dropping stop | `WRONG_TRIP` |
 | 10 | Service date equals today (IST) | `WRONG_DATE` |
 | 10a | Ticket: the boarding stop resolved for this scan is at or after the ticket's dropping stop | `PAST_DESTINATION` |
 | 10b | Ticket: the resolved stop is more than 1 stop before the ticket's boarding stop | `BEFORE_BOARDING_STOP` |
 | 10c | Pass: scanned before `validFrom` | `NOT_YET_VALID` |
-| 11 | Pass: trip service type is in `eligibleServiceTypes` | `SERVICE_NOT_ELIGIBLE` |
+| 11 | Pass: trip service type is in `eligibleServiceTypes`. Ticket of another bus (D-044): this bus's class is the ticket's class or lower | `SERVICE_NOT_ELIGIBLE` |
 | 11a | Route restricted pass: the trip's route does not contain both pass stops (passes gain those stops in v2 P4) | `ROUTE_NOT_COVERED` |
 | 12 | All good: ticket ACTIVE to SCANNED (optimistic lock). Pass: record scan | `OK`, result VALID |
 
@@ -171,6 +171,24 @@ On success, in one transaction: `holderUserId` becomes the recipient, passenger 
 - A journey where the from or the to stop is a village stop (no bus stand) lists only village services (Pallevelugu, Ultra Pallevelugu, City Ordinary, Metro Express: `VILLAGE_SERVICE_TYPES`) when at least one exists that day. Kurnool to Orvakal shows village buses, not the Vijayawada express.
 - If no village service serves the pair, every service is shown (a village on an express only corridor still gets buses).
 - Bus stand to bus stand journeys are unchanged. Long journeys arriving the next day show the arrival as "06:15, next day".
+
+## 7c. Bus classes and one ticket for all buses (D-044)
+
+Every service type belongs to one of three classes **(A)** (`SERVICE_BUS_CLASS` in `packages/shared/src/bus-class.ts`):
+
+| Class | Services | A ticket of this class can travel in |
+| --- | --- | --- |
+| Normal | Pallevelugu, Ultra Pallevelugu, City Ordinary | Normal buses |
+| Express | Metro Express, Express, Ultra Deluxe | Express and Normal buses |
+| Super Luxury | Super Luxury, Indra AC, Amaravati AC, Garuda AC | Super Luxury, Express and Normal buses |
+
+- A ticket's class is the class of the trip it was booked on.
+- On its own bus a ticket is always valid, whatever the class of the bus that runs the trip.
+- On another bus the same service date, a ticket is valid when that bus's route runs through the ticket's boarding stop and then its dropping stop, and the bus is of the ticket's class or lower. Otherwise `WRONG_TRIP` (route) or `SERVICE_NOT_ELIGIBLE` (class). All other checks are unchanged: the ticket must be ACTIVE, inside `validUntil` (still computed from the booked trip), and is scanned once.
+- The reserved seat stays on the booked bus. On another bus the passenger has no reserved seat (`seatNo` null in the scan result), and no fare difference is refunded **(A)**.
+- Passes keep their own `eligibleServiceTypes` (section 8); the class rule is for tickets.
+
+**Who gets down where.** `GET /conductor/trips/:id/alighting` counts the tickets checked on the bus (booked on it or accepted by the class rule) per dropping stop, for the stops ahead of the bus only. The scanner and the conductor home show "Nandyal, next stop: 2 passengers get down", refreshed after every scan. Passes have no dropping stop and are not counted.
 
 ## 8. Passes (plan sec 16 to 18, 102)
 

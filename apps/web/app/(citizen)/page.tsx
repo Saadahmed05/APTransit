@@ -1,4 +1,4 @@
-import { CalendarClock, CreditCard, MapPin, Ticket, type LucideIcon } from "lucide-react";
+import { BusFront, CalendarClock, CreditCard, MapPin, Ticket, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
@@ -49,6 +49,19 @@ export default async function HomePage() {
           ))}
         </ul>
       </section>
+      {/* D-044: bus types and the one ticket rule */}
+      <Link
+        href="/bus-types"
+        className="flex min-h-16 items-center gap-3 rounded-lg border border-default bg-surface-raised p-4 transition-colors duration-fast hover:border-strong hover:bg-surface"
+      >
+        <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary">
+          <BusFront className="size-6" aria-hidden="true" />
+        </span>
+        <span className="flex min-w-0 flex-col">
+          <span className="text-body font-medium text-fg">{t("busTypes.title")}</span>
+          <span className="text-small text-muted">{t("busTypes.oneTicket.title")}</span>
+        </span>
+      </Link>
       {/* Updates strip (docs/11): hidden until notifications exist (Day 9). */}
     </div>
   );

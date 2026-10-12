@@ -4,6 +4,8 @@ import {
   type ValidateTicketInput,
   type ValidateTicketResult,
   type ValidatorKind,
+  busClassOf,
+  classCovers,
   formatIstDate,
 } from "@aptransit/shared";
 import { Injectable, Logger } from "@nestjs/common";
@@ -171,7 +173,13 @@ export class ValidateService {
                   type: true,
                   passenger: { select: { name: true } },
                   holderUser: { select: { name: true } },
-                  trip: { select: { serviceDate: true, scheduledDepartureAt: true } },
+                  trip: {
+                    select: {
+                      serviceDate: true,
+                      scheduledDepartureAt: true,
+                      busType: { select: { serviceType: true } },
+                    },
+                  },
                   route: { select: { nameEn: true } },
                   boardingStopId: true,
                   droppingStopId: true,
@@ -218,6 +226,14 @@ export class ValidateService {
         const row = ticket ?? pass;
         ticketId = ticket?.id ?? null;
         passId = pass?.id ?? null;
+        // D-044: a ticket of another bus the same day rides here when this route runs through both of
+        // its stops in order and this bus is of the ticket's class or lower. No seat is reserved here.
+        const otherBus = Boolean(ticket && ticket.tripId !== ctx.tripId);
+        const ticketClass = ticket ? busClassOf(ticket.trip.busType.serviceType) : undefined;
+        const busClass = busClassOf(ctx.serviceType);
+        const fromSeq = ticket ? seqOf.get(ticket.boardingStopId) : undefined;
+        const toSeq = ticket ? seqOf.get(ticket.droppingStopId) : undefined;
+        const segmentOnRoute = fromSeq !== undefined && toSeq !== undefined && fromSeq < toSeq;
         if (row) {
           context = {
             validUntil: row.validUntil?.toISOString() ?? null,
@@ -231,6 +247,9 @@ export class ValidateService {
                   serviceDate: formatIstDate(ticket.trip.serviceDate),
                   ticketFrom: ticket.boardingStop,
                   ticketTo: ticket.droppingStop,
+                  ticketClass,
+                  busClass,
+                  anyBus: otherBus,
                 }
               : {
                   services: pass!.eligibleServiceTypes,
@@ -250,7 +269,7 @@ export class ValidateService {
                 now,
                 alreadyScanned: pass ? passGroupFull(pass.scans.length, pass.groupSize) : Boolean(earlier),
                 wrongTrip: Boolean(
-                  ticket && (ticket.tripId !== ctx.tripId || payload.tr !== ticket.tripId),
+                  ticket && ((otherBus && !segmentOnRoute) || payload.tr !== ticket.tripId),
                 ),
                 wrongDate: Boolean(
                   ticket &&
@@ -258,10 +277,11 @@ export class ValidateService {
                     formatIstDate(ticket.trip.serviceDate) !== formatIstDate(now)),
                 ),
                 // D-042: a zone pass is valid only on routes of its district
-                serviceEligible:
-                  !pass ||
-                  (pass.eligibleServiceTypes.includes(ctx.serviceType) &&
-                    (!pass.zoneDistrictId || pass.zoneDistrictId === ctx.districtId)),
+                // D-044: a ticket on its own bus always; on another bus only of its class or lower
+                serviceEligible: pass
+                  ? pass.eligibleServiceTypes.includes(ctx.serviceType) &&
+                    (!pass.zoneDistrictId || pass.zoneDistrictId === ctx.districtId)
+                  : !otherBus || classCovers(ticketClass!, busClass),
                 // D-035 segment checks; a null stopSeq (source NONE) skips them
                 stopSeq: boarding.seq,
                 boardingSeq: ticket ? (seqOf.get(ticket.boardingStopId) ?? null) : null,
@@ -327,7 +347,8 @@ export class ValidateService {
             detail = ticket
               ? {
                   passengerName: ticket.passenger?.name ?? ticket.holderUser.name ?? "",
-                  seatNo: ticket.seatNo,
+                  // The seat belongs to the booked bus, not this one
+                  seatNo: otherBus ? null : ticket.seatNo,
                   routeName: ticket.route.nameEn,
                   boarding: ticket.boardingStop.nameEn,
                   dropping: ticket.droppingStop.nameEn,
