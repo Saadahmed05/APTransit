@@ -9,6 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const SECTIONS = [
   "tickets",
+  "classes",
   "groups",
   "passes",
   "children",

@@ -13,6 +13,7 @@ import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type QrScanner from "qr-scanner";
+import { AlightingPanel } from "../../../components/alighting-panel";
 import { api, errorKey } from "../../../lib/api";
 import { useConductorToday } from "../../../lib/conductor-today";
 import {
@@ -221,6 +222,16 @@ export function ConductorScanner() {
       context?.services?.map((service) => root("serviceType." + service)).join(", ") ??
       t("unavailable"),
   };
+  // D-044: a ticket refused by the class rule names both classes instead of the pass services
+  const helperText =
+    result?.reason === "SERVICE_NOT_ELIGIBLE" && context?.ticketClass && context.busClass
+      ? t("classHelper", {
+          ticketClass: root("busClass." + context.ticketClass),
+          busClass: root("busClass." + context.busClass),
+        })
+      : result
+        ? t("reasons." + result.reason + ".helper", helpers)
+        : "";
   const status = result ? SCAN_RESULT_MAP[result.result] : null;
   return (
     <section className="fixed inset-0 z-overlay flex min-h-screen flex-col overflow-y-auto bg-bg text-body-lg text-fg">
@@ -263,6 +274,10 @@ export function ConductorScanner() {
             <Flashlight aria-hidden="true" />
           </Button>
         )}
+      </div>
+      {/* D-044: who gets down at the next stop, refreshed after every scan */}
+      <div className="relative z-sticky px-3 pt-3">
+        <AlightingPanel tripId={tripId} compact />
       </div>
       <div className="relative flex flex-1 flex-col items-center justify-center gap-4 p-gutter">
         {!manual && cameraState === "active" && (
@@ -399,7 +414,8 @@ export function ConductorScanner() {
           {result.group && (
             <p className="text-h2 tabular-nums">{t("groupBoarded", { boarded: result.group.boarded, size: result.group.size })}</p>
           )}
-          <p>{t("reasons." + result.reason + ".helper", helpers)}</p>
+          <p>{helperText}</p>
+          {result.result === "VALID" && context?.anyBus && <p className="text-h3">{t("anyBus")}</p>}
           {result.ticket && (
             <dl className="flex flex-col gap-3 text-h2">
               <div>
@@ -427,6 +443,11 @@ export function ConductorScanner() {
                 <dd>{result.ticket.dropping}</dd>
               </div>
             </dl>
+          )}
+          {result.result === "VALID" && (
+            <div className="w-full max-w-md text-left">
+              <AlightingPanel tripId={tripId} compact />
+            </div>
           )}
           {process.env.NODE_ENV === "development" && elapsed !== null && (
             <p className="text-small">{t("timing", { ms: elapsed })}</p>

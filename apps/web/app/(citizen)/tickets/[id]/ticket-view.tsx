@@ -34,6 +34,7 @@ import { BadgeCheck, Ban, Clock, Gift, Lock, MapPin, MessageSquare, MoreHorizont
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { BusClassNote } from "../../../../components/bus-class-note";
 import { LiveQr, type LiveQrData } from "../../../../components/live-qr";
 import { api, errorKey, isApiError } from "../../../../lib/api";
 import { type OfflineTicket, readOfflineTicket, removeOfflineTicket, saveOfflineTicket } from "../../../../lib/offline-tickets";
@@ -223,6 +224,9 @@ export function TicketView({ id }: { id: string }) {
         {(ticket.status === "ACTIVE" || ticket.status === "SCANNED") && ticket.validUntil && (
           <p className="text-body font-medium text-fg">{t("ticketDetail.validUntil", { time: at(ticket.validUntil) })}</p>
         )}
+
+        {/* D-044: which buses this ticket rides */}
+        {(ticket.status === "BOOKED" || ticket.status === "ACTIVE") && <BusClassNote serviceType={ticket.serviceType} />}
 
         {ticket.status === "USED" && (
           <EndedPanel icon={BadgeCheck} tone="neutral" title={t("ticketDetail.used.title")} hint={t("ticketDetail.used.hint")} />

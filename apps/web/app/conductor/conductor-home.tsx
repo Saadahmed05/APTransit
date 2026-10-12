@@ -4,6 +4,7 @@ import { Button, EmptyState, ErrorState, Skeleton } from "@aptransit/ui";
 import { ScanLine } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
+import { AlightingPanel } from "../../components/alighting-panel";
 import { ConductorCounts } from "../../components/conductor-counts";
 import { useConductorToday } from "../../lib/conductor-today";
 import { errorKey } from "../../lib/api";
@@ -55,6 +56,7 @@ export function ConductorHome() {
         </Button>
       )}
       {trip.status !== "RUNNING" && <p>{t("notRunning")}</p>}
+      {trip.status === "RUNNING" && <AlightingPanel tripId={trip.id} />}
       <Button size="xl" variant="secondary" asChild>
         <Link href="/conductor/manifest">{t("manifest")}</Link>
       </Button>
