@@ -56,6 +56,10 @@ const prisma = createMemoryPrisma(tables, {
   routeStop: {
     stop: (rs) => STOPS.find((x) => x.id === rs.stopId) ?? null,
   },
+  trip: {
+    busType: (t) => by("busType", t.busTypeId ?? "bustype0000001"),
+    route: () => ({ routeStops: [] }),
+  },
   ticketScan: {
     ticket: (s) => (s.ticketId ? by("ticket", s.ticketId) : null),
   },
@@ -419,7 +423,8 @@ describe("Day 12 validation HTTP order", () => {
       tables.trip![0]!.busTypeId = "bustypepv00001";
       const res = await scan(await content()).expect(200);
       expect(res.body.reason).toBe("OK");
-      expect(res.body.ticket.seatNo).toBe("1");
+      // D-045: a local service has no seat to show, even on the ticket's own bus
+      expect(res.body.ticket.seatNo).toBeNull();
       expect(res.body.context.anyBus).toBe(false);
     });
 

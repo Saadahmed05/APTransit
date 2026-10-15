@@ -3,6 +3,8 @@ import {
   type ConductorManifestDto,
   type ConductorTodayDto,
   formatIstDate,
+  isSeatless,
+  segmentKm,
 } from "@aptransit/shared";
 import { Injectable } from "@nestjs/common";
 import { AppError } from "../../common/errors/app-error";
@@ -111,15 +113,22 @@ export class ConductorService {
   }
 
   private async counts(tripId: string): Promise<ConductorManifestDto> {
-    const [tickets, passScans, otherBusScans] = await Promise.all([
+    const [tickets, passScans, otherBusScans, trip] = await Promise.all([
       this.prisma.ticket.findMany({
         where: { tripId, status: { in: ["BOOKED", "ACTIVE", "SCANNED", "USED"] } },
-        select: { seatNo: true, status: true },
+        select: { seatNo: true, status: true, boardingStopId: true, droppingStopId: true },
       }),
       this.prisma.ticketScan.count({ where: { tripId, passId: { not: null }, result: "VALID" } }),
       // D-044: tickets of another bus accepted here by the class rule
       this.prisma.ticketScan.count({
         where: { tripId, result: "VALID", ticket: { tripId: { not: tripId } } },
+      }),
+      this.prisma.trip.findUnique({
+        where: { id: tripId },
+        select: {
+          busType: { select: { serviceType: true } },
+          route: { select: { routeStops: { select: { stopId: true, kmFromOrigin: true } } } },
+        },
       }),
     ]);
     const checked =
@@ -128,7 +137,15 @@ export class ConductorService {
     return {
       counts: { passengers, checked, pending: passengers - checked },
       seats: tickets.map((t) => ({
-        seatNo: t.seatNo,
+        // D-045: local tickets have no seat, so the manifest shows them as unreserved
+        seatNo:
+          trip &&
+          isSeatless(
+            trip.busType.serviceType,
+            segmentKm(trip.route.routeStops, t.boardingStopId, t.droppingStopId),
+          )
+            ? null
+            : t.seatNo,
         state: ["SCANNED", "USED"].includes(t.status) ? "CHECKED" : "PENDING",
       })),
     };

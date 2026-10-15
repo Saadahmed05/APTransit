@@ -7,6 +7,8 @@ import {
   busClassOf,
   classCovers,
   formatIstDate,
+  isSeatless,
+  segmentKm,
 } from "@aptransit/shared";
 import { Injectable, Logger } from "@nestjs/common";
 import { DomainEventsService } from "../../common/events/domain-events.service";
@@ -180,7 +182,7 @@ export class ValidateService {
                       busType: { select: { serviceType: true } },
                     },
                   },
-                  route: { select: { nameEn: true } },
+                  route: { select: { nameEn: true, routeStops: { select: { stopId: true, kmFromOrigin: true } } } },
                   boardingStopId: true,
                   droppingStopId: true,
                   boardingStop: { select: { nameEn: true, nameTe: true } },
@@ -348,7 +350,15 @@ export class ValidateService {
               ? {
                   passengerName: ticket.passenger?.name ?? ticket.holderUser.name ?? "",
                   // The seat belongs to the booked bus, not this one
-                  seatNo: otherBus ? null : ticket.seatNo,
+                  // D-045: a local ticket has no seat to show either
+                  seatNo:
+                    otherBus ||
+                    isSeatless(
+                      ticket.trip.busType.serviceType,
+                      segmentKm(ticket.route.routeStops, ticket.boardingStopId, ticket.droppingStopId),
+                    )
+                      ? null
+                      : ticket.seatNo,
                   routeName: ticket.route.nameEn,
                   boarding: ticket.boardingStop.nameEn,
                   dropping: ticket.droppingStop.nameEn,

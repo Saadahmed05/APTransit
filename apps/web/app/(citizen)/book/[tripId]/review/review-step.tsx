@@ -229,7 +229,7 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
                     })
                   : t("book.review.passengerLine", { name: p.name, age: p.age })}
               </span>
-              {!fare?.seatless && (
+              {fare && !fare.seatless && (
                 <span className="shrink-0 text-small font-medium text-muted">
                   {t("book.review.seat", { seat: p.seatNo })}
                 </span>

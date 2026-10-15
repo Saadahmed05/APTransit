@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { groupFare, passengerCategory, splitGroupTotal } from "./fare";
-import { isSeatless, SEATLESS_MAX_KM } from "./seatless";
+import { isSeatless, SEATLESS_MAX_KM, segmentKm } from "./seatless";
 
 describe("isSeatless", () => {
   it("is always true for local services", () => {
@@ -30,5 +30,17 @@ describe("senior fares", () => {
   it("splits a paid total so the parts add up", () => {
     const parts = splitGroupTotal(20_001, [30, 8, 65]);
     expect(parts.reduce((a, b) => a + b, 0)).toBe(20_001);
+  });
+});
+
+describe("segmentKm", () => {
+  const stops = [
+    { stopId: "a", kmFromOrigin: 0 },
+    { stopId: "b", kmFromOrigin: 12.5 },
+  ];
+  it("gives the distance between two stops", () => expect(segmentKm(stops, "a", "b")).toBe(12.5));
+  it("is infinity for an unknown stop or no stops", () => {
+    expect(segmentKm(stops, "a", "zz")).toBe(Number.POSITIVE_INFINITY);
+    expect(segmentKm(undefined, "a", "b")).toBe(Number.POSITIVE_INFINITY);
   });
 });

@@ -18,6 +18,7 @@ import {
   type NormalizedRecipient,
   QR_PERIOD_SEC,
   isSeatless,
+  segmentKm,
 } from "@aptransit/shared";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { AppError } from "../../common/errors/app-error";
@@ -99,10 +100,13 @@ interface LoadedTicket {
 
 /** D-045: local and 50 km or shorter tickets have no seat to show, even though a label counts toward capacity. */
 function visibleSeat(ticket: LoadedTicket): string | null {
-  const stops = ticket.trip.route.routeStops;
-  const from = stops.find((s) => s.stopId === ticket.boardingStop.id)?.kmFromOrigin;
-  const to = stops.find((s) => s.stopId === ticket.droppingStop.id)?.kmFromOrigin;
-  const km = from !== undefined && to !== undefined ? to - from : Number.POSITIVE_INFINITY;
+  const km = segmentKm(
+    ticket.trip.route.routeStops.flatMap((s) =>
+      s.kmFromOrigin === undefined ? [] : [{ stopId: s.stopId, kmFromOrigin: s.kmFromOrigin }],
+    ),
+    ticket.boardingStop.id,
+    ticket.droppingStop.id,
+  );
   return isSeatless(ticket.trip.busType.serviceType, km) ? null : ticket.seatNo;
 }
 

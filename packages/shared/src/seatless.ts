@@ -23,3 +23,14 @@ export function isSeatless(serviceType: ServiceType, distanceKm: number): boolea
  * 120 km on the seeded route, so 130 km is an assumption (A), docs/18.
  */
 export const LOCAL_ROUTE_MAX_KM = 130;
+
+/** Km between two stops of a route, or infinity when either stop is unknown (then only the service decides). */
+export function segmentKm(
+  stops: readonly { stopId: string; kmFromOrigin: number }[] | undefined,
+  fromStopId: string,
+  toStopId: string,
+): number {
+  const from = stops?.find((s) => s.stopId === fromStopId)?.kmFromOrigin;
+  const to = stops?.find((s) => s.stopId === toStopId)?.kmFromOrigin;
+  return from !== undefined && to !== undefined ? to - from : Number.POSITIVE_INFINITY;
+}

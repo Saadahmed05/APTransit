@@ -309,7 +309,17 @@ export class BookingsService {
     let takenSeat: string | null;
     try {
       takenSeat = await holdSeats(this.redis.client, trip.id, seatNos, bookingId, holdTtlSec);
+      // Seatless: another booking may have taken one of the labels meanwhile. Pick others, up to 3 times.
+      for (let attempt = 0; seatless && takenSeat && attempt < 3; attempt++) {
+        seatNos = await this.freeSeatLabels(
+          trip.id,
+          layout.labels.filter((l) => !blockedLabels.has(l)),
+          input.passengers.length,
+        );
+        takenSeat = await holdSeats(this.redis.client, trip.id, seatNos, bookingId, holdTtlSec);
+      }
     } catch (err) {
+      if (err instanceof AppError) throw err;
       this.logger.warn(`Redis seat hold error: ${(err as Error).message}`);
       throw new AppError("INTERNAL", "Could not hold seats, please try again");
     }
@@ -336,7 +346,7 @@ export class BookingsService {
             totalPaise,
             holdExpiresAt,
             passengers: {
-              create: passengerRows,
+              create: passengerRows.map((row, i) => ({ ...row, seatNo: seatNos[i]! })),
             },
           },
           include: { passengers: true },
