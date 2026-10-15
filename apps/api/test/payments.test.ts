@@ -2,6 +2,7 @@
 import { getQueueToken } from "@nestjs/bullmq";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
+import { groupFare } from "@aptransit/shared";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppModule } from "../src/app.module";
@@ -260,6 +261,27 @@ describe("Payments (Day 6)", () => {
       expect(redis.store.has(`holdcount:${tripId}`)).toBe(false);
       expect(events).toEqual([{ bookingId, userId, tripId, ticketIds: res.body.ticketIds }]);
       expect(db.audit.some((a) => a.action === "payment.verify" && a.after.result === "CONFIRMED")).toBe(true);
+    });
+
+    it("splits a group booking over its tickets by age: parts add up, children and seniors pay half (v3 Phase 4)", async () => {
+      const bookingId = seedBooking({ seats: ["1", "2", "3", "4", "5"] });
+      const ages = [35, 33, 8, 4, 64];
+      db.passengers.forEach((p, i) => (p.age = ages[i]));
+      const total = groupFare(54_100, ages).totalPaise;
+      db.bookings[0].totalPaise = total;
+
+      const paid = provider.pay(await orderFor(bookingId));
+      await post("/payments/verify", paid).expect(200);
+
+      const bySeat = new Map(db.passengers.map((p) => [p.id, p]));
+      const fares = db.tickets.map((t) => ({ age: bySeat.get(t.passengerId)?.age as number, fare: t.farePaise as number }));
+      expect(fares).toHaveLength(5);
+      expect(fares.reduce((sum, f) => sum + f.fare, 0)).toBe(total);
+      const adult = fares.find((f) => f.age === 33)!.fare;
+      for (const f of fares.filter((x) => x.age === 8 || x.age === 4 || x.age === 64)) {
+        // "Half an adult ticket, give or take one rupee"
+        expect(Math.abs(f.fare * 2 - adult)).toBeLessThanOrEqual(200);
+      }
     });
 
     it("rejects a wrong signature without touching the booking", async () => {

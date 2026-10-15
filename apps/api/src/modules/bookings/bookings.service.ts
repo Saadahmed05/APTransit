@@ -3,6 +3,7 @@ import {
   type BookingDto,
   calculateFare,
   groupFare,
+  isSeatless,
   type CreateBookingInput,
   generateBookingCode,
   SeatLayoutSchema,
@@ -202,7 +203,8 @@ export class BookingsService {
       throw new AppError("VALIDATION_FAILED", "Booking is closed for this trip");
     }
 
-    // 4. Validate seat numbers
+    // 4. Seats. Seatless trips (D-045: local services and 50 km or less) take no seat from the client:
+    // the server hands out free internal labels, so the bus capacity still caps the tickets.
     const layout = SeatLayoutSchema.parse(trip.busType.seatLayout);
     const validSeatLabels = new Set(layout.labels);
 
@@ -214,7 +216,23 @@ export class BookingsService {
       }
     }
 
-    const seatNos = input.passengers.map((p) => p.seatNo);
+    const tripDistanceKm = droppingStop.kmFromOrigin - boardingStop.kmFromOrigin;
+    const seatless = isSeatless(trip.busType.serviceType, tripDistanceKm);
+
+    let seatNos: string[];
+    if (seatless) {
+      seatNos = await this.freeSeatLabels(
+        trip.id,
+        layout.labels.filter((l) => !blockedLabels.has(l)),
+        input.passengers.length,
+      );
+    } else {
+      const chosen = input.passengers.map((p) => p.seatNo);
+      if (chosen.some((s) => !s)) {
+        throw new AppError("VALIDATION_FAILED", "Seat number is required for this trip");
+      }
+      seatNos = chosen as string[];
+    }
     if (new Set(seatNos).size !== seatNos.length) {
       throw new AppError("VALIDATION_FAILED", "Duplicate seats selected in booking");
     }
@@ -224,6 +242,17 @@ export class BookingsService {
         throw new AppError("VALIDATION_FAILED", `Seat ${seatNo} is invalid or blocked`, { seatNo });
       }
     }
+
+    // Names: reserved trips need every name from the client; seatless trips use the account name.
+    const accountName = seatless
+      ? ((await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }))
+          ?.name ?? "Passenger")
+      : null;
+    const passengerRows = input.passengers.map((p, i) => {
+      const name = p.name ?? (seatless ? (i === 0 ? accountName! : `${accountName} +${i}`) : null);
+      if (!name) throw new AppError("VALIDATION_FAILED", "Passenger name is required");
+      return { name, age: p.age, gender: p.gender ?? "X", seatNo: seatNos[i]! };
+    });
 
     // 5. Check DB tickets for those seats
     const existingTickets = await this.prisma.ticket.findMany({
@@ -256,7 +285,7 @@ export class BookingsService {
       throw new AppError("VALIDATION_FAILED", "No fare rule found for this trip");
     }
 
-    const distanceKm = droppingStop.kmFromOrigin - boardingStop.kmFromOrigin;
+    const distanceKm = tripDistanceKm;
     const singleFare = calculateFare({
       distanceKm,
       rule: {
@@ -307,12 +336,7 @@ export class BookingsService {
             totalPaise,
             holdExpiresAt,
             passengers: {
-              create: input.passengers.map((p) => ({
-                name: p.name,
-                age: p.age,
-                gender: p.gender,
-                seatNo: p.seatNo,
-              })),
+              create: passengerRows,
             },
           },
           include: { passengers: true },
@@ -360,6 +384,29 @@ export class BookingsService {
     const bookingDto = toBookingDto(booking);
     await writeIdempotent(this.redis.client, slot, bookingDto);
     return bookingDto;
+  }
+
+  /**
+   * D-045: the first `count` seat labels nobody holds or has a ticket for. Fewer than `count` free
+   * means the bus is full for local travel, the same SEAT_TAKEN answer a reserved seat gives.
+   */
+  private async freeSeatLabels(tripId: string, labels: string[], count: number): Promise<string[]> {
+    const taken = await this.prisma.ticket.findMany({
+      where: { tripId, seatNo: { not: null }, status: { in: [...SEAT_TAKING_STATUSES] } },
+      select: { seatNo: true },
+    });
+    const pending = await this.prisma.bookingPassenger.findMany({
+      where: { booking: { tripId, status: "PENDING_PAYMENT" } },
+      select: { seatNo: true },
+    });
+    const used = new Set([...taken, ...pending].map((t) => t.seatNo));
+    const free = labels.filter((l) => !used.has(l));
+    if (free.length < count) {
+      throw new AppError("SEAT_TAKEN", "This bus is full for local travel", { seatNo: "" });
+    }
+    // Spread from the back so two parallel bookings rarely pick the same labels first.
+    const start = Math.floor(Math.random() * Math.max(1, free.length - count + 1));
+    return free.slice(start, start + count);
   }
 
   /**

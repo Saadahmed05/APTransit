@@ -71,15 +71,19 @@
       "noLocation": "We could not find your location. Pick a stop on the map or type a place.",
       "error": "The map could not load.",
       "retry": "Try again",
-      "setFrom": "Set as from",
-      "setTo": "Set as to",
       "listTitle": "Stops near you (list)",
       "empty": "No stops found here.",
       "distance": "{km} km away",
       "from": "From",
       "to": "To",
       "fromStop": "From {stop}",
-      "toStop": "To {stop}"
+      "toStop": "To {stop}",
+      "pickup": "Pickup",
+      "drop": "Drop",
+      "choosePickup": "Choose pickup stop",
+      "chooseDrop": "Choose drop stop",
+      "tapPickup": "Tap a stop on the map to set your pickup.",
+      "tapDrop": "Tap a stop on the map to set where you get down."
     }
   },
   "search": {
@@ -496,7 +500,8 @@
       "checkingTitle": "We are checking your payment",
       "checkingHint": "If money left your account, your ticket appears in My tickets in a few minutes. If not, it is refunded on its own. Quote booking {code} if you contact support.",
       "paymentDescription": "{route}, {date}",
-      "group": "{adults, plural, one {# adult} other {# adults}} and {children, plural, one {# child} other {# children}} (child fare {childFare})"
+      "mix": "{adults, plural, one {# adult} other {# adults}}, {children, plural, one {# child} other {# children}}, {seniors, plural, one {# senior} other {# seniors}}",
+      "localLine": "{category}, age {age}"
     },
     "done": {
       "title": "Ticket booked",
@@ -510,6 +515,26 @@
       "waitingHint": "This takes a few seconds.",
       "notConfirmedTitle": "We are still confirming this booking",
       "errorTitle": "Booking could not load"
+    },
+    "local": {
+      "heading": "Book your local ticket",
+      "intro": "Local buses have no seats to book. Pick where you board and where you get down, then add the age of everyone travelling.",
+      "travellers": "Who is travelling",
+      "rules": "Under {child} is a child, {senior} and over is a senior citizen. Children and seniors pay a lower fare.",
+      "ageOf": "Age of traveller {n}",
+      "enterAge": "Enter an age from 1 to 120",
+      "category": {
+        "ADULT": "Adult",
+        "CHILD": "Child",
+        "SENIOR": "Senior citizen"
+      },
+      "add": "Add another traveller",
+      "remove": "Remove traveller {n}",
+      "noSeat": "No seat is reserved. Your name comes from your account.",
+      "book": "Continue to pay",
+      "dash": "Enter all ages",
+      "nameLabel": "Your name",
+      "nameHint": "Used on your local tickets. You can change it later in your account."
     }
   },
   "tickets": {

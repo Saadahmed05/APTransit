@@ -17,6 +17,7 @@ import {
   maskPhone,
   type NormalizedRecipient,
   QR_PERIOD_SEC,
+  isSeatless,
 } from "@aptransit/shared";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { AppError } from "../../common/errors/app-error";
@@ -52,7 +53,7 @@ const TICKET_INCLUDE = {
   trip: {
     include: {
       busType: { select: { serviceType: true } },
-      route: { include: { routeStops: { select: { stopId: true, minutesFromOrigin: true } } } },
+      route: { include: { routeStops: { select: { stopId: true, minutesFromOrigin: true, kmFromOrigin: true } } } },
       assignments: { where: { endedAt: null }, take: 1, include: { bus: { select: { regNo: true } } } },
     },
   },
@@ -91,9 +92,18 @@ interface LoadedTicket {
     hasOpenIncident: boolean;
     busTypeId: string;
     busType: { serviceType: TicketSummaryDto["serviceType"] };
-    route: { code: string; nameEn: string; nameTe: string; routeStops: { stopId: string; minutesFromOrigin: number }[] };
+    route: { code: string; nameEn: string; nameTe: string; routeStops: { stopId: string; minutesFromOrigin: number; kmFromOrigin?: number }[] };
     assignments: { bus: { regNo: string } | null }[];
   };
+}
+
+/** D-045: local and 50 km or shorter tickets have no seat to show, even though a label counts toward capacity. */
+function visibleSeat(ticket: LoadedTicket): string | null {
+  const stops = ticket.trip.route.routeStops;
+  const from = stops.find((s) => s.stopId === ticket.boardingStop.id)?.kmFromOrigin;
+  const to = stops.find((s) => s.stopId === ticket.droppingStop.id)?.kmFromOrigin;
+  const km = from !== undefined && to !== undefined ? to - from : Number.POSITIVE_INFINITY;
+  return isSeatless(ticket.trip.busType.serviceType, km) ? null : ticket.seatNo;
 }
 
 /** Holder only ticket endpoints. Every rule comes from ticket-rules.ts or fare.ts. */
@@ -385,7 +395,7 @@ export class TicketsService {
       tripId: ticket.tripId,
       type: ticket.type,
       status: ticket.status,
-      seatNo: ticket.seatNo,
+      seatNo: visibleSeat(ticket),
       routeCode: ticket.trip.route.code,
       routeNameEn: ticket.trip.route.nameEn,
       routeNameTe: ticket.trip.route.nameTe,

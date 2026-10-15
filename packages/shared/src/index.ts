@@ -12,6 +12,7 @@ export * from "./schemas/seat-layout";
 export * from "./schemas/auth";
 export * from "./fare";
 export * from "./bus-class";
+export * from "./seatless";
 export * from "./schemas/search";
 export * from "./schemas/network";
 export * from "./schemas/trips";

@@ -8,6 +8,7 @@ import {
   type SeatMapDto,
   SeatLayoutSchema,
   type TripDetailDto,
+  isSeatless,
 } from "@aptransit/shared";
 import { Injectable, Logger } from "@nestjs/common";
 import { AppError } from "../../common/errors/app-error";
@@ -265,6 +266,7 @@ export class TripsService {
     const trip = await this.prisma.trip.findUnique({
       where: { id: tripId },
       include: {
+        busType: { select: { serviceType: true } },
         route: {
           include: {
             routeStops: {
@@ -332,6 +334,7 @@ export class TripsService {
       reservationFeePaise: breakdown.reservationFeePaise,
       totalPaise: breakdown.totalPaise,
       distanceKm,
+      seatless: isSeatless(trip.busType.serviceType, distanceKm),
       refundTiers: refundTiers.map((t) => ({ minHoursBefore: t.minHoursBefore, percent: t.percent })),
     };
   }

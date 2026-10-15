@@ -7,8 +7,8 @@ import {
   formatMoney,
   formatTime,
   TripDetailDto,
+  groupFare,
   passengerCategory,
-  passengerFarePaise,
 } from "@aptransit/shared";
 import { Button, Card, cn, EmptyState, ErrorState, Skeleton } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -222,11 +222,18 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
           {booking.passengers.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-3 py-2">
               <span className="min-w-0 break-words text-body text-fg">
-                {t("book.review.passengerLine", { name: p.name, age: p.age })}
+                {fare?.seatless
+                  ? t("book.review.localLine", {
+                      category: t(`book.local.category.${passengerCategory(p.age)}`),
+                      age: p.age,
+                    })
+                  : t("book.review.passengerLine", { name: p.name, age: p.age })}
               </span>
-              <span className="shrink-0 text-small font-medium text-muted">
-                {t("book.review.seat", { seat: p.seatNo })}
-              </span>
+              {!fare?.seatless && (
+                <span className="shrink-0 text-small font-medium text-muted">
+                  {t("book.review.seat", { seat: p.seatNo })}
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -254,19 +261,16 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
                   count: booking.passengers.length,
                   fare: formatMoney(fare.totalPaise, locale),
                 })}
-                {/* D-042 group ticket: children under CHILD_MAX_AGE pay half */}
-                {booking.passengers.some((p) => passengerCategory(p.age) === "CHILD") ? (
-                  <span className="block">
-                    {t("book.review.group", {
-                      adults: booking.passengers.filter((p) => passengerCategory(p.age) === "ADULT")
-                        .length,
-                      children: booking.passengers.filter(
-                        (p) => passengerCategory(p.age) === "CHILD",
-                      ).length,
-                      childFare: formatMoney(passengerFarePaise(fare.totalPaise, 1), locale),
-                    })}
-                  </span>
-                ) : null}
+                {/* D-042, D-045 group ticket: children and seniors pay less */}
+                {(() => {
+                  const mix = groupFare(
+                    fare.totalPaise,
+                    booking.passengers.map((p) => p.age),
+                  );
+                  return mix.children + mix.seniors > 0 ? (
+                    <span className="block">{t("book.review.mix", { adults: mix.adults, children: mix.children, seniors: mix.seniors })}</span>
+                  ) : null;
+                })()}
               </dt>
               <dd className="tabular-nums text-body font-semibold text-fg">{total}</dd>
             </div>

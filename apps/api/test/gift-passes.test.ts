@@ -446,6 +446,48 @@ describe("Gifting, passes and free travel (Day 8)", () => {
       expect(until.getTime() - Date.now()).toBeLessThanOrEqual(24 * 3600_000);
     });
 
+    describe("zone passes and child cards (v3 Phase 4, D-042)", () => {
+      const KNL_DISTRICT = "districtknl0001";
+      const zoneType = "passtypezone0001";
+      beforeEach(() => {
+        tables.district = [{ id: KNL_DISTRICT, nameEn: "Kurnool", nameTe: "Kurnool te" }];
+        tables.passType!.push({
+          id: zoneType, kind: "DAY", nameEn: "Zone Day Pass", nameTe: "Zone te", durationDays: 1,
+          pricePaise: 8_000, eligibleServiceTypes: STANDARD, scheme: null, validityMode: "UNTIL_DAY_END",
+          groupSize: 1, routeRestricted: false, zoneScoped: true, isDemo: true, sortOrder: 3, isActive: true,
+        });
+      });
+      const buy = async (body: Record<string, unknown>) => {
+        const created = PassDto.parse((await as("ravi").post("/passes", body).expect(201)).body);
+        const order = await as("ravi").post("/payments/orders", { passId: created.id }).expect(200);
+        await as("ravi").post("/payments/test/complete", { orderId: order.body.orderId }).expect(200);
+        return created;
+      };
+
+      it("a zone pass needs a known district and then carries it", async () => {
+        expect((await as("ravi").post("/passes", { passTypeId: zoneType }).expect(400)).body.error.code).toBe("VALIDATION_FAILED");
+        await as("ravi").post("/passes", { passTypeId: zoneType, zoneDistrictId: "districtnone001" }).expect(400);
+        const ok = await as("ravi").post("/passes", { passTypeId: zoneType, zoneDistrictId: KNL_DISTRICT }).expect(201);
+        expect(ok.body.zoneDistrictId).toBe(KNL_DISTRICT);
+      });
+
+      it("a child card refuses age 18 and carries the child's name and age", async () => {
+        await as("ravi").post("/passes", { passTypeId: ids.weekly, child: { name: "Anu", age: 18 } }).expect(400);
+        const ok = await as("ravi").post("/passes", { passTypeId: ids.weekly, child: { name: "Anu", age: 9 } }).expect(201);
+        expect(ok.body).toMatchObject({ holderName: "Anu", holderAge: 9 });
+      });
+
+      it("cards for two different children can both be active, the same child twice cannot", async () => {
+        const anu = await buy({ passTypeId: ids.weekly, child: { name: "Anu", age: 9 } });
+        const ravi = await buy({ passTypeId: ids.weekly, child: { name: "Ravi Jr", age: 7 } });
+        await as("ravi").post(`/passes/${anu.id}/activate`).expect(200);
+        await as("ravi").post(`/passes/${ravi.id}/activate`).expect(200);
+        const again = await buy({ passTypeId: ids.weekly, child: { name: "Anu", age: 9 } });
+        const res = await as("ravi").post(`/passes/${again.id}/activate`).expect(409);
+        expect(res.body.error.code).toBe("PASS_ALREADY_ACTIVE");
+      });
+    });
+
     describe("school pass (D-036)", () => {
       const student = { consent: true, declaration: { isStudent: true, institutionName: "Govt Junior College, Kurnool" } };
 

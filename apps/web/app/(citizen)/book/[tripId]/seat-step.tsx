@@ -30,6 +30,7 @@ import { api, errorKey } from "../../../../lib/api";
 import { useBookingDraft } from "../../../../lib/booking-draft";
 import { queryKeys } from "../../../../lib/query-keys";
 import { BookingStepper } from "./booking-stepper";
+import { LocalBooking } from "./local-booking";
 
 const SEATS_POLL_MS = 15_000;
 
@@ -85,7 +86,7 @@ export function SeatStep({
     enabled: Boolean(boarding && dropping),
   });
 
-  if (tripQuery.isLoading || seatsQuery.isLoading || !draft) {
+  if (tripQuery.isLoading || seatsQuery.isLoading || fareQuery.isLoading || !draft) {
     return (
       <div className="flex flex-col gap-6" aria-busy="true">
         <span className="sr-only" role="status">
@@ -159,6 +160,58 @@ export function SeatStep({
   const canContinue = selected.length > 0 && Boolean(boarding && dropping);
   const name = (p: { nameEn: string; nameTe: string }) => (locale === "te" ? p.nameTe : p.nameEn);
 
+  const stopCard = (
+    <Card padding="md" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <label htmlFor="book-boarding" className="text-small font-medium text-fg">
+          {t("book.seat.boarding")}
+        </label>
+        <Select value={boarding?.stopId} onValueChange={setBoardingPick}>
+          <SelectTrigger id="book-boarding">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {boardingPoints.map((p) => (
+              <SelectItem key={p.stopId} value={p.stopId}>
+                {name(p)} · {formatTime(p.departureAt, locale)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <label htmlFor="book-dropping" className="text-small font-medium text-fg">
+          {t("book.seat.dropping")}
+        </label>
+        <Select value={dropping?.stopId} onValueChange={setDroppingPick}>
+          <SelectTrigger id="book-dropping">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {droppingPoints.map((p) => (
+              <SelectItem key={p.stopId} value={p.stopId}>
+                {name(p)} · {formatTime(p.arrivalAt, locale)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </Card>
+  );
+
+  // D-045: no seats on local buses and trips of 50 km or less
+  if (fare?.seatless && boarding && dropping) {
+    return (
+      <LocalBooking
+        tripId={tripId}
+        fare={fare}
+        boardingId={boarding.stopId}
+        droppingId={dropping.stopId}
+        stops={stopCard}
+      />
+    );
+  }
+
   const onContinue = () => {
     if (!canContinue || !boarding || !dropping) return;
     const previous = draft.bookingId;
@@ -212,42 +265,7 @@ export function SeatStep({
         </p>
       )}
 
-      <Card padding="md" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <label htmlFor="book-boarding" className="text-small font-medium text-fg">
-            {t("book.seat.boarding")}
-          </label>
-          <Select value={boarding?.stopId} onValueChange={setBoardingPick}>
-            <SelectTrigger id="book-boarding">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {boardingPoints.map((p) => (
-                <SelectItem key={p.stopId} value={p.stopId}>
-                  {name(p)} · {formatTime(p.departureAt, locale)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <label htmlFor="book-dropping" className="text-small font-medium text-fg">
-            {t("book.seat.dropping")}
-          </label>
-          <Select value={dropping?.stopId} onValueChange={setDroppingPick}>
-            <SelectTrigger id="book-dropping">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {droppingPoints.map((p) => (
-                <SelectItem key={p.stopId} value={p.stopId}>
-                  {name(p)} · {formatTime(p.arrivalAt, locale)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </Card>
+      {stopCard}
 
       <SeatMap
         layout={seatsQuery.data.layout}

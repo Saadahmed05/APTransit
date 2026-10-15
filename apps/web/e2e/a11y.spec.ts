@@ -57,4 +57,12 @@ test.describe("Accessibility (axe)", () => {
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expectNoSeriousViolations(page, "/passes");
   });
+
+  test("/terms and /bus-types have no serious violations (v3 Phase 1)", async ({ page }) => {
+    for (const path of ["/terms", "/bus-types"]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expectNoSeriousViolations(page, path);
+    }
+  });
 });

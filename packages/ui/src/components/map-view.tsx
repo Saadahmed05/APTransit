@@ -1,7 +1,7 @@
 "use client";
 import { decodePolyline, STATUS_MAP } from "@aptransit/shared";
 import { Bus, LocateFixed, TriangleAlert } from "lucide-react";
-import { useRef, useSyncExternalStore, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore, useState } from "react";
 import { setWorkerUrl } from "maplibre-gl";
 import Map, { Layer, Marker, Source, type MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -63,6 +63,10 @@ export interface MapViewProps {
   retryLabel?: string;
   /** D-042: makes markers tappable (the map picker). Keep a keyboard list next to the map too: the map is hidden from screen readers. */
   onMarkerClick?: (id: string) => void;
+  /** Draw a dashed line from the "from" marker to the "to" marker (map picker). */
+  connect?: boolean;
+  /** Fit the markers again whenever this value changes (map picker: a new A or B). */
+  fitKey?: string;
   className?: string;
 }
 
@@ -82,6 +86,8 @@ export function MapView({
   errorLabel = "Map failed to load",
   retryLabel = "Retry",
   onMarkerClick,
+  connect = false,
+  fitKey,
   className,
 }: MapViewProps) {
   const ref = useRef<MapRef>(null);
@@ -134,6 +140,8 @@ export function MapView({
         ],
         { padding: unit * 8 || 32, duration: 0 },
       );
+    } else if (markers.length === 1) {
+      ref.current?.flyTo({ center: [markers[0]!.lng, markers[0]!.lat], zoom: 14, duration: 0 });
     } else if (markers.length > 1) {
       ref.current?.fitBounds(
         [
@@ -144,6 +152,13 @@ export function MapView({
       );
     }
   };
+  // Map picker: a new A or B refits the view (after the map has loaded)
+  useEffect(() => {
+    if (fitKey !== undefined && ref.current?.getMap().loaded()) fit();
+    // fit reads the latest markers; only a new fitKey should move the camera
+  }, [fitKey]);
+  const fromMarker = markers.find((m) => m.tone === "from");
+  const toMarker = markers.find((m) => m.tone === "to");
   return (
     <section
       className={cn(
@@ -205,6 +220,22 @@ export function MapView({
               </Source>
             </>
           )}
+          {connect && fromMarker && toMarker && aheadColor && (
+            <Source
+              id="connect"
+              type="geojson"
+              data={line([
+                [fromMarker.lng, fromMarker.lat],
+                [toMarker.lng, toMarker.lat],
+              ])}
+            >
+              <Layer
+                id="connect-line"
+                type="line"
+                paint={{ "line-color": aheadColor, "line-width": unit, "line-dasharray": [2, 2] }}
+              />
+            </Source>
+          )}
           {markers.map((m) => (
             <Marker
               key={m.id}
@@ -218,22 +249,29 @@ export function MapView({
               }
             >
               {m.tone === "stop" ? (
-                <span
-                  className="block size-4 cursor-pointer rounded-full border-2 border-surface-raised bg-primary shadow-md"
-                  title={m.label}
-                />
+                // The dot is small but the tap area is 44 px
+                <span className="flex size-11 cursor-pointer items-center justify-center" title={m.label}>
+                  <span className="block size-4 rounded-full border-2 border-surface-raised bg-primary shadow-md" />
+                </span>
               ) : (
-                <span
-                  className={cn(
-                    "flex size-7 items-center justify-center rounded-full text-small font-bold shadow-md",
-                    m.tone === "to"
-                      ? "bg-status-danger-solid text-on-solid"
-                      : "bg-primary text-on-primary",
-                    onMarkerClick && "cursor-pointer",
+                <span className="flex flex-col items-center gap-1">
+                  {(m.tone === "from" || m.tone === "to") && (
+                    <span className="max-w-40 truncate rounded-full bg-surface-raised px-2 py-0.5 text-caption font-medium text-fg shadow-md">
+                      {m.label}
+                    </span>
                   )}
-                  title={m.label}
-                >
-                  {m.tone === "from" ? "A" : m.tone === "to" ? "B" : "*"}
+                  <span
+                    className={cn(
+                      "flex size-8 items-center justify-center rounded-full border-2 border-surface-raised text-small font-bold shadow-md",
+                      m.tone === "to"
+                        ? "bg-status-danger-solid text-on-solid"
+                        : "bg-primary text-on-primary",
+                      onMarkerClick && "cursor-pointer",
+                    )}
+                    title={m.label}
+                  >
+                    {m.tone === "from" ? "A" : m.tone === "to" ? "B" : "*"}
+                  </span>
                 </span>
               )}
             </Marker>

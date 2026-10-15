@@ -497,5 +497,16 @@ describe("Auth endpoints and lifecycle", () => {
       .send({ credential: "x".repeat(40) });
     expect(off.status).toBe(403);
     expect(ErrorResponse.parse(off.body).error.code).toBe("FORBIDDEN");
+
+    // Phase 2: the limit is 10 per IP per minute. Two requests are used above, so 8 more pass and
+    // the 11th request on this route is refused.
+    const send = () =>
+      request(app.getHttpServer())
+        .post("/api/v1/auth/google")
+        .send({ credential: "x".repeat(40) });
+    for (let i = 0; i < 8; i++) expect((await send()).status).toBe(403);
+    const limited = await send();
+    expect(limited.status).toBe(429);
+    expect(ErrorResponse.parse(limited.body).error.code).toBe("RATE_LIMITED");
   });
 });

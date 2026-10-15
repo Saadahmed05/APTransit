@@ -384,6 +384,20 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
   - Citizen: `/bus-types` page, class note on bus and ticket details, links from home, account and terms.
 - **Status:** Built and tested locally. Needs the other dev review (shared contract change) and owner confirmation of the (A) items.
 
+### D-045: Seatless local travel, senior fares, local only Pallevelugu, Kurnool landmarks, Rapido style map
+- **Date:** 2026-10-15
+- **Raised by:** Product owner, built on branch `a/local-seatless`
+- **Docs affected:** 05, 06 (`POST /bookings` passenger fields, `FareDto.seatless`), 07 (sections 4 and 7a), 11 (book screens), 18, 19 (new stops and routes). **Not edited yet:** docs are locked until both devs agree.
+- **Decision:**
+  - Seatless: Pallevelugu, Ultra Pallevelugu and City Ordinary are never booked by seat, and neither is any trip of 50 km or less on any service (`isSeatless`, `SEATLESS_MAX_KM` in `packages/shared/src/seatless.ts`, owner's numbers). The server hands out an internal seat label so the bus capacity (40 to 50 seats, the layout of the bus type) still caps the tickets; the label is never shown (`visibleSeat` in the tickets service, `FareDto.seatless` for the web). No schema change, no migration. A full bus answers `SEAT_TAKEN`.
+  - Names: a seatless booking sends only ages. Passenger names come from the account (`Name`, `Name +1`, ...). Reserved (long) trips still need every name, gender and seat. `CreateBookingPassengerInput` makes name, gender and seatNo optional; the service refuses a reserved trip without them.
+  - Senior citizens: 60 and over (owner). **(A)** The discount was not given: `SENIOR_FARE_PERCENT` is 50, like children, in `fare.ts`. `groupFare` and `splitGroupTotal` price adult, child and senior by age. The reservation fee is still charged on seatless tickets **(A)**.
+  - Pallevelugu is local only: the 150 km Anantapur run now uses Ultra Deluxe and Express, and new local routes cover Adoni, Atmakur (via Nandikotkur) and Dhone to Nandyal (via Banaganapalle). `LOCAL_ROUTE_MAX_KM` is 130 **(A)**; a seed test fails if a local service runs a longer route.
+  - Kurnool landmarks are stops (positions from OpenStreetMap): Jyothi Mall, Chandana Bros Shopping Mall, Jagdeesh Mall, Kurnool Medical College, Osmania College, G Pulla Reddy Engineering College, G Pullaiah College of Engineering and Technology, Kurnool City Railway Station. Two City Ordinary lines join them: `KCM-01` (malls) and `KCC-01` (colleges). Telugu names need a native review.
+  - Map picker: Pickup and Drop rows with an active field, a tap on a stop sets it, a dashed A to B line, name pills on the pins, 44 px tap areas, first view centred on Kurnool.
+  - The conductor "who gets down" feature already exists (D-044) and refreshes after every scan; local tickets feed it like any other.
+- **Status:** Built and tested locally. Owner to confirm the **(A)** values (senior percent, 130 km, reservation fee on seatless tickets). Needs the other dev review (shared contract change).
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |

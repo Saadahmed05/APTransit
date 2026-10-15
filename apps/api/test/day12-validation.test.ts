@@ -17,6 +17,7 @@ import { configureHttpApp } from "../src/http-app";
 import { AuthService } from "../src/modules/auth/auth.service";
 import { QrService } from "../src/modules/tickets/qr.service";
 import { QUEUES } from "../src/modules/queue/queue.constants";
+import { DomainEventsService } from "../src/common/events/domain-events.service";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { RedisService } from "../src/redis/redis.service";
 import { createFakeRedis } from "./fake-redis";
@@ -537,6 +538,34 @@ describe("Day 12 validation HTTP order", () => {
       const res = await scan(await content("P")).expect(200);
       expect(res.body.reason).toBe("OK");
       expect(res.body.group).toBeUndefined();
+    });
+
+    describe("zone passes and child cards (v3 Phase 4, D-042)", () => {
+      it("a zone pass of the route's district is VALID, another district is SERVICE_NOT_ELIGIBLE", async () => {
+        tables.pass![0]!.zoneDistrictId = "districtknl0001";
+        expect((await scan(await content("P")).expect(200)).body.reason).toBe("OK");
+        tables.ticketScan = [];
+        tables.pass![0]!.zoneDistrictId = "districtndl0001";
+        expect((await scan(await content("P")).expect(200)).body.reason).toBe("SERVICE_NOT_ELIGIBLE");
+      });
+
+      it("a VALID scan of a child card tells the parent once, and the scan shows the child's name", async () => {
+        Object.assign(tables.pass![0]!, { userId: "parent0000001", holderName: "Anu", holderAge: 9 });
+        const events: any[] = [];
+        const off = app.get(DomainEventsService).on("pass.child_boarded", (e) => void events.push(e));
+        try {
+          const res = await scan(await content("P")).expect(200);
+          expect(res.body.reason).toBe("OK");
+          expect(res.body.ticket.passengerName).toBe("Anu");
+          expect(events).toHaveLength(1);
+          expect(events[0]).toMatchObject({ userId: "parent0000001", child: "Anu", routeEn: "Kurnool to Nandyal" });
+          // An INVALID scan (already boarded) tells nobody
+          await scan(await content("P")).expect(200);
+          expect(events).toHaveLength(1);
+        } finally {
+          off();
+        }
+      });
     });
 
     it("a school pass works only on a route with both of its stops (ROUTE_NOT_COVERED)", async () => {

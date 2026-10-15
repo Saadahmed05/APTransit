@@ -152,12 +152,12 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
       const res = await get(`/districts/${districtId("NDL")}/bus-stands`);
       expect(res.status).toBe(200);
       expect(BusStandsResponse.parse(res.body)).toEqual([
-        { id: busStandId("DHN"), nameEn: "Dhone", nameTe: "డోన్", routeCount: 2 },
+        { id: busStandId("DHN"), nameEn: "Dhone", nameTe: "డోన్", routeCount: 3 },
         {
           id: busStandId("NDL"),
           nameEn: "Nandyal Bus Stand",
           nameTe: "నంద్యాల బస్ స్టాండ్",
-          routeCount: 5,
+          routeCount: 6,
         },
       ]);
     });
@@ -166,6 +166,11 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
       const res = await get(`/bus-stands/${busStandId("KNL")}/routes`);
       expect(res.status).toBe(200);
       expect(res.body.map((r: { code: string }) => r.code)).toEqual([
+        // D-045: Kurnool city lines and local routes to Adoni and Atmakur
+        "KCC-01",
+        "KCM-01",
+        "KNL-ADN-01",
+        "KNL-ATK-01",
         "KNL-ATP-01",
         "KNL-NDL-01",
         "KNL-TPT-01",

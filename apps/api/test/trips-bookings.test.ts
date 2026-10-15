@@ -10,6 +10,7 @@ import {
 import { getQueueToken } from "@nestjs/bullmq";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
+import { groupFare } from "@aptransit/shared";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AppModule } from "../src/app.module";
@@ -158,6 +159,7 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
             if (where.tripId && t.tripId !== where.tripId) return false;
             if (where.status?.in && !where.status.in.includes(t.status)) return false;
             if (where.seatNo?.in && !where.seatNo.in.includes(t.seatNo)) return false;
+            if (where.seatNo?.not === null && t.seatNo === null || t.seatNo === undefined) return false;
             return true;
           });
         },
@@ -224,6 +226,13 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
           for (const b of matched) Object.assign(b, data);
           return { count: matched.length };
         },
+      },
+      bookingPassenger: {
+        findMany: async ({ where }: any) =>
+          bookingPassengers.filter((p) => {
+            const b = bookings.find((x) => x.id === p.bookingId);
+            return b && b.tripId === where.booking.tripId && b.status === where.booking.status;
+          }),
       },
       user: {
         findUnique: async ({ where }: any) => {
@@ -521,6 +530,72 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
         .expect(200);
       const res = await post({ ...bookingPayload, passengers: [passenger("3"), passenger("4")] }).expect(201);
       expect(res.body.totalPaise).toBe(fare.body.totalPaise * 2);
+    });
+
+    it("prices a group by age: adults full, children and seniors half (v3 Phase 4)", async () => {
+      const fare = await request(app.getHttpServer())
+        .get(`/api/v1/trips/${mockTripId}/fare?from=${fromStopId}&to=${toStopId}`)
+        .expect(200);
+      const ages = [35, 33, 8, 4, 64];
+      const res = await post({
+        ...bookingPayload,
+        passengers: ages.map((age, i) => ({ name: `P${i}`, age, gender: "F", seatNo: String(20 + i) })),
+      }).expect(201);
+      expect(res.body.totalPaise).toBe(groupFare(fare.body.totalPaise, ages).totalPaise);
+      expect(res.body.totalPaise).toBeLessThan(fare.body.totalPaise * ages.length);
+    });
+
+    describe("seatless local trips (D-045)", () => {
+      const seatless = { tripId: mockTripId, boardingStopId: fromStopId, droppingStopId: toStopId };
+      const asService = async (service: string, run: () => Promise<void>) => {
+        mockTrip.busType.serviceType = service;
+        try {
+          await run();
+        } finally {
+          mockTrip.busType.serviceType = "EXPRESS";
+        }
+      };
+
+      it("assigns seats and uses the account name for a local service", () =>
+        asService("PALLEVELUGU", async () => {
+          const res = await post({ ...seatless, passengers: [{ age: 35 }, { age: 8 }, { age: 64 }] }).expect(201);
+          const names = res.body.passengers.map((p: { name: string }) => p.name);
+          expect(names).toEqual(["Citizen", "Citizen +1", "Citizen +2"]);
+          const seats = res.body.passengers.map((p: { seatNo: string }) => p.seatNo);
+          expect(new Set(seats).size).toBe(3);
+        }));
+
+      it("treats any trip of 50 km or less as seatless", async () => {
+        mockTrip.route.routeStops[1]!.kmFromOrigin = 45;
+        try {
+          await post({ ...seatless, passengers: [{ age: 30 }] }).expect(201);
+        } finally {
+          mockTrip.route.routeStops[1]!.kmFromOrigin = 340;
+        }
+      });
+
+      it("still needs seat and name on a long reserved trip", async () => {
+        await post({ ...seatless, passengers: [{ age: 30, seatNo: "5" }] }).expect(400);
+        await post({ ...seatless, passengers: [{ age: 30, name: "A" }] }).expect(400);
+      });
+
+      it("caps tickets at the bus capacity", () =>
+        asService("PALLEVELUGU", async () => {
+          const six = Array.from({ length: 6 }, () => ({ age: 30 }));
+          for (let i = 0; i < 6; i++) await post({ ...seatless, passengers: six }).expect(201);
+          // 36 of 40 seats are held: a party of 6 does not fit, a party of 4 does.
+          const full = await post({ ...seatless, passengers: six }).expect(409);
+          expect(full.body.error.code).toBe("SEAT_TAKEN");
+          await post({ ...seatless, passengers: six.slice(0, 4) }).expect(201);
+        }));
+
+      it("reports seatless on the fare for a local service", () =>
+        asService("CITY_ORDINARY", async () => {
+          const fare = await request(app.getHttpServer())
+            .get(`/api/v1/trips/${mockTripId}/fare?from=${fromStopId}&to=${toStopId}`)
+            .expect(200);
+          expect(fare.body.seatless).toBe(true);
+        }));
     });
 
     it("schedules the expiry job with a BullMQ safe job id", async () => {

@@ -3,7 +3,7 @@
 import { type NearbyPlaceDto, PlacesNearbyResponse, type PlaceDto } from "@aptransit/shared";
 import { Button, Skeleton } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
-import { LocateFixed, MapPin } from "lucide-react";
+import { Circle, LocateFixed, MapPin } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { useState } from "react";
@@ -14,13 +14,14 @@ const MapView = dynamic(() => import("@aptransit/ui/map-view"), {
   loading: () => <Skeleton className="h-home-map w-full" />,
 });
 
-/** Centre of Andhra Pradesh: with a large limit the first view shows every stop in the state. */
-const AP_CENTRE = { lat: 15.9, lng: 79.7 };
+/** Kurnool city: the first view lists the nearest stops, so its malls and colleges show up. */
+const START_CENTRE = { lat: 15.8281, lng: 78.0373 };
 
 /**
- * D-042 map picker (Google Maps style): every stop is a dot on the map. Tap one, then choose
- * "Set as from" or "Set as to". "Use my location" picks the nearest stop as From. The map is hidden
- * from screen readers, so the same stops are listed below as buttons.
+ * D-042, D-045 map picker (Rapido style): a Pickup and a Drop row sit above the map, one of them is
+ * active, and tapping a stop dot sets the active one and moves on to the other. A dashed line joins
+ * A and B. "Use my location" picks the nearest stop as Pickup. The map is hidden from screen
+ * readers, so the same stops are listed below as buttons.
  */
 export function MapPicker({
   from,
@@ -34,21 +35,28 @@ export function MapPicker({
   const t = useTranslations("home.map");
   const locale = useLocale();
   const [centre, setCentre] = useState<{ lat: number; lng: number } | null>(null);
-  const [selected, setSelected] = useState<NearbyPlaceDto | null>(null);
+  const [active, setActive] = useState<"from" | "to">("from");
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
-  const point = centre ?? AP_CENTRE;
+  const point = centre ?? START_CENTRE;
   const stops = useQuery({
-    queryKey: ["places", "nearby", point.lat, point.lng, centre ? 20 : 50],
+    queryKey: ["places", "nearby", point.lat, point.lng, centre ? 20 : 40],
     queryFn: () =>
       api("/places/nearby", {
-        query: { lat: point.lat, lng: point.lng, limit: centre ? 20 : 50 },
+        query: { lat: point.lat, lng: point.lng, limit: centre ? 20 : 40 },
         schema: PlacesNearbyResponse,
         redirectOn401: false,
       }),
     staleTime: 5 * 60_000,
   });
   const name = (p: PlaceDto) => (locale === "te" ? p.nameTe : p.nameEn);
+
+  /** Set the active field, then hand over to the other one that is still empty. */
+  const choose = (place: NearbyPlaceDto, field: "from" | "to" = active) => {
+    onPick(field, place);
+    const other = field === "from" ? "to" : "from";
+    setActive(other === "to" ? (to ? field : "to") : from ? field : "from");
+  };
 
   const locate = () => {
     if (!("geolocation" in navigator)) {
@@ -67,7 +75,7 @@ export function MapPicker({
             schema: PlacesNearbyResponse,
             redirectOn401: false,
           });
-          if (nearest) onPick("from", nearest);
+          if (nearest) choose(nearest, "from");
         } catch {
           setLocateError(t("noLocation"));
         }
@@ -113,6 +121,42 @@ export function MapPicker({
         </p>
       ) : null}
 
+      <div className="flex flex-col gap-2 rounded-lg border border-default bg-surface-raised p-2 shadow-md">
+        {(["from", "to"] as const).map((field) => {
+          const place = field === "from" ? from : to;
+          const isActive = active === field;
+          return (
+            <button
+              key={field}
+              type="button"
+              onClick={() => setActive(field)}
+              aria-pressed={isActive}
+              data-testid={`map-field-${field}`}
+              className={`flex min-h-14 items-center gap-3 rounded-md border px-3 text-left ${
+                isActive ? "border-primary bg-surface" : "border-transparent"
+              }`}
+            >
+              {field === "from" ? (
+                <Circle className="size-5 shrink-0 text-primary" aria-hidden="true" />
+              ) : (
+                <MapPin className="size-5 shrink-0 text-status-danger" aria-hidden="true" />
+              )}
+              <span className="min-w-0">
+                <span className="block text-caption text-muted">
+                  {field === "from" ? t("pickup") : t("drop")}
+                </span>
+                <span className="block truncate text-body font-medium text-fg">
+                  {place ? name(place) : field === "from" ? t("choosePickup") : t("chooseDrop")}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+        <p className="px-1 text-small text-muted" role="status">
+          {t(active === "from" ? "tapPickup" : "tapDrop")}
+        </p>
+      </div>
+
       {stops.isError ? (
         <div className="flex flex-col items-start gap-2 rounded-lg border border-default bg-surface-raised p-4">
           <p className="text-body text-fg">{t("error")}</p>
@@ -127,36 +171,17 @@ export function MapPicker({
             process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/liberty"
           }
           markers={markers}
+          connect
           fitBounds
-          onMarkerClick={(id) => setSelected(list.find((s) => s.id === id) ?? null)}
+          fitKey={`${from?.id ?? ""}|${to?.id ?? ""}`}
+          onMarkerClick={(id) => {
+            const stop = list.find((s) => s.id === id);
+            if (stop) choose(stop);
+          }}
           errorLabel={t("error")}
           retryLabel={t("retry")}
         />
       )}
-
-      {selected ? (
-        <div
-          role="group"
-          aria-label={name(selected)}
-          className="animate-enter flex flex-col gap-3 rounded-lg border border-default bg-surface-raised p-4 shadow-md"
-        >
-          <p className="flex items-center gap-2 text-body font-medium text-fg">
-            <MapPin className="size-5 shrink-0 text-primary" aria-hidden="true" />
-            <span className="min-w-0">{name(selected)}</span>
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => (onPick("from", selected), setSelected(null))}
-            >
-              {t("setFrom")}
-            </Button>
-            <Button onClick={() => (onPick("to", selected), setSelected(null))}>
-              {t("setTo")}
-            </Button>
-          </div>
-        </div>
-      ) : null}
 
       <details className="rounded-lg border border-default bg-surface-raised">
         <summary className="cursor-pointer list-none p-4 text-body font-medium text-fg">
@@ -187,14 +212,14 @@ export function MapPicker({
                   <Button
                     variant="ghost"
                     aria-label={t("fromStop", { stop: name(s) })}
-                    onClick={() => onPick("from", s)}
+                    onClick={() => choose(s, "from")}
                   >
                     {t("from")}
                   </Button>
                   <Button
                     variant="ghost"
                     aria-label={t("toStop", { stop: name(s) })}
-                    onClick={() => onPick("to", s)}
+                    onClick={() => choose(s, "to")}
                   >
                     {t("to")}
                   </Button>

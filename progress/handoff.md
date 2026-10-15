@@ -14,6 +14,23 @@ Read order for a new session:
 
 ---
 
+## Current state (D-045 seatless local travel, 2026-10-15)
+
+Branch `a/local-seatless` (from `a/bus-classes`, PR open, not merged). See D-045 in `progress/decisions-log.md`.
+
+| New | Where |
+| --- | --- |
+| Seatless rule, local route limit | `packages/shared/src/seatless.ts`, `bookings.service.ts` (internal seat label, capacity cap), `visibleSeat` in the tickets service |
+| Adult, child, senior fares | `packages/shared/src/fare.ts` (`SENIOR_MIN_AGE` 60, `SENIOR_FARE_PERCENT` 50 is an assumption) |
+| Local booking screen (ages, name from account) | `apps/web/app/(citizen)/book/[tripId]/local-booking.tsx` |
+| Rapido style map | `apps/web/app/(citizen)/map-picker.tsx`, `connect` and `fitKey` in `packages/ui/src/components/map-view.tsx` |
+| Kurnool landmarks, local routes | `apps/api/prisma/seed-data.ts`, test `apps/api/test/seed-local.test.ts` |
+| v3 phase tests | `google-sign-in.test.ts`, `v3-ops-stages.test.ts`, zone and child tests in `gift-passes.test.ts` and `day12-validation.test.ts`, `v3-shell.spec.ts` |
+
+Not done: E2E for group booking on a long trip, zone pass and child card, conductor child scan, route sweep and axe run for `/terms` and `/bus-types` (added, not run); real browser map check; live Google sign in; owner values (senior percent, 130 km, reservation fee on seatless tickets); native Telugu review.
+
+Gotcha: the local E2E needs the API and web running on a seeded database; with Docker off, use PGlite on 15432 and `scripts/dev-redis.mjs` on 6380 and pass `DATABASE_URL`, `DIRECT_URL`, `REDIS_URL` as environment overrides.
+
 ## Current state (D-044 bus classes, 2026-10-12)
 
 Branch `a/bus-classes` (from upstream main, not merged yet). Bus classes with one ticket for all buses, and who gets down where for conductors: see D-044 and docs/07 section 7c.

@@ -353,6 +353,26 @@ describe("Notifications and expiry jobs (Day 9)", () => {
       expect(tables.notification![0]!.link).toBe("/tickets/tkt1");
     });
 
+    it("pass.child_boarded gives CHILD_BOARDED to the parent with the child and the route (v3 Phase 4)", async () => {
+      app.get(DomainEventsService).publish("pass.child_boarded", {
+        userId: ravi,
+        passId: "passchild000001",
+        child: "Anu",
+        routeEn: "Kurnool to Nandyal",
+        routeTe: "కర్నూలు నుండి నంద్యాల",
+        at: NOW.toISOString(),
+      });
+      await flush();
+      expect(tables.notification).toEqual([
+        expect.objectContaining({
+          userId: ravi,
+          type: "CHILD_BOARDED",
+          link: "/passes",
+          params: expect.objectContaining({ child: "Anu", routeEn: "Kurnool to Nandyal" }),
+        }),
+      ]);
+    });
+
     it("ticket.transferred gives TICKET_RECEIVED to the recipient with the sender's name", async () => {
       tables.ticket!.push(ticket("tktgift0000001", {}));
       app

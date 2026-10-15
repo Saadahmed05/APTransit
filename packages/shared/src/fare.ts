@@ -150,54 +150,68 @@ export function refundQuote({
   return { cancellable: true, percent: tier.percent, amountPaise, feePaise };
 }
 
-// Group tickets (D-042): a passenger under CHILD_MAX_AGE pays CHILD_FARE_PERCENT of the adult fare.
+// Group tickets (D-042, D-045): children pay CHILD_FARE_PERCENT, seniors pay SENIOR_FARE_PERCENT.
 
 /** Passengers younger than this are children. */
 export const CHILD_MAX_AGE = 12;
 /** Children pay this percent of the adult ticket (fare and reservation fee), rounded to the rupee. */
 export const CHILD_FARE_PERCENT = 50;
+/** Passengers of this age and older are senior citizens (owner, D-045). */
+export const SENIOR_MIN_AGE = 60;
+/** Seniors pay this percent of the adult ticket. The owner gave the age, not the discount: (A), docs/18. */
+export const SENIOR_FARE_PERCENT = 50;
 
-export type PassengerCategory = "ADULT" | "CHILD";
+export type PassengerCategory = "ADULT" | "CHILD" | "SENIOR";
 
 export function passengerCategory(age: number): PassengerCategory {
-  return age < CHILD_MAX_AGE ? "CHILD" : "ADULT";
+  if (age < CHILD_MAX_AGE) return "CHILD";
+  if (age >= SENIOR_MIN_AGE) return "SENIOR";
+  return "ADULT";
 }
+
+/** Percent of the adult ticket one passenger category pays. */
+export const CATEGORY_FARE_PERCENT: Record<PassengerCategory, number> = {
+  ADULT: 100,
+  CHILD: CHILD_FARE_PERCENT,
+  SENIOR: SENIOR_FARE_PERCENT,
+};
 
 /** Fare for one passenger of a given age, from the adult ticket total. */
 export function passengerFarePaise(adultTotalPaise: number, age: number): number {
-  if (passengerCategory(age) === "ADULT") return adultTotalPaise;
-  return roundToRupee(Math.round((adultTotalPaise * CHILD_FARE_PERCENT) / 100));
+  const percent = CATEGORY_FARE_PERCENT[passengerCategory(age)];
+  if (percent === 100) return adultTotalPaise;
+  return roundToRupee(Math.round((adultTotalPaise * percent) / 100));
 }
 
 export interface GroupFare {
   adults: number;
   children: number;
+  seniors: number;
   /** Fare per passenger, in the order of the ages given. */
   perPassengerPaise: number[];
   totalPaise: number;
 }
 
-/** Fare for a group (adults and children with ages). The booking total is the sum. */
+/** Fare for a group (adults, children and seniors with ages). The booking total is the sum. */
 export function groupFare(adultTotalPaise: number, ages: readonly number[]): GroupFare {
   const perPassengerPaise = ages.map((age) => passengerFarePaise(adultTotalPaise, age));
-  const children = ages.filter((age) => passengerCategory(age) === "CHILD").length;
+  const count = (c: PassengerCategory) => ages.filter((age) => passengerCategory(age) === c).length;
   return {
-    adults: ages.length - children,
-    children,
+    adults: count("ADULT"),
+    children: count("CHILD"),
+    seniors: count("SENIOR"),
     perPassengerPaise,
     totalPaise: perPassengerPaise.reduce((sum, p) => sum + p, 0),
   };
 }
 
 /**
- * Splits a paid booking total over passengers by their ages (adults weight 2, children weight 1 at
- * 50 percent). Rounding leftovers go to the first passenger, so the parts always add up to the total.
+ * Splits a paid booking total over passengers by their ages (adult weight 100, child and senior
+ * their fare percent). Rounding leftovers go to the first passenger, so the parts add up to the total.
  */
 export function splitGroupTotal(totalPaise: number, ages: readonly number[]): number[] {
   if (ages.length === 0) return [];
-  const weights = ages.map((age) =>
-    passengerCategory(age) === "CHILD" ? CHILD_FARE_PERCENT : 100,
-  );
+  const weights = ages.map((age) => CATEGORY_FARE_PERCENT[passengerCategory(age)]);
   const weightSum = weights.reduce((s, w) => s + w, 0);
   const parts = weights.map((w) => Math.floor((totalPaise * w) / weightSum));
   parts[0] = (parts[0] ?? 0) + totalPaise - parts.reduce((s, p) => s + p, 0);
