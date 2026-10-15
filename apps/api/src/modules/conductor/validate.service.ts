@@ -350,7 +350,7 @@ export class ValidateService {
               ? {
                   passengerName: ticket.passenger?.name ?? ticket.holderUser.name ?? "",
                   // The seat belongs to the booked bus, not this one
-                  // D-045: a local ticket has no seat to show either
+                  // D-046: a local ticket has no seat to show either
                   seatNo:
                     otherBus ||
                     isSeatless(

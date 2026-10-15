@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // A small in memory stand in for PrismaService in HTTP tests. Supports the query shapes our services
 // use: where with equals, in, notIn, not, gt, gte, lt, lte, OR, AND and relation filters; include and
-// select of relations (through `relations`); data with increment; count; $transaction with rollback.
+// select of relations (through `relations`); data with increment; count; groupBy counts;
+// $transaction with rollback.
 // Select is treated like include (extra fields never hurt a test).
 
 type Row = Record<string, any>;
@@ -192,6 +193,22 @@ export function createMemoryPrisma(
         return shape(model, row, args);
       },
       count: async (args: Row = {}) => table().filter((r) => matches(model, r, args.where)).length,
+      groupBy: async (args: Row) => {
+        const groups = new Map<string, { values: Row; count: number }>();
+        for (const row of table().filter((candidate) => matches(model, candidate, args.where))) {
+          const values = Object.fromEntries(
+            (args.by as string[]).map((field) => [field, row[field] ?? null]),
+          );
+          const key = JSON.stringify(values);
+          const group = groups.get(key) ?? { values, count: 0 };
+          group.count += 1;
+          groups.set(key, group);
+        }
+        return [...groups.values()].map((group) => ({
+          ...group.values,
+          ...(args._count ? { _count: { _all: group.count } } : {}),
+        }));
+      },
       create: async (args: Row) => {
         const base: Row = { id: memoryId(model.slice(0, 3)), createdAt: new Date() };
         for (const [key, value] of Object.entries(defaults[model] ?? {}))

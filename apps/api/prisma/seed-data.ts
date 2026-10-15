@@ -301,7 +301,7 @@ export const STOPS: StopSeed[] = [
     lng: 83.25,
     isBusStand: false,
   },
-  // D-045: Kurnool landmarks and nearby towns (positions from OpenStreetMap)
+  // D-046: Kurnool landmarks and nearby towns (positions from OpenStreetMap)
   {
     code: "KRS",
     nameEn: "Kurnool City Railway Station",
@@ -622,7 +622,7 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
       { stopCode: "SMC", kmFromOrigin: 15, minutesFromOrigin: 40 },
     ],
   },
-  // D-045: local only routes. Pallevelugu never runs further than LOCAL_ROUTE_MAX_KM.
+  // D-046: local only routes. Pallevelugu never runs further than LOCAL_ROUTE_MAX_KM.
   {
     code: "KNL-ADN-01",
     reverseCode: "ADN-KNL-02",
@@ -666,7 +666,7 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
       { stopCode: "NDL", kmFromOrigin: 93.1, minutesFromOrigin: 127 },
     ],
   },
-  // D-045: Kurnool city lines between the malls and colleges (OpenStreetMap positions)
+  // D-046: Kurnool city lines between the malls and colleges (OpenStreetMap positions)
   {
     code: "KCM-01",
     reverseCode: "MKC-02",
@@ -921,7 +921,7 @@ const FORWARD_TIMETABLES: {
   {
     routeCode: "KNL-ATP-01",
     reverseCode: "ATP-KNL-02",
-    // D-045: Pallevelugu is local only, so the 150 km Anantapur run uses express services
+    // D-046: Pallevelugu is local only, so the 150 km Anantapur run uses express services
     departures: everyMinutes("05:00", "20:00", 60).map((t, i) => [
       t,
       i % 2 === 0 ? "ULTRA_DELUXE" : "EXPRESS",

@@ -18,7 +18,7 @@ const MapView = dynamic(() => import("@aptransit/ui/map-view"), {
 const START_CENTRE = { lat: 15.8281, lng: 78.0373 };
 
 /**
- * D-042, D-045 map picker (Rapido style): a Pickup and a Drop row sit above the map, one of them is
+ * D-042, D-046 map picker (Rapido style): a Pickup and a Drop row sit above the map, one of them is
  * active, and tapping a stop dot sets the active one and moves on to the other. A dashed line joins
  * A and B. "Use my location" picks the nearest stop as Pickup. The map is hidden from screen
  * readers, so the same stops are listed below as buttons.

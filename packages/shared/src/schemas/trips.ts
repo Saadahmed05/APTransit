@@ -109,7 +109,7 @@ export const FareDto = z.object({
   reservationFeePaise: Paise,
   totalPaise: Paise,
   distanceKm: z.number().nonnegative(),
-  /** D-045: local and 50 km or shorter trips have no seat to pick. Capacity still caps tickets. */
+  /** D-046: local and 50 km or shorter trips have no seat to pick. Capacity still caps tickets. */
   seatless: z.boolean().default(false),
   refundTiers: z.array(RefundTierDto),
 });

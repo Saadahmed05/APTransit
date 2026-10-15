@@ -203,7 +203,7 @@ export class BookingsService {
       throw new AppError("VALIDATION_FAILED", "Booking is closed for this trip");
     }
 
-    // 4. Seats. Seatless trips (D-045: local services and 50 km or less) take no seat from the client:
+    // 4. Seats. Seatless trips (D-046: local services and 50 km or less) take no seat from the client:
     // the server hands out free internal labels, so the bus capacity still caps the tickets.
     const layout = SeatLayoutSchema.parse(trip.busType.seatLayout);
     const validSeatLabels = new Set(layout.labels);
@@ -397,7 +397,7 @@ export class BookingsService {
   }
 
   /**
-   * D-045: the first `count` seat labels nobody holds or has a ticket for. Fewer than `count` free
+   * D-046: the first `count` seat labels nobody holds or has a ticket for. Fewer than `count` free
    * means the bus is full for local travel, the same SEAT_TAKEN answer a reserved seat gives.
    */
   private async freeSeatLabels(tripId: string, labels: string[], count: number): Promise<string[]> {

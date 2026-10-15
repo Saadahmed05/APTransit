@@ -545,7 +545,7 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
       expect(res.body.totalPaise).toBeLessThan(fare.body.totalPaise * ages.length);
     });
 
-    describe("seatless local trips (D-045)", () => {
+    describe("seatless local trips (D-046)", () => {
       const seatless = { tripId: mockTripId, boardingStopId: fromStopId, droppingStopId: toStopId };
       const asService = async (service: string, run: () => Promise<void>) => {
         mockTrip.busType.serviceType = service;

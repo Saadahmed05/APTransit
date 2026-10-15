@@ -185,3 +185,4 @@ Day 14 adds the guarded admin module for stops, routes, timetables, date-range t
 - Search runs `villageFit` on the rows (`villageEnd` comes from the trip query).
 - Passes: zone (`zoneDistrictId`) and child cards (`holderName`, `holderAge`). A valid child card scan publishes `pass.child_boarded`; the notifications subscriber sends `CHILD_BOARDED`.
 - `GET /ops/trips/:id` returns `stages` and `passBoardings`.
+

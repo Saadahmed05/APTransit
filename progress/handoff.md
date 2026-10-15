@@ -14,9 +14,9 @@ Read order for a new session:
 
 ---
 
-## Current state (D-045 seatless local travel, 2026-10-15)
+## Current state (D-046 seatless local travel, 2026-10-15)
 
-Branch `a/local-seatless` (from `a/bus-classes`, PR open, not merged). See D-045 in `progress/decisions-log.md`.
+Branch `a/local-seatless` (from `a/bus-classes`, PR open, not merged). See D-046 in `progress/decisions-log.md`.
 
 | New | Where |
 | --- | --- |
@@ -43,6 +43,16 @@ Branch `a/bus-classes` (from upstream main, not merged yet). Bus classes with on
 | Rules page and class note | `apps/web/app/(citizen)/bus-types/page.tsx`, `apps/web/components/bus-class-note.tsx` |
 
 Gotcha: the memory Prisma fixture in `day12-validation.test.ts` now needs `busTypeId` on trips and `routeStop` rows; a ticket stop missing from the fixture names fails the result schema with a 500.
+
+## Current state (local bus booking removal, 2026-10-14)
+
+**Superseded by D-046 (2026-10-15):** the booking block described here was removed; local buses are seatless and bookable. `isLocalBusService` no longer exists.
+
+On branch `a/v3-complete`, D-045 defines local buses as `CITY_ORDINARY` and `METRO_EXPRESS`. Paid and free-travel reserved-seat booking is blocked by `BookingsService` before a hold can be created. Bus details no longer show booking actions for these services, and direct seat, details and free-seat pages show an unavailable state. Search, trip details, schedules and fare reads remain unchanged. Other service types still use the existing booking flow.
+
+`LOCAL_BUS_SERVICE_TYPES` and `isLocalBusService` in `packages/shared/src/enums.ts` are the single classification source. Local booking pages now skip seat-map and pass-list requests, and the API defers the free-pass database read until after the trip is known to support advance booking.
+
+Checks on 2026-10-14: API 507 passed (9 skipped without integration infrastructure), shared 130, UI 106, web 44, scripts 6. Lint, typecheck, i18n, dashes and production build passed. The seeded E2E suite was not run because the local database and application servers were not running. Locked docs 06, 07 and 11 still need the other dev's agreement and a separate docs update.
 
 ## Current state (v3 owner feedback round, 2026-10-11)
 

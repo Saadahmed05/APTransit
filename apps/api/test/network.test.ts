@@ -166,7 +166,7 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
       const res = await get(`/bus-stands/${busStandId("KNL")}/routes`);
       expect(res.status).toBe(200);
       expect(res.body.map((r: { code: string }) => r.code)).toEqual([
-        // D-045: Kurnool city lines and local routes to Adoni and Atmakur
+        // D-046: Kurnool city lines and local routes to Adoni and Atmakur
         "KCC-01",
         "KCM-01",
         "KNL-ADN-01",

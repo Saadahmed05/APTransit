@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { login, tomorrowIst, uniqueEmail } from "./helpers";
 
-// D-045: local buses have no seats. The traveller gives ages, the name comes from the account, and
+// D-046: local buses have no seats. The traveller gives ages, the name comes from the account, and
 // the fare is adult, child or senior by age. Needs a seeded database (Kurnool malls line KCM-01).
 
 async function stopId(page: Page, q: string) {
@@ -9,7 +9,7 @@ async function stopId(page: Page, q: string) {
   return ((await res.json()) as { id: string }[])[0]!.id;
 }
 
-test.describe("D-045: seatless local booking", () => {
+test.describe("D-046: seatless local booking", () => {
   test("map pickup and drop, ages instead of seats, adult child and senior fares", async ({ page }) => {
     test.setTimeout(150_000);
     await login(page, uniqueEmail("v3-local"));

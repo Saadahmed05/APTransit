@@ -384,7 +384,15 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
   - Citizen: `/bus-types` page, class note on bus and ticket details, links from home, account and terms.
 - **Status:** Built and tested locally. Needs the other dev review (shared contract change) and owner confirmation of the (A) items.
 
-### D-045: Seatless local travel, senior fares, local only Pallevelugu, Kurnool landmarks, Rapido style map
+### D-045: Remove local bus seat booking
+- **Date:** 2026-10-14
+- **Raised by:** Product owner
+- **Docs affected:** 06, 07, 11
+- **Question:** The current locked rules allow reserved seat booking for every service type and do not define a local bus category. Confirm which service types are local. The likely choices are PALLEVELUGU, ULTRA_PALLEVELUGU, CITY_ORDINARY and METRO_EXPRESS, or only CITY_ORDINARY and METRO_EXPRESS. Also confirm whether the restriction includes the free reserved seat flow, and whether a direct `/book/:tripId` visit should show an explanatory unavailable state or return not found.
+- **Proposed enforcement after confirmation:** Hide booking actions for confirmed local service types, guard every paid and free booking screen, reject `POST /bookings` on the server before creating holds, keep search, route, schedule and fare reads unchanged, and add web and API regression tests. Shared booking services and tables remain in place for other services.
+- **Status:** Owner confirmed on 2026-10-14 that local means CITY_ORDINARY and METRO_EXPRESS, and that paid and free-travel reserved-seat booking are both blocked. Implemented in code and tests. Locked docs still need the other dev's agreement and a separate docs update. **Superseded in part by D-046 (2026-10-15):** the owner chose seatless booking for local buses, so the block on CITY_ORDINARY and METRO_EXPRESS was removed from code and tests.
+
+### D-046: Seatless local travel, senior fares, local only Pallevelugu, Kurnool landmarks, Rapido style map
 - **Date:** 2026-10-15
 - **Raised by:** Product owner, built on branch `a/local-seatless`
 - **Docs affected:** 05, 06 (`POST /bookings` passenger fields, `FareDto.seatless`), 07 (sections 4 and 7a), 11 (book screens), 18, 19 (new stops and routes). **Not edited yet:** docs are locked until both devs agree.

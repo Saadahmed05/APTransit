@@ -199,7 +199,7 @@ export function SeatStep({
     </Card>
   );
 
-  // D-045: no seats on local buses and trips of 50 km or less
+  // D-046: no seats on local buses and trips of 50 km or less
   if (fare?.seatless && boarding && dropping) {
     return (
       <LocalBooking

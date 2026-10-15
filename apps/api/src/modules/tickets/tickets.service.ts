@@ -98,7 +98,7 @@ interface LoadedTicket {
   };
 }
 
-/** D-045: local and 50 km or shorter tickets have no seat to show, even though a label counts toward capacity. */
+/** D-046: local and 50 km or shorter tickets have no seat to show, even though a label counts toward capacity. */
 function visibleSeat(ticket: LoadedTicket): string | null {
   const km = segmentKm(
     ticket.trip.route.routeStops.flatMap((s) =>

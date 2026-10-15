@@ -33,7 +33,7 @@ function parseAge(value: string): number | null {
 }
 
 /**
- * D-045: local buses and trips of 50 km or less have no seats to pick. The traveller gives an age for
+ * D-046: local buses and trips of 50 km or less have no seats to pick. The traveller gives an age for
  * each person and the name comes from the account. The server prices adult, child and senior fares.
  */
 export function LocalBooking({
