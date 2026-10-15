@@ -40,6 +40,10 @@ test.describe("Accessibility (axe)", () => {
     await page.locator("a[data-testid='trip-card']").first().click();
     await expect(page.getByTestId("bus-detail-content")).toBeVisible({ timeout: 15_000 });
     await expectNoSeriousViolations(page, "/bus/[id]");
+
+    await page.goto("/terms");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expectNoSeriousViolations(page, "/terms");
   });
 
   test("ticket and passes", async ({ citizen: page }) => {

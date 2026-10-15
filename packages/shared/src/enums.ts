@@ -37,6 +37,16 @@ export const VILLAGE_SERVICE_TYPES = [
   "METRO_EXPRESS",
 ] as const satisfies readonly ServiceType[];
 
+/** D-045: city local services do not offer advance seat booking. */
+export const LOCAL_BUS_SERVICE_TYPES = [
+  "CITY_ORDINARY",
+  "METRO_EXPRESS",
+] as const satisfies readonly ServiceType[];
+
+export function isLocalBusService(serviceType: ServiceType): boolean {
+  return (LOCAL_BUS_SERVICE_TYPES as readonly ServiceType[]).includes(serviceType);
+}
+
 export const BusStatus = z.enum(["IDLE", "RUNNING", "DELAYED", "BREAKDOWN", "MAINTENANCE"]);
 export type BusStatus = z.infer<typeof BusStatus>;
 
@@ -72,7 +82,15 @@ export type PaymentStatus = z.infer<typeof PaymentStatus>;
 export const RefundStatus = z.enum(["PENDING", "PROCESSED", "FAILED"]);
 export type RefundStatus = z.infer<typeof RefundStatus>;
 
-export const PassKind = z.enum(["WEEKLY", "MONTHLY", "FREE_TRAVEL", "DAY", "FAMILY", "SCHOOL", "ANNUAL"]);
+export const PassKind = z.enum([
+  "WEEKLY",
+  "MONTHLY",
+  "FREE_TRAVEL",
+  "DAY",
+  "FAMILY",
+  "SCHOOL",
+  "ANNUAL",
+]);
 export type PassKind = z.infer<typeof PassKind>;
 
 /** D-036: ROLLING_DAYS ends durationDays after activation, UNTIL_DAY_END at 23:59:59 IST of that day. */

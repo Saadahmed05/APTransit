@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { groupFare } from "@aptransit/shared";
 import { getQueueToken } from "@nestjs/bullmq";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
@@ -143,9 +144,12 @@ describe("Payments (Day 6)", () => {
   };
 
   /** A PENDING_PAYMENT booking for two seats, held in Redis like POST /bookings leaves it. */
-  function seedBooking(options: { owner?: string; holdExpiresAt?: Date; seats?: string[] } = {}) {
+  function seedBooking(
+    options: { owner?: string; holdExpiresAt?: Date; seats?: string[]; ages?: number[] } = {},
+  ) {
     const id = nextId("bkg");
     const seats = options.seats ?? ["7", "8"];
+    const ages = options.ages ?? seats.map(() => 30);
     db.bookings.push({
       id,
       code: `BKG-${id.slice(-6).toUpperCase()}`,
@@ -154,11 +158,11 @@ describe("Payments (Day 6)", () => {
       boardingStopId: "stopfrom00001",
       droppingStopId: "stopto000001",
       status: "PENDING_PAYMENT",
-      totalPaise: 54_100 * seats.length,
+      totalPaise: groupFare(54_100, ages).totalPaise,
       holdExpiresAt: options.holdExpiresAt ?? new Date(Date.now() + 10 * 60_000),
     });
-    for (const seatNo of seats) {
-      db.passengers.push({ id: nextId("bps"), bookingId: id, name: `P${seatNo}`, age: 30, gender: "F", seatNo });
+    for (const [index, seatNo] of seats.entries()) {
+      db.passengers.push({ id: nextId("bps"), bookingId: id, name: `P${seatNo}`, age: ages[index]!, gender: "F", seatNo });
       redis.store.set(`hold:${tripId}:${seatNo}`, id);
     }
     redis.store.set(`holdcount:${tripId}`, String(Number(redis.store.get(`holdcount:${tripId}`) ?? 0) + seats.length));
@@ -260,6 +264,24 @@ describe("Payments (Day 6)", () => {
       expect(redis.store.has(`holdcount:${tripId}`)).toBe(false);
       expect(events).toEqual([{ bookingId, userId, tripId, ticketIds: res.body.ticketIds }]);
       expect(db.audit.some((a) => a.action === "payment.verify" && a.after.result === "CONFIRMED")).toBe(true);
+    });
+
+    it("splits a mixed age group total across adult and child tickets", async () => {
+      const ages = [35, 33, 8, 4];
+      const bookingId = seedBooking({ seats: ["1", "2", "3", "4"], ages });
+      const paid = provider.pay(await orderFor(bookingId));
+
+      await post("/payments/verify", paid).expect(200);
+
+      const expected = groupFare(54_100, ages).totalPaise;
+      expect(db.tickets.map((ticket) => ticket.farePaise).reduce((a, b) => a + b, 0)).toBe(
+        expected,
+      );
+      const adultAverage =
+        db.tickets.slice(0, 2).reduce((sum, ticket) => sum + ticket.farePaise, 0) / 2;
+      for (const child of db.tickets.slice(2)) {
+        expect(Math.abs(child.farePaise - adultAverage / 2)).toBeLessThanOrEqual(100);
+      }
     });
 
     it("rejects a wrong signature without touching the booking", async () => {

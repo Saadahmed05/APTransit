@@ -4,6 +4,7 @@ import {
   ErrorResponse,
   FareDto,
   formatIstDate,
+  groupFare,
   SeatMapDto,
   TripDetailDto,
 } from "@aptransit/shared";
@@ -91,7 +92,15 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
           minutesFromOrigin: 0,
           isBoarding: true,
           isDropping: false,
-          stop: { id: fromStopId, code: "KNL", nameEn: "Kurnool", nameTe: "కర్నూలు", busStandId: "standknl000", lat: 15.8, lng: 78.0 },
+          stop: {
+            id: fromStopId,
+            code: "KNL",
+            nameEn: "Kurnool",
+            nameTe: "కర్నూలు",
+            busStandId: "standknl000",
+            lat: 15.8,
+            lng: 78.0,
+          },
         },
         {
           stopId: toStopId,
@@ -100,7 +109,15 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
           minutesFromOrigin: 340,
           isBoarding: false,
           isDropping: true,
-          stop: { id: toStopId, code: "VJA", nameEn: "Vijayawada", nameTe: "విజయవాడ", busStandId: "standvja000", lat: 16.5, lng: 80.6 },
+          stop: {
+            id: toStopId,
+            code: "VJA",
+            nameEn: "Vijayawada",
+            nameTe: "విజయవాడ",
+            busStandId: "standvja000",
+            lat: 16.5,
+            lng: 80.6,
+          },
         },
       ],
     },
@@ -151,7 +168,9 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
       },
       ticket: {
         count: async ({ where }: any) => {
-          return tickets.filter((t) => t.tripId === where.tripId && where.status.in.includes(t.status)).length;
+          return tickets.filter(
+            (t) => t.tripId === where.tripId && where.status.in.includes(t.status),
+          ).length;
         },
         findMany: async ({ where }: any) => {
           return tickets.filter((t) => {
@@ -183,11 +202,12 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
       booking: {
         create: async ({ data }: any) => {
           const id = data.id ?? `bkg${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
-          const passengers = data.passengers?.create?.map((p: any) => ({
-            id: `bp${Date.now()}${Math.random().toString(36).slice(2, 7)}`,
-            bookingId: id,
-            ...p,
-          })) ?? [];
+          const passengers =
+            data.passengers?.create?.map((p: any) => ({
+              id: `bp${Date.now()}${Math.random().toString(36).slice(2, 7)}`,
+              bookingId: id,
+              ...p,
+            })) ?? [];
           const record = {
             id,
             code: data.code,
@@ -220,7 +240,9 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
           return b;
         },
         updateMany: async ({ where, data }: any) => {
-          const matched = bookings.filter((x) => x.id === where.id && (!where.status || x.status === where.status));
+          const matched = bookings.filter(
+            (x) => x.id === where.id && (!where.status || x.status === where.status),
+          );
           for (const b of matched) Object.assign(b, data);
           return { count: matched.length };
         },
@@ -295,6 +317,8 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
     tickets.length = 0;
     queuedJobs.length = 0;
     settings.set("booking.maxPassengers", 6);
+    mockTrip.busType.serviceType = "EXPRESS";
+    mockTrip.busType.freeTravelEligible = false;
   });
 
   afterAll(async () => {
@@ -320,9 +344,7 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
     });
 
     it("returns 404 for nonexistent trip", async () => {
-      const res = await request(app.getHttpServer())
-        .get("/api/v1/trips/tripunknown00")
-        .expect(404);
+      const res = await request(app.getHttpServer()).get("/api/v1/trips/tripunknown00").expect(404);
 
       const parsed = ErrorResponse.safeParse(res.body);
       expect(parsed.success).toBe(true);
@@ -361,7 +383,9 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
       expect(parsed.success).toBe(true);
       if (parsed.success) {
         expect(parsed.data.distanceKm).toBe(340);
-        expect(parsed.data.totalPaise).toBe(parsed.data.basePaise + parsed.data.reservationFeePaise);
+        expect(parsed.data.totalPaise).toBe(
+          parsed.data.basePaise + parsed.data.reservationFeePaise,
+        );
         expect(parsed.data.refundTiers.length).toBe(4);
       }
     });
@@ -372,9 +396,7 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
       tripId: mockTripId,
       boardingStopId: fromStopId,
       droppingStopId: toStopId,
-      passengers: [
-        { name: "Passenger One", age: 30, gender: "M", seatNo: "12" },
-      ],
+      passengers: [{ name: "Passenger One", age: 30, gender: "M", seatNo: "12" }],
     };
 
     it("creates a booking and sets Redis seat hold", async () => {
@@ -390,7 +412,11 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
         expect(parsed.data.status).toBe("PENDING_PAYMENT");
         expect(parsed.data.passengers[0]?.seatNo).toBe("12");
         expect(redisStore.get(`hold:${mockTripId}:12`)).toBe(parsed.data.id);
-        expect(auditRows.some((row) => row.action === "booking.create" && row.entityId === parsed.data.id)).toBe(true);
+        expect(
+          auditRows.some(
+            (row) => row.action === "booking.create" && row.entityId === parsed.data.id,
+          ),
+        ).toBe(true);
       }
     });
 
@@ -491,7 +517,10 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
 
     it("rejects more passengers than booking.maxPassengers", async () => {
       settings.set("booking.maxPassengers", 2);
-      const res = await post({ ...bookingPayload, passengers: [passenger("1"), passenger("2"), passenger("3")] }).expect(400);
+      const res = await post({
+        ...bookingPayload,
+        passengers: [passenger("1"), passenger("2"), passenger("3")],
+      }).expect(400);
       expect(res.body.error.code).toBe("VALIDATION_FAILED");
       expect(redisStore.has(`hold:${mockTripId}:1`)).toBe(false);
     });
@@ -502,7 +531,9 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
       try {
         const res = await post(bookingPayload).expect(400);
         expect(res.body.error.code).toBe("VALIDATION_FAILED");
-        const trip = await request(app.getHttpServer()).get(`/api/v1/trips/${mockTripId}`).expect(200);
+        const trip = await request(app.getHttpServer())
+          .get(`/api/v1/trips/${mockTripId}`)
+          .expect(200);
         expect(trip.body.bookingOpen).toBe(false);
       } finally {
         mockTrip.scheduledDepartureAt = original;
@@ -515,12 +546,49 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
       expect(bookings).toHaveLength(0);
     });
 
+    it.each(["CITY_ORDINARY", "METRO_EXPRESS"])(
+      "rejects paid and free-travel seat booking for local service %s",
+      async (serviceType) => {
+        mockTrip.busType.serviceType = serviceType;
+        mockTrip.busType.freeTravelEligible = true;
+
+        const paid = await post(bookingPayload).expect(400);
+        expect(paid.body.error.code).toBe("VALIDATION_FAILED");
+        expect(bookings).toHaveLength(0);
+        expect(redisStore.has(`hold:${mockTripId}:12`)).toBe(false);
+
+        const free = await post({ ...bookingPayload, useFreeTravel: true }).expect(400);
+        expect(free.body.error.code).toBe("VALIDATION_FAILED");
+        expect(bookings).toHaveLength(0);
+      },
+    );
+
     it("computes totalPaise on the server for every passenger", async () => {
       const fare = await request(app.getHttpServer())
         .get(`/api/v1/trips/${mockTripId}/fare?from=${fromStopId}&to=${toStopId}`)
         .expect(200);
-      const res = await post({ ...bookingPayload, passengers: [passenger("3"), passenger("4")] }).expect(201);
+      const res = await post({
+        ...bookingPayload,
+        passengers: [passenger("3"), passenger("4")],
+      }).expect(201);
       expect(res.body.totalPaise).toBe(fare.body.totalPaise * 2);
+    });
+
+    it("charges half fare for children in a mixed age group", async () => {
+      const fare = await request(app.getHttpServer())
+        .get(`/api/v1/trips/${mockTripId}/fare?from=${fromStopId}&to=${toStopId}`)
+        .expect(200);
+      const ages = [35, 33, 8, 4];
+      const passengers = ages.map((age, index) => ({
+        name: `Passenger ${index + 1}`,
+        age,
+        gender: "F",
+        seatNo: String(index + 20),
+      }));
+
+      const res = await post({ ...bookingPayload, passengers }).expect(201);
+
+      expect(res.body.totalPaise).toBe(groupFare(fare.body.totalPaise, ages).totalPaise);
     });
 
     it("schedules the expiry job with a BullMQ safe job id", async () => {
@@ -533,8 +601,13 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
     });
 
     it("subtracts live holds from seatsLeft and frees them on DELETE", async () => {
-      const res = await post({ ...bookingPayload, passengers: [passenger("7"), passenger("8")] }).expect(201);
-      const held = await request(app.getHttpServer()).get(`/api/v1/trips/${mockTripId}`).expect(200);
+      const res = await post({
+        ...bookingPayload,
+        passengers: [passenger("7"), passenger("8")],
+      }).expect(201);
+      const held = await request(app.getHttpServer())
+        .get(`/api/v1/trips/${mockTripId}`)
+        .expect(200);
       expect(held.body.seatsLeft).toBe(38);
       expect(held.body.bookingOpen).toBe(true);
 
@@ -542,7 +615,9 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
         .delete(`/api/v1/bookings/${res.body.id}`)
         .set("Authorization", `Bearer ${userToken}`)
         .expect(204);
-      const freed = await request(app.getHttpServer()).get(`/api/v1/trips/${mockTripId}`).expect(200);
+      const freed = await request(app.getHttpServer())
+        .get(`/api/v1/trips/${mockTripId}`)
+        .expect(200);
       expect(freed.body.seatsLeft).toBe(40);
       expect(redisStore.has(`holdcount:${mockTripId}`)).toBe(false);
     });
@@ -554,7 +629,10 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
       expect(again.body.id).toBe(first.body.id);
       expect(bookings).toHaveLength(1);
 
-      const other = await post({ ...bookingPayload, passengers: [passenger("30")] }, { "Idempotency-Key": key }).expect(400);
+      const other = await post(
+        { ...bookingPayload, passengers: [passenger("30")] },
+        { "Idempotency-Key": key },
+      ).expect(400);
       expect(other.body.error.code).toBe("VALIDATION_FAILED");
 
       const bad = await post(bookingPayload, { "Idempotency-Key": "not-a-uuid" }).expect(400);
@@ -584,8 +662,12 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
       expect(bookings[0]?.status).toBe("EXPIRED");
       expect(redisStore.has(`hold:${mockTripId}:15`)).toBe(false);
 
-      const seats = await request(app.getHttpServer()).get(`/api/v1/trips/${mockTripId}/seats`).expect(200);
-      expect(seats.body.seats.find((s: { seatNo: string }) => s.seatNo === "15")?.state).toBe("FREE");
+      const seats = await request(app.getHttpServer())
+        .get(`/api/v1/trips/${mockTripId}/seats`)
+        .expect(200);
+      expect(seats.body.seats.find((s: { seatNo: string }) => s.seatNo === "15")?.state).toBe(
+        "FREE",
+      );
     });
 
     it("never frees a seat that another booking holds now", async () => {

@@ -10,6 +10,7 @@ test("E2E-8 scanner reasons, duplicate debounce and manual live code", async ({
   test.setTimeout(90000);
   await context.addCookies([{ name: "apt_session", value: "1", url: "http://localhost:3000" }]);
   let result: Record<string, unknown> = { result: "VALID", reason: "OK" };
+  let parentMode = false;
   const requests: Record<string, unknown>[] = [];
   const now = new Date().toISOString();
   await page.route("**/api/v1/**", async (route) => {
@@ -18,12 +19,14 @@ test("E2E-8 scanner reasons, duplicate debounce and manual live code", async ({
     if (path.endsWith("/auth/refresh")) body = { accessToken: "scanner-test" };
     else if (path.endsWith("/me"))
       body = {
-        id: "conductor00001",
-        name: "Conductor",
-        email: null,
+        id: parentMode ? "parent00000001" : "conductor00001",
+        name: parentMode ? "Parent" : "Conductor",
+        email: parentMode ? "parent@example.test" : null,
         phone: null,
         preferredLocale: "en",
-        roles: [{ role: "CONDUCTOR", depotId: "depot00001" }],
+        roles: parentMode
+          ? [{ role: "CITIZEN", depotId: null }]
+          : [{ role: "CONDUCTOR", depotId: "depot00001" }],
       };
     else if (path.endsWith("/conductor/today"))
       body = {
@@ -50,6 +53,25 @@ test("E2E-8 scanner reasons, duplicate debounce and manual live code", async ({
       requests.push(route.request().postDataJSON());
       body = result;
     } else if (path.endsWith("/notifications/unread-count")) body = { count: 0 };
+    else if (path.endsWith("/notifications"))
+      body = {
+        items: [
+          {
+            id: "notification-child-1",
+            type: "CHILD_BOARDED",
+            params: {
+              child: "Anu",
+              routeEn: "Kurnool to Nandyal",
+              routeTe: "Kurnool to Nandyal",
+              departureAt: now,
+            },
+            link: "/passes",
+            readAt: null,
+            createdAt: now,
+          },
+        ],
+        nextCursor: null,
+      };
     else return route.continue();
     await route.fulfill({
       status: 200,
@@ -133,6 +155,27 @@ test("E2E-8 scanner reasons, duplicate debounce and manual live code", async ({
   await expect(page.getByRole("button", { name: "Tap anywhere to continue" })).toBeHidden({
     timeout: 5000,
   });
+
+  result = {
+    result: "VALID",
+    reason: "OK",
+    ticket: {
+      passengerName: "Anu",
+      seatNo: null,
+      routeName: "Kurnool to Nandyal",
+      boarding: "",
+      dropping: "",
+      type: "PASS",
+    },
+  };
+  await inject("fixture-child-card");
+  await expect(page.getByRole("status").filter({ hasText: "VALID" })).toBeVisible();
+  await expect(page.getByText("Anu", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Tap anywhere to continue" }).click();
+
+  parentMode = true;
+  await page.goto("/updates");
+  await expect(page.getByText("Anu boarded the bus", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const accessibility = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
@@ -140,6 +183,7 @@ test("E2E-8 scanner reasons, duplicate debounce and manual live code", async ({
   expect(
     accessibility.violations.filter((v) => v.impact === "serious" || v.impact === "critical"),
   ).toEqual([]);
+  parentMode = false;
   await page.goto("/conductor");
   for (const locale of ["en", "te"] as const) {
     await page

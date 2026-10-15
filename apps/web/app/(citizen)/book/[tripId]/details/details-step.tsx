@@ -1,18 +1,26 @@
 "use client";
 
-import { BookingDto, CreateBookingPassengerInput, CHILD_MAX_AGE } from "@aptransit/shared";
+import {
+  BookingDto,
+  CreateBookingPassengerInput,
+  CHILD_MAX_AGE,
+  isLocalBusService,
+  TripDetailDto,
+} from "@aptransit/shared";
 import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Field,
   Input,
   RadioGroup,
   RadioGroupItem,
   Skeleton,
 } from "@aptransit/ui";
+import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Armchair, TriangleAlert, UserRound } from "lucide-react";
+import { Armchair, Ban, TriangleAlert, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -21,6 +29,7 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { useMe } from "../../../../../components/auth-provider";
 import { api, errorKey, isApiError } from "../../../../../lib/api";
+import { queryKeys } from "../../../../../lib/query-keys";
 import {
   type BookingDraft,
   passengerSnapshot,
@@ -39,8 +48,12 @@ type FormOutput = z.output<typeof PassengersForm>;
 export function DetailsStep({ tripId }: { tripId: string }) {
   const t = useTranslations();
   const [draft] = useBookingDraft(tripId);
+  const tripQuery = useQuery({
+    queryKey: queryKeys.trip(tripId),
+    queryFn: ({ signal }) => api(`/trips/${tripId}`, { schema: TripDetailDto, signal }),
+  });
 
-  if (!draft) {
+  if (!draft || tripQuery.isLoading) {
     return (
       <div className="flex flex-col gap-6" aria-busy="true">
         <span className="sr-only" role="status">
@@ -49,6 +62,33 @@ export function DetailsStep({ tripId }: { tripId: string }) {
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-56 w-full rounded-lg" />
       </div>
+    );
+  }
+
+  if (tripQuery.isError || !tripQuery.data) {
+    return (
+      <ErrorState
+        headingLevel="h1"
+        title={t("bus.errorTitle")}
+        message={t(errorKey(tripQuery.error, (k) => t.has(k)))}
+        retryLabel={t("common.retry")}
+        onRetry={() => void tripQuery.refetch()}
+      />
+    );
+  }
+
+  if (isLocalBusService(tripQuery.data.busType.serviceType)) {
+    return (
+      <EmptyState
+        headingLevel="h1"
+        icon={Ban}
+        title={t("bus.localBookingUnavailable")}
+        action={
+          <Link href={`/bus/${tripId}`} className="text-body font-medium text-primary underline">
+            {t("common.back")}
+          </Link>
+        }
+      />
     );
   }
 

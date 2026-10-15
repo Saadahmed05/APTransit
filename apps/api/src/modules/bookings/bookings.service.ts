@@ -5,6 +5,7 @@ import {
   groupFare,
   type CreateBookingInput,
   generateBookingCode,
+  isLocalBusService,
   SeatLayoutSchema,
 } from "@aptransit/shared";
 import { Injectable, Logger, Optional } from "@nestjs/common";
@@ -119,12 +120,6 @@ export class BookingsService {
     const cached = await readIdempotent<BookingDto>(this.redis.client, slot);
     if (cached) return cached;
 
-    // Free travel needs an active FREE_TRAVEL pass checked on the server (docs/06, docs/07 section 9).
-    // Never take the client's word for eligibility.
-    const freePass = input.useFreeTravel
-      ? await this.activeFreeTravelPass(userId, input.passengers.length, now)
-      : null;
-
     // 2. Validate settings
     const settings = await this.getSettingNumbers();
     const maxPassengers = settings.get("booking.maxPassengers") ?? DEFAULT_MAX_PASSENGERS;
@@ -159,6 +154,17 @@ export class BookingsService {
     if (!trip || trip.status === "CANCELLED") {
       throw new AppError("NOT_FOUND", "Trip not found or cancelled");
     }
+    // D-045: local buses keep search, schedules and fares, but never reserve seats.
+    if (isLocalBusService(trip.busType.serviceType)) {
+      throw new AppError("VALIDATION_FAILED", "Seat booking is not available for local buses");
+    }
+
+    // Never take the client's word for free-travel eligibility. Defer this database
+    // read until the trip is known to support advance booking.
+    const freePass = input.useFreeTravel
+      ? await this.activeFreeTravelPass(userId, input.passengers.length, now)
+      : null;
+
     if (
       freePass &&
       (!trip.busType.freeTravelEligible ||
@@ -447,7 +453,8 @@ export class BookingsService {
       where: { userId, status: "ACTIVE", passType: { kind: "FREE_TRAVEL" } },
     });
     const live = passes.find((p) => isPassLive(p, now));
-    if (!live) throw new AppError("PASS_NOT_ELIGIBLE", "Free travel needs an active free travel pass");
+    if (!live)
+      throw new AppError("PASS_NOT_ELIGIBLE", "Free travel needs an active free travel pass");
     return { id: live.id, eligibleServiceTypes: live.eligibleServiceTypes };
   }
 

@@ -74,6 +74,7 @@ const prisma = createMemoryPrisma(
       }),
     },
     incident: { trip: (i) => tripRef(by("trip", i.tripId)) },
+    routeStop: { stop: (row) => by("stop", row.stopId) },
     payment: { refunds: (p) => (tables.refund ?? []).filter((r) => r.paymentId === p.id) },
     user: { driver: (u) => tables.driver!.find((d) => d.userId === u.id) },
   },
@@ -156,6 +157,16 @@ describe("Day 13 operations HTTP", () => {
           nameEn: "Kurnool to Nandyal",
           nameTe: "కర్నూలు నుండి నంద్యాల",
         },
+      ],
+      stop: [
+        { id: "stopops000001", nameEn: "Kurnool", nameTe: "Kurnool te" },
+        { id: "stopops000002", nameEn: "Orvakal", nameTe: "Orvakal te" },
+        { id: "stopops000003", nameEn: "Nandyal", nameTe: "Nandyal te" },
+      ],
+      routeStop: [
+        { routeId: "routeops000001", stopId: "stopops000001", seq: 1 },
+        { routeId: "routeops000001", stopId: "stopops000002", seq: 2 },
+        { routeId: "routeops000001", stopId: "stopops000003", seq: 3 },
       ],
       busType: [
         { id: "bustypeops0001", serviceType: "EXPRESS", totalSeats: 4, seatLayout: layout },
@@ -260,6 +271,8 @@ describe("Day 13 operations HTTP", () => {
           status: "BOOKED",
           farePaise: 10500,
           bookingId: "bookingops001",
+          boardingStopId: "stopops000001",
+          droppingStopId: "stopops000003",
           version: 1,
         },
         {
@@ -270,6 +283,8 @@ describe("Day 13 operations HTTP", () => {
           status: "ACTIVE",
           farePaise: 10500,
           bookingId: "bookingops001",
+          boardingStopId: "stopops000002",
+          droppingStopId: "stopops000003",
           version: 1,
         },
         {
@@ -280,6 +295,8 @@ describe("Day 13 operations HTTP", () => {
           status: "BOOKED",
           farePaise: 0,
           bookingId: null,
+          boardingStopId: "stopops000001",
+          droppingStopId: "stopops000002",
           version: 1,
         },
       ],
@@ -323,6 +340,36 @@ describe("Day 13 operations HTTP", () => {
       maintenanceRecord: [],
       refund: [],
       notification: [],
+      ticketScan: [
+        {
+          id: "scanops0000001",
+          tripId: ids.trip,
+          stopId: "stopops000001",
+          result: "VALID",
+          reason: "OK",
+        },
+        {
+          id: "scanops0000002",
+          tripId: ids.trip,
+          stopId: "stopops000002",
+          result: "VALID",
+          reason: "OK",
+        },
+        {
+          id: "scanops0000003",
+          tripId: ids.trip,
+          stopId: null,
+          result: "VALID",
+          reason: "OK",
+        },
+        {
+          id: "scanops0000004",
+          tripId: ids.trip,
+          stopId: "stopops000001",
+          result: "INVALID",
+          reason: "STALE_CODE",
+        },
+      ],
       auditLog: [],
       userRole: [],
     });
@@ -385,6 +432,40 @@ describe("Day 13 operations HTTP", () => {
     expect((await post("trips/" + ids.trip + "/cancel", { reason: "Test" }, staff)).status).toBe(
       403,
     );
+  });
+  it("reports booked, boarded and alighting passengers for every route stage", async () => {
+    const res = await get("trips/" + ids.trip);
+    expect(res.status, res.text).toBe(200);
+    expect(res.body.stages).toEqual([
+      {
+        stopId: "stopops000001",
+        seq: 1,
+        nameEn: "Kurnool",
+        nameTe: "Kurnool te",
+        booked: 2,
+        boarded: 1,
+        alighting: 0,
+      },
+      {
+        stopId: "stopops000002",
+        seq: 2,
+        nameEn: "Orvakal",
+        nameTe: "Orvakal te",
+        booked: 1,
+        boarded: 1,
+        alighting: 1,
+      },
+      {
+        stopId: "stopops000003",
+        seq: 3,
+        nameEn: "Nandyal",
+        nameTe: "Nandyal te",
+        booked: 0,
+        boarded: 0,
+        alighting: 2,
+      },
+    ]);
+    expect(res.body.passBoardings).toBe(1);
   });
   it("makes real operations audits visible only to the entity's depot and district", async () => {
     const created = await post("buses", {

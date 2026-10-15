@@ -40,6 +40,8 @@ const ids = {
   free: "passtypefree0001",
   school: "passtypeschool01",
   day: "passtypeday00001",
+  zoneDay: "passtypezoneday1",
+  district: "districtknl0001",
 };
 
 const layout = {
@@ -172,7 +174,9 @@ function freshTables(): Tables {
       // D-036 catalog additions, sorted after the old three
       { id: ids.day, kind: "DAY", nameEn: "Day Pass", nameTe: "Day te", durationDays: 1, pricePaise: 12_000, eligibleServiceTypes: STANDARD, scheme: null, validityMode: "UNTIL_DAY_END", groupSize: 1, routeRestricted: false, isDemo: true, sortOrder: 1, isActive: true },
       { id: ids.school, kind: "SCHOOL", nameEn: "School Pass", nameTe: "School te", durationDays: 30, pricePaise: 60_000, eligibleServiceTypes: STANDARD, scheme: "STUDENT", validityMode: "ROLLING_DAYS", groupSize: 1, routeRestricted: true, isDemo: true, sortOrder: 2, isActive: true },
+      { id: ids.zoneDay, kind: "DAY", nameEn: "Zone Day Pass", nameTe: "Zone Day te", durationDays: 1, pricePaise: 6_000, eligibleServiceTypes: STANDARD.slice(0, 3), scheme: null, validityMode: "UNTIL_DAY_END", groupSize: 1, routeRestricted: false, zoneScoped: true, isDemo: true, sortOrder: 3, isActive: true },
     ],
+    district: [{ id: ids.district }, { id: "districtother01" }],
     setting: [],
     ticket: [
       {
@@ -428,7 +432,7 @@ describe("Gifting, passes and free travel (Day 8)", () => {
   describe("passes", () => {
     it("lists pass types publicly", async () => {
       const res = await request(app.getHttpServer()).get("/api/v1/pass-types").expect(200);
-      expect(res.body.map((t: any) => t.kind)).toEqual(["FREE_TRAVEL", "WEEKLY", "MONTHLY", "DAY", "SCHOOL"]);
+      expect(res.body.map((t: any) => t.kind)).toEqual(["FREE_TRAVEL", "WEEKLY", "MONTHLY", "DAY", "SCHOOL", "DAY"]);
       expect(res.body.find((t: any) => t.kind === "DAY")).toMatchObject({ validityMode: "UNTIL_DAY_END", isDemo: true, groupSize: 1 });
     });
 
@@ -444,6 +448,68 @@ describe("Gifting, passes and free travel (Day 8)", () => {
       const until = new Date(active.validUntil!);
       expect(new Intl.DateTimeFormat("en-GB", { timeZone: PLATFORM_TIME_ZONE, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(until)).toBe("23:59:59");
       expect(until.getTime() - Date.now()).toBeLessThanOrEqual(24 * 3600_000);
+    });
+
+    it("requires a valid district for a zone pass and returns the selected district", async () => {
+      const missing = await as("ravi").post("/passes", { passTypeId: ids.zoneDay }).expect(400);
+      expect(missing.body.error.code).toBe("VALIDATION_FAILED");
+      const unknown = await as("ravi")
+        .post("/passes", { passTypeId: ids.zoneDay, zoneDistrictId: "districtmissing1" })
+        .expect(400);
+      expect(unknown.body.error.code).toBe("VALIDATION_FAILED");
+
+      const created = PassDto.parse(
+        (
+          await as("ravi")
+            .post("/passes", { passTypeId: ids.zoneDay, zoneDistrictId: ids.district })
+            .expect(201)
+        ).body,
+      );
+      expect(created.zoneDistrictId).toBe(ids.district);
+    });
+
+    it("validates child age and stores the child holder details", async () => {
+      const adult = await as("ravi")
+        .post("/passes", { passTypeId: ids.weekly, child: { name: "Anu", age: 18 } })
+        .expect(400);
+      expect(adult.body.error.code).toBe("VALIDATION_FAILED");
+
+      const created = PassDto.parse(
+        (
+          await as("ravi")
+            .post("/passes", { passTypeId: ids.weekly, child: { name: "Anu", age: 9 } })
+            .expect(201)
+        ).body,
+      );
+      expect(created).toMatchObject({ holderName: "Anu", holderAge: 9 });
+    });
+
+    it("activates cards for different children and refuses a second card for the same child", async () => {
+      const buyAndPay = async (name: string) => {
+        const created = PassDto.parse(
+          (
+            await as("ravi")
+              .post("/passes", { passTypeId: ids.weekly, child: { name, age: 9 } })
+              .expect(201)
+          ).body,
+        );
+        const order = await as("ravi")
+          .post("/payments/orders", { passId: created.id })
+          .expect(200);
+        await as("ravi")
+          .post("/payments/test/complete", { orderId: order.body.orderId })
+          .expect(200);
+        return created.id;
+      };
+
+      const anu = await buyAndPay("Anu");
+      const ravi = await buyAndPay("Ravi Junior");
+      await as("ravi").post(`/passes/${anu}/activate`).expect(200);
+      await as("ravi").post(`/passes/${ravi}/activate`).expect(200);
+
+      const secondAnu = await buyAndPay("Anu");
+      const duplicate = await as("ravi").post(`/passes/${secondAnu}/activate`).expect(409);
+      expect(duplicate.body.error.code).toBe("PASS_ALREADY_ACTIVE");
     });
 
     describe("school pass (D-036)", () => {

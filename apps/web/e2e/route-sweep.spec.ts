@@ -12,7 +12,7 @@ const WIDTHS = [360, 768, 1280] as const;
 const KEY_PATH = /^[a-z][A-Za-z]+(\.[A-Za-z0-9_]+)+$/;
 
 const GROUPS: Array<{ name: string; email: string | null; routes: string[] }> = [
-  { name: "public", email: null, routes: ["/", "/timetable", "/feedback", "/feedback/status", "/login"] },
+  { name: "public", email: null, routes: ["/", "/timetable", "/feedback", "/feedback/status", "/login", "/terms"] },
   { name: "citizen", email: "citizen@aptransit.test", routes: ["/tickets", "/passes", "/passes/buy", "/passes/school", "/account", "/updates", "/free-travel"] },
   { name: "ops", email: "manager.knl@aptransit.test", routes: ["/ops", "/ops/buses", "/ops/trips", "/ops/incidents", "/ops/staff", "/ops/complaints"] },
   // D-034: the AP state page uses the fixed id from the states backfill migration

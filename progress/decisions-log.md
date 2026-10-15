@@ -384,6 +384,14 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
   - Citizen: `/bus-types` page, class note on bus and ticket details, links from home, account and terms.
 - **Status:** Built and tested locally. Needs the other dev review (shared contract change) and owner confirmation of the (A) items.
 
+### D-045: Remove local bus seat booking
+- **Date:** 2026-10-14
+- **Raised by:** Product owner
+- **Docs affected:** 06, 07, 11
+- **Question:** The current locked rules allow reserved seat booking for every service type and do not define a local bus category. Confirm which service types are local. The likely choices are PALLEVELUGU, ULTRA_PALLEVELUGU, CITY_ORDINARY and METRO_EXPRESS, or only CITY_ORDINARY and METRO_EXPRESS. Also confirm whether the restriction includes the free reserved seat flow, and whether a direct `/book/:tripId` visit should show an explanatory unavailable state or return not found.
+- **Proposed enforcement after confirmation:** Hide booking actions for confirmed local service types, guard every paid and free booking screen, reject `POST /bookings` on the server before creating holds, keep search, route, schedule and fare reads unchanged, and add web and API regression tests. Shared booking services and tables remain in place for other services.
+- **Status:** Owner confirmed on 2026-10-14 that local means CITY_ORDINARY and METRO_EXPRESS, and that paid and free-travel reserved-seat booking are both blocked. Implemented in code and tests. Locked docs still need the other dev's agreement and a separate docs update.
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |

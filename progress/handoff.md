@@ -27,6 +27,14 @@ Branch `a/bus-classes` (from upstream main, not merged yet). Bus classes with on
 
 Gotcha: the memory Prisma fixture in `day12-validation.test.ts` now needs `busTypeId` on trips and `routeStop` rows; a ticket stop missing from the fixture names fails the result schema with a 500.
 
+## Current state (local bus booking removal, 2026-10-14)
+
+On branch `a/v3-complete`, D-045 defines local buses as `CITY_ORDINARY` and `METRO_EXPRESS`. Paid and free-travel reserved-seat booking is blocked by `BookingsService` before a hold can be created. Bus details no longer show booking actions for these services, and direct seat, details and free-seat pages show an unavailable state. Search, trip details, schedules and fare reads remain unchanged. Other service types still use the existing booking flow.
+
+`LOCAL_BUS_SERVICE_TYPES` and `isLocalBusService` in `packages/shared/src/enums.ts` are the single classification source. Local booking pages now skip seat-map and pass-list requests, and the API defers the free-pass database read until after the trip is known to support advance booking.
+
+Checks on 2026-10-14: API 507 passed (9 skipped without integration infrastructure), shared 130, UI 106, web 44, scripts 6. Lint, typecheck, i18n, dashes and production build passed. The seeded E2E suite was not run because the local database and application servers were not running. Locked docs 06, 07 and 11 still need the other dev's agreement and a separate docs update.
+
 ## Current state (v3 owner feedback round, 2026-10-11)
 
 v3 is merged on `main` (PR #9). Decisions D-042 (citizen features) and D-043 (Sign in with Google). **Next work: `prompts/v3/README.md`**: full context in `prompts/v3/00-context.md`, four phase prompts (tests, checks and fixes), and `prompts/v3/human-tasks.md` (Google OAuth client, real browser map check, QR phone test, owner sign off of the assumed values, Telugu and screen reader review).

@@ -42,7 +42,9 @@ const stopName = (stopId: unknown) => {
 };
 const routeWithStops = () => ({
   ...by("route", "routevalidate01"),
-  depot: { districtId: "districtknl0001" },
+  depot: {
+    districtId: by("route", "routevalidate01")?.districtId ?? "districtknl0001",
+  },
   routeStops: STOPS.map((x) => ({ stopId: x.id, seq: x.seq, stop: { lat: x.lat, lng: x.lng, nameEn: x.nameEn, nameTe: x.nameTe } })),
 });
 const prisma = createMemoryPrisma(tables, {
@@ -149,7 +151,7 @@ describe("Day 12 validation HTTP order", () => {
         },
       ],
       route: [
-        { id: "routevalidate01", nameEn: "Kurnool to Nandyal", nameTe: "\u0c15\u0c30\u0c4d\u0c28\u0c42\u0c32\u0c41" },
+        { id: "routevalidate01", districtId: "districtknl0001", nameEn: "Kurnool to Nandyal", nameTe: "\u0c15\u0c30\u0c4d\u0c28\u0c42\u0c32\u0c41" },
       ],
       bus: [{ id: "bus00000000001" }],
       busType: [
@@ -188,10 +190,23 @@ describe("Day 12 validation HTTP order", () => {
           groupSize: 1,
           homeStopId: null,
           destStopId: null,
+          userId: "citizen000001",
+          zoneDistrictId: null,
+          holderName: null,
+          holderAge: null,
         },
       ],
       passType: [{ id: "passtype000001", eligibleServiceTypes: ["EXPRESS"] }],
       ticketScan: [],
+      user: [
+        {
+          id: "citizen000001",
+          name: "Parent",
+          email: "parent@example.test",
+          phone: null,
+        },
+      ],
+      notification: [],
       auditLog: [],
     });
   });
@@ -506,6 +521,43 @@ describe("Day 12 validation HTTP order", () => {
     tables.pass![0]!.status = "ACTIVE";
     tables.pass![0]!.eligibleServiceTypes = ["SUPER_LUXURY"];
     expect((await scan(code).expect(200)).body.reason).toBe("SERVICE_NOT_ELIGIBLE");
+  });
+
+  it("accepts a zone pass in its district and rejects it in another district", async () => {
+    tables.pass![0]!.zoneDistrictId = "districtknl0001";
+    expect((await scan(await content("P")).expect(200)).body.reason).toBe("OK");
+
+    tables.ticketScan = [];
+    tables.route![0]!.districtId = "districtother01";
+    expect((await scan(await content("P")).expect(200)).body.reason).toBe(
+      "SERVICE_NOT_ELIGIBLE",
+    );
+  });
+
+  it("shows the child name and notifies the parent only after a valid child card scan", async () => {
+    Object.assign(tables.pass![0]!, { holderName: "Anu", holderAge: 9 });
+    const valid = await scan(await content("P")).expect(200);
+    expect(valid.body.ticket.passengerName).toBe("Anu");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(tables.notification).toEqual([
+      expect.objectContaining({
+        userId: "citizen000001",
+        type: "CHILD_BOARDED",
+        params: expect.objectContaining({
+          child: "Anu",
+          routeEn: "Kurnool to Nandyal",
+          routeTe: "\u0c15\u0c30\u0c4d\u0c28\u0c42\u0c32\u0c41",
+        }),
+      }),
+    ]);
+
+    tables.ticketScan = [];
+    tables.pass![0]!.eligibleServiceTypes = ["SUPER_LUXURY"];
+    expect((await scan(await content("P")).expect(200)).body.reason).toBe(
+      "SERVICE_NOT_ELIGIBLE",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(tables.notification).toHaveLength(1);
   });
 
   describe("pass catalog rules (D-036)", () => {

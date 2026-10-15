@@ -827,3 +827,37 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 
 **Decisions needed (also added to decisions-log.md)**
 - D-044: owner to confirm the class mapping and "no seat, no fare difference refunded" on another bus (docs/18).
+
+## Local booking and v3 verification, 2026-10-14
+
+**Done**
+
+- Confirmed D-045: local means CITY_ORDINARY and METRO_EXPRESS. Paid and free-travel reserved-seat booking are both unavailable.
+- Added the shared local-service classification, API enforcement before seat holds, UI removal on bus details, and unavailable states on direct booking pages.
+- Kept local search, trip details, timetables and fare reads unchanged. Kept booking for all other service types.
+- Avoided local booking page requests for seat maps and pass lists. Deferred the API free-pass query until after trip eligibility is known.
+- Completed the pending v3 Phase 1, Phase 2 and Phase 4 automated test additions already present on the branch, including Google token checks, shell coverage, group fares, zone passes, child cards, conductor notifications and stage counts.
+
+**Checks**
+
+- `pnpm check:dashes`: passed.
+- `pnpm i18n:check`: passed.
+- `pnpm typecheck`: passed.
+- `pnpm lint`: passed.
+- `pnpm test`: passed, API 507 with 9 integration skips, shared 130, UI 106, web 44, scripts 6.
+- `pnpm build`: passed.
+- Targeted local booking test: paid and free-travel POST requests return 400 `VALIDATION_FAILED` for both local service types, no booking row or Redis hold is created.
+
+**Performance evidence**
+
+- Authenticated local bus details no longer request `/passes`, reducing that page path from three API reads to two when a fare segment is present.
+- Direct local seat booking no longer requests seats or fare, reducing that page path from three API reads to one.
+- Direct local free-seat booking no longer requests seats or passes, reducing that page path from three API reads to one.
+- No equivalent live timing comparison was recorded because the seeded local stack was not running. No timing improvement is claimed.
+
+**Open**
+
+- The seeded E2E specs and real-browser checks need the local database, Redis, API and web servers.
+- Locked docs 06, 07 and 11 require the other dev's agreement before a separate docs change.
+- Google OAuth, real map tiles, QR phone testing, native Telugu and screen reader review remain human tasks.
+

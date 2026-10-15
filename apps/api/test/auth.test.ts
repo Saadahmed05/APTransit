@@ -336,6 +336,12 @@ describe("Auth endpoints and lifecycle", () => {
     }
   }
 
+  function resetGoogleIpLimit(): void {
+    for (const key of [...redisStore.keys()]) {
+      if (key.startsWith("ratelimit:default:")) redisStore.delete(key);
+    }
+  }
+
   async function requestCode(target: string): Promise<string> {
     resetIpLimit();
     const res = await request(app.getHttpServer())
@@ -497,5 +503,20 @@ describe("Auth endpoints and lifecycle", () => {
       .send({ credential: "x".repeat(40) });
     expect(off.status).toBe(403);
     expect(ErrorResponse.parse(off.body).error.code).toBe("FORBIDDEN");
+  });
+
+  it("POST /auth/google limits one IP to 10 requests per minute", async () => {
+    resetGoogleIpLimit();
+    const responses = [];
+    for (let requestNo = 1; requestNo <= 11; requestNo++) {
+      responses.push(
+        await request(app.getHttpServer())
+          .post("/api/v1/auth/google")
+          .send({ credential: "x".repeat(40) }),
+      );
+    }
+    expect(responses.slice(0, 10).every((response) => response.status === 403)).toBe(true);
+    expect(responses[10]?.status).toBe(429);
+    expect(ErrorResponse.parse(responses[10]?.body).error.code).toBe("RATE_LIMITED");
   });
 });
