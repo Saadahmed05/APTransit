@@ -375,7 +375,16 @@
     },
     "googleFailed": "Google sign in did not work. Try again or use a code.",
     "or": "or",
-    "terms": "By continuing you agree to the <terms>terms and conditions</terms>."
+    "terms": "By continuing you agree to the <terms>terms and conditions</terms>.",
+    "staff": {
+      "title": "Staff portals",
+      "intro": "Drivers, conductors and officers sign in here with their staff email or phone, then land on their own portal.",
+      "driver": "Driver portal",
+      "conductor": "Conductor portal",
+      "depot": "Depot operations",
+      "gov": "Government command center",
+      "admin": "Admin"
+    }
   },
   "account": {
     "loadFailed": "Your account could not load",

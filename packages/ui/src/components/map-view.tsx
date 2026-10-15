@@ -140,6 +140,20 @@ export function MapView({
         ],
         { padding: unit * 8 || 32, duration: 0 },
       );
+    } else if (connect) {
+      // Map picker: stay on the starting view until A or B is set, then frame just those two
+      const chosen = markers.filter((m) => m.tone === "from" || m.tone === "to");
+      if (chosen.length === 1) {
+        ref.current?.flyTo({ center: [chosen[0]!.lng, chosen[0]!.lat], zoom: 14, duration: 0 });
+      } else if (chosen.length === 2) {
+        ref.current?.fitBounds(
+          [
+            [Math.min(...chosen.map((m) => m.lng)), Math.min(...chosen.map((m) => m.lat))],
+            [Math.max(...chosen.map((m) => m.lng)), Math.max(...chosen.map((m) => m.lat))],
+          ],
+          { padding: { top: 96, bottom: 64, left: 64, right: 64 }, duration: 0, maxZoom: 15 },
+        );
+      }
     } else if (markers.length === 1) {
       ref.current?.flyTo({ center: [markers[0]!.lng, markers[0]!.lat], zoom: 14, duration: 0 });
     } else if (markers.length > 1) {
@@ -152,9 +166,9 @@ export function MapView({
       );
     }
   };
-  // Map picker: a new A or B refits the view (after the map has loaded)
+  // Map picker: a new A or B refits the view (camera moves work while tiles are still loading)
   useEffect(() => {
-    if (fitKey !== undefined && ref.current?.getMap().loaded()) fit();
+    if (fitKey !== undefined && ref.current) fit();
     // fit reads the latest markers; only a new fitKey should move the camera
   }, [fitKey]);
   const fromMarker = markers.find((m) => m.tone === "from");

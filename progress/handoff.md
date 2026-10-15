@@ -14,6 +14,12 @@ Read order for a new session:
 
 ---
 
+## Current state (Kurnool spots, map view and staff portals, 2026-10-15)
+
+Branch `a/kurnool-spots` (from upstream main after D-046). 45 Kurnool spots are stops (OpenStreetMap positions; Telugu names need a native review) with city lines `KCM-01`, `KCC-01`, `KHL-01`, `KCL-01`, `KOT-01`. The map picker starts at street level on Kurnool (`center` and `zoom` in `map-picker.tsx`) and frames only A and B once they are set (`connect` and `fitKey` in `map-view.tsx`). The sign in page links to the staff portals (driver, conductor, depot, government, admin); `e2e/staff-portals.spec.ts` checks driver and conductor sign in.
+
+Gotcha: the dev OTP limit (10 per IP per hour) makes repeated E2E logins fail with 429. Restart `scripts/dev-redis.mjs` to clear it.
+
 ## Current state (D-046 seatless local travel, 2026-10-15)
 
 Branch `a/local-seatless` (from `a/bus-classes`, PR open, not merged). See D-046 in `progress/decisions-log.md`.

@@ -26,6 +26,11 @@ describe("local services in the seed (D-046)", () => {
     }
   });
 
+  it("has at least 40 Kurnool spots as stops, all inside Kurnool city", () => {
+    const spots = STOPS.filter((s) => s.districtCode === "KNL" && s.lat > 15.77 && s.lat < 15.88 && s.lng > 77.98 && s.lng < 78.1);
+    expect(spots.length).toBeGreaterThanOrEqual(40);
+  });
+
   it("links nearby towns to Kurnool and Nandyal with local buses", () => {
     for (const code of ["ADN", "ATK", "BNP"]) expect(STOPS.some((s) => s.code === code)).toBe(true);
     const adoni = TIMETABLE_DEFS.filter((t) => t.routeCode === "KNL-ADN-01");

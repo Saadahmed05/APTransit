@@ -20,7 +20,7 @@ import {
   TabsTrigger,
 } from "@aptransit/ui";
 import { useMutation } from "@tanstack/react-query";
-import { BusFront, Info, Mail, Phone } from "lucide-react";
+import { Bus, BusFront, Info, Landmark, Mail, Phone, ScanLine, ShieldCheck, Warehouse } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -351,9 +351,41 @@ export function LoginForm({ next }: { next: string | null }) {
           ),
         })}
       </p>
+
+      {/* Staff portals: the same sign in, then the role's own app (docs/08 role homes) */}
+      <nav aria-labelledby="staff-portals" className="flex flex-col gap-3 border-t border-default pt-5">
+        <div className="flex flex-col gap-1">
+          <h2 id="staff-portals" className="text-h3 text-fg">
+            {t("login.staff.title")}
+          </h2>
+          <p className="text-small text-muted">{t("login.staff.intro")}</p>
+        </div>
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {STAFF_PORTALS.map(({ path, key, Icon }) => (
+            <li key={path}>
+              <Link
+                href={`/login?next=${encodeURIComponent(path)}`}
+                data-testid={`portal-${key}`}
+                className="flex min-h-14 items-center gap-3 rounded-md border border-default bg-surface-raised px-3 text-body font-medium text-fg hover:bg-surface"
+              >
+                <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
+                {t(`login.staff.${key}`)}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </Card>
   );
 }
+
+const STAFF_PORTALS = [
+  { path: "/driver", key: "driver", Icon: Bus },
+  { path: "/conductor", key: "conductor", Icon: ScanLine },
+  { path: "/ops", key: "depot", Icon: Warehouse },
+  { path: "/gov", key: "gov", Icon: Landmark },
+  { path: "/admin", key: "admin", Icon: ShieldCheck },
+] as const;
 
 interface PhoneInputProps {
   value: string;
