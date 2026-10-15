@@ -384,12 +384,21 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
   - Citizen: `/bus-types` page, class note on bus and ticket details, links from home, account and terms.
 - **Status:** Built and tested locally. Needs the other dev review (shared contract change) and owner confirmation of the (A) items.
 
-### D-045: Seatless local travel, senior fares, local only Pallevelugu, Kurnool landmarks, Rapido style map
+### D-045: Remove local bus seat booking
+- **Date:** 2026-10-14
+- **Raised by:** Product owner
+- **Docs affected:** 06, 07, 11
+- **Question:** The current locked rules allow reserved seat booking for every service type and do not define a local bus category. Confirm which service types are local. The likely choices are PALLEVELUGU, ULTRA_PALLEVELUGU, CITY_ORDINARY and METRO_EXPRESS, or only CITY_ORDINARY and METRO_EXPRESS. Also confirm whether the restriction includes the free reserved seat flow, and whether a direct `/book/:tripId` visit should show an explanatory unavailable state or return not found.
+- **Proposed enforcement after confirmation:** Hide booking actions for confirmed local service types, guard every paid and free booking screen, reject `POST /bookings` on the server before creating holds, keep search, route, schedule and fare reads unchanged, and add web and API regression tests. Shared booking services and tables remain in place for other services.
+- **Status:** Owner confirmed on 2026-10-14 that local means CITY_ORDINARY and METRO_EXPRESS, and that paid and free-travel reserved-seat booking are both blocked. Implemented in code and tests. Locked docs still need the other dev's agreement and a separate docs update.
+
+### D-046: Seatless local travel, senior fares, local only Pallevelugu, Kurnool landmarks, Rapido style map
 - **Date:** 2026-10-15
 - **Raised by:** Product owner, built on branch `a/local-seatless`
 - **Docs affected:** 05, 06 (`POST /bookings` passenger fields, `FareDto.seatless`), 07 (sections 4 and 7a), 11 (book screens), 18, 19 (new stops and routes). **Not edited yet:** docs are locked until both devs agree.
+- **Relation to D-045:** D-045 (merged first) blocks advance booking of City Ordinary and Metro Express completely (server rejects `POST /bookings`). That stays. D-046 covers the rest: it removes the seat from Pallevelugu, Ultra Pallevelugu and any trip of 50 km or less on other services, which can still be bought without a seat. The Kurnool city lines (`KCM-01`, `KCC-01`) are City Ordinary, so they show timetable, fare and tracking only.
 - **Decision:**
-  - Seatless: Pallevelugu, Ultra Pallevelugu and City Ordinary are never booked by seat, and neither is any trip of 50 km or less on any service (`isSeatless`, `SEATLESS_MAX_KM` in `packages/shared/src/seatless.ts`, owner's numbers). The server hands out an internal seat label so the bus capacity (40 to 50 seats, the layout of the bus type) still caps the tickets; the label is never shown (`visibleSeat` in the tickets service, `FareDto.seatless` for the web). No schema change, no migration. A full bus answers `SEAT_TAKEN`.
+  - Seatless: Pallevelugu and Ultra Pallevelugu are never booked by seat, and neither is any trip of 50 km or less on any service (`isSeatless`, `SEATLESS_MAX_KM` in `packages/shared/src/seatless.ts`, owner's numbers). The server hands out an internal seat label so the bus capacity (40 to 50 seats, the layout of the bus type) still caps the tickets; the label is never shown (`visibleSeat` in the tickets service, `FareDto.seatless` for the web). No schema change, no migration. A full bus answers `SEAT_TAKEN`.
   - Names: a seatless booking sends only ages. Passenger names come from the account (`Name`, `Name +1`, ...). Reserved (long) trips still need every name, gender and seat. `CreateBookingPassengerInput` makes name, gender and seatNo optional; the service refuses a reserved trip without them.
   - Senior citizens: 60 and over (owner). **(A)** The discount was not given: `SENIOR_FARE_PERCENT` is 50, like children, in `fare.ts`. `groupFare` and `splitGroupTotal` price adult, child and senior by age. The reservation fee is still charged on seatless tickets **(A)**.
   - Pallevelugu is local only: the 150 km Anantapur run now uses Ultra Deluxe and Express, and new local routes cover Adoni, Atmakur (via Nandikotkur) and Dhone to Nandyal (via Banaganapalle). `LOCAL_ROUTE_MAX_KM` is 130 **(A)**; a seed test fails if a local service runs a longer route.

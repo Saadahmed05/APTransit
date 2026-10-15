@@ -142,7 +142,8 @@
     "errorTitle": "Could not load bus details",
     "approx": "approx.",
     "bookFree": "Book free seat",
-    "bookFreeHint": "Free with your free travel pass."
+    "bookFreeHint": "Free with your free travel pass.",
+    "localBookingUnavailable": "Seat booking is not available for local buses."
   },
   "timetable": {
     "title": "Timetable",

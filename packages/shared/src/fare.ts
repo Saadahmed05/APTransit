@@ -150,13 +150,13 @@ export function refundQuote({
   return { cancellable: true, percent: tier.percent, amountPaise, feePaise };
 }
 
-// Group tickets (D-042, D-045): children pay CHILD_FARE_PERCENT, seniors pay SENIOR_FARE_PERCENT.
+// Group tickets (D-042, D-046): children pay CHILD_FARE_PERCENT, seniors pay SENIOR_FARE_PERCENT.
 
 /** Passengers younger than this are children. */
 export const CHILD_MAX_AGE = 12;
 /** Children pay this percent of the adult ticket (fare and reservation fee), rounded to the rupee. */
 export const CHILD_FARE_PERCENT = 50;
-/** Passengers of this age and older are senior citizens (owner, D-045). */
+/** Passengers of this age and older are senior citizens (owner, D-046). */
 export const SENIOR_MIN_AGE = 60;
 /** Seniors pay this percent of the adult ticket. The owner gave the age, not the discount: (A), docs/18. */
 export const SENIOR_FARE_PERCENT = 50;

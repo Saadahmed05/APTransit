@@ -8,16 +8,10 @@ import {
   formatDuration,
   formatMoney,
   formatTime,
+  isLocalBusService,
   TripDetailDto,
 } from "@aptransit/shared";
-import {
-  Button,
-  Card,
-  EmptyState,
-  ErrorState,
-  Skeleton,
-  StatusBadge,
-} from "@aptransit/ui";
+import { Button, Card, EmptyState, ErrorState, Skeleton, StatusBadge } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -89,11 +83,19 @@ export function BusDetailClient({
   const now = useNow(60_000);
   const passesQuery = useQuery({
     queryKey: queryKeys.passes,
-    queryFn: ({ signal }) => api("/passes", { schema: z.array(PassDto), signal, redirectOn401: false }),
-    enabled: authStatus === "authenticated",
+    queryFn: ({ signal }) =>
+      api("/passes", { schema: z.array(PassDto), signal, redirectOn401: false }),
+    enabled:
+      authStatus === "authenticated" &&
+      Boolean(tripQuery.data && !isLocalBusService(tripQuery.data.busType.serviceType)),
   });
   const hasFreePass = (passesQuery.data ?? []).some(
-    (p) => p.kind === "FREE_TRAVEL" && p.status === "ACTIVE" && p.validUntil !== null && now > 0 && Date.parse(p.validUntil) > now,
+    (p) =>
+      p.kind === "FREE_TRAVEL" &&
+      p.status === "ACTIVE" &&
+      p.validUntil !== null &&
+      now > 0 &&
+      Date.parse(p.validUntil) > now,
   );
 
   if (tripQuery.isLoading) {
@@ -149,7 +151,8 @@ export function BusDetailClient({
   // The searched segment (from and to in the URL), else the whole route
   const boarding = trip.boardingPoints.find((bp) => bp.stopId === from);
   const dropping = trip.droppingPoints.find((dp) => dp.stopId === to);
-  const pick = (place: { nameEn: string; nameTe: string }) => (locale === "te" ? place.nameTe : place.nameEn);
+  const pick = (place: { nameEn: string; nameTe: string }) =>
+    locale === "te" ? place.nameTe : place.nameEn;
   const originName = pick(boarding ?? trip.route.origin);
   const destName = pick(dropping ?? trip.route.destination);
   const depTimeFormatted = formatTime(boarding?.departureAt ?? trip.scheduledDepartureAt, locale);
@@ -159,7 +162,8 @@ export function BusDetailClient({
   const serviceDateFormatted = formatDate(new Date(`${trip.serviceDate}T00:00:00.000Z`), locale);
 
   const isFull = trip.seatsLeft <= 0;
-  const canBook = !isFull && trip.bookingOpen;
+  const isLocalBus = isLocalBusService(trip.busType.serviceType);
+  const canBook = !isLocalBus && !isFull && trip.bookingOpen;
 
   const fareData = fareQuery.data;
   const totalFarePaise = fareData?.totalPaise ?? trip.farePaise;
@@ -196,9 +200,7 @@ export function BusDetailClient({
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-h2 font-bold text-fg">
-                {serviceName}
-              </span>
+              <span className="text-h2 font-bold text-fg">{serviceName}</span>
               {trip.freeTravelEligible && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-caption font-medium bg-status-success-soft text-status-success border border-status-success-soft">
                   <Sparkles className="size-3" aria-hidden="true" />
@@ -231,9 +233,7 @@ export function BusDetailClient({
           </div>
 
           <div className="flex flex-col items-center justify-center px-2 text-center">
-            <span className="text-caption text-muted">
-              {formatDistance(segmentKm, locale)}
-            </span>
+            <span className="text-caption text-muted">{formatDistance(segmentKm, locale)}</span>
             <div className="flex items-center gap-1 text-subtle my-1">
               <div className="h-0.5 w-12 bg-default" />
               <ArrowRight className="size-4 text-muted" aria-hidden="true" />
@@ -255,16 +255,14 @@ export function BusDetailClient({
         {/* Seats and Fare Row */}
         <div className="mt-2 flex items-center justify-between gap-4 border-t border-default pt-4 flex-wrap">
           <div>
-            <span className="text-caption text-muted block">
-              {t("common.seat")}
-            </span>
+            <span className="text-caption text-muted block">{t("common.seat")}</span>
             <span
               className={`text-body font-semibold tabular-nums ${
                 isFull
                   ? "text-status-danger"
                   : trip.seatsLeft <= 5
-                  ? "text-status-warning"
-                  : "text-fg"
+                    ? "text-status-warning"
+                    : "text-fg"
               }`}
             >
               {isFull ? t("bus.busFull") : t("bus.seatsAvailable", { count: trip.seatsLeft })}
@@ -273,9 +271,7 @@ export function BusDetailClient({
 
           {totalFarePaise !== undefined && (
             <div className="text-right">
-              <span className="text-caption text-muted block">
-                {t("bus.totalFare")}
-              </span>
+              <span className="text-caption text-muted block">{t("bus.totalFare")}</span>
               <span className="text-h2 font-bold tabular-nums text-fg">
                 {formatMoney(totalFarePaise, locale)}
               </span>
@@ -285,19 +281,29 @@ export function BusDetailClient({
 
         {/* Primary Action Buttons */}
         <div className="mt-2 flex items-center gap-3 flex-wrap">
-          <Button
-            size="xl"
-            className="flex-1"
-            disabled={!canBook}
-            onClick={() => router.push(bookUrl)}
-            leftIcon={<Ticket className="size-5" aria-hidden="true" />}
-          >
-            {!canBook
-              ? isFull
-                ? t("bus.busFull")
-                : t("bus.bookingClosed")
-              : t("bus.bookTicket")}
-          </Button>
+          {isLocalBus ? (
+            <p
+              role="status"
+              className="flex min-h-11 flex-1 items-center gap-2 rounded-md border border-default bg-surface px-4 py-2 text-small text-muted"
+            >
+              <Info className="size-4 shrink-0" aria-hidden="true" />
+              {t("bus.localBookingUnavailable")}
+            </p>
+          ) : (
+            <Button
+              size="xl"
+              className="flex-1"
+              disabled={!canBook}
+              onClick={() => router.push(bookUrl)}
+              leftIcon={<Ticket className="size-5" aria-hidden="true" />}
+            >
+              {!canBook
+                ? isFull
+                  ? t("bus.busFull")
+                  : t("bus.bookingClosed")
+                : t("bus.bookTicket")}
+            </Button>
+          )}
 
           {canBookFree && (
             <Button
@@ -366,7 +372,10 @@ export function BusDetailClient({
                     <li key={tier.minHoursBefore}>
                       {tier.minHoursBefore > 0 || !above
                         ? t("bus.refundTier", { hours: tier.minHoursBefore, percent: tier.percent })
-                        : t("bus.refundTierLess", { hours: above.minHoursBefore, percent: tier.percent })}
+                        : t("bus.refundTierLess", {
+                            hours: above.minHoursBefore,
+                            percent: tier.percent,
+                          })}
                     </li>
                   );
                 })}
@@ -399,9 +408,7 @@ export function BusDetailClient({
                       {formatDistance(bp.kmFromOrigin, locale)}
                     </span>
                   </div>
-                  <span className="text-small font-semibold tabular-nums text-fg">
-                    {depTime}
-                  </span>
+                  <span className="text-small font-semibold tabular-nums text-fg">{depTime}</span>
                 </div>
               );
             })}
@@ -429,9 +436,7 @@ export function BusDetailClient({
                       {formatDistance(dp.kmFromOrigin, locale)}
                     </span>
                   </div>
-                  <span className="text-small font-semibold tabular-nums text-fg">
-                    {arrTime}
-                  </span>
+                  <span className="text-small font-semibold tabular-nums text-fg">{arrTime}</span>
                 </div>
               );
             })}
@@ -453,7 +458,7 @@ export function BusDetailClient({
             const name = locale === "te" ? stop.nameTe : stop.nameEn;
             const time = formatTime(
               isLast ? stop.scheduledArrivalAt : stop.scheduledDepartureAt,
-              locale
+              locale,
             );
 
             return (
@@ -464,17 +469,15 @@ export function BusDetailClient({
                     isFirst
                       ? "border-primary bg-primary"
                       : isLast
-                      ? "border-status-danger bg-status-danger"
-                      : "border-muted"
+                        ? "border-status-danger bg-status-danger"
+                        : "border-muted"
                   }`}
                   aria-hidden="true"
                 />
 
                 <div className="flex flex-col min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-small font-medium text-fg truncate">
-                      {name}
-                    </span>
+                    <span className="text-small font-medium text-fg truncate">{name}</span>
                     {stop.isBoarding && (
                       <span className="text-caption px-1.5 py-0.5 rounded-sm bg-surface-raised text-muted border border-default">
                         {t("common.boardingPoint")}
@@ -483,14 +486,13 @@ export function BusDetailClient({
                   </div>
                   <span className="text-caption text-muted">
                     {formatDistance(stop.kmFromOrigin, locale)}
-                    {stop.minutesFromOrigin > 0 && ` · +${formatDuration(stop.minutesFromOrigin, locale)}`}
+                    {stop.minutesFromOrigin > 0 &&
+                      ` · +${formatDuration(stop.minutesFromOrigin, locale)}`}
                   </span>
                 </div>
 
                 <div className="text-right shrink-0">
-                  <span className="text-small font-semibold tabular-nums text-fg">
-                    {time}
-                  </span>
+                  <span className="text-small font-semibold tabular-nums text-fg">{time}</span>
                 </div>
               </div>
             );

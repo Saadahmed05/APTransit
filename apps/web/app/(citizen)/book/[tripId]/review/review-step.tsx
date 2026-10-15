@@ -261,7 +261,7 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
                   count: booking.passengers.length,
                   fare: formatMoney(fare.totalPaise, locale),
                 })}
-                {/* D-042, D-045 group ticket: children and seniors pay less */}
+                {/* D-042, D-046 group ticket: children and seniors pay less */}
                 {(() => {
                   const mix = groupFare(
                     fare.totalPaise,

@@ -5,6 +5,7 @@ import {
   FareDto,
   formatMoney,
   formatTime,
+  isLocalBusService,
   SeatMapDto,
   TripDetailDto,
 } from "@aptransit/shared";
@@ -55,14 +56,16 @@ export function SeatStep({
     queryKey: queryKeys.trip(tripId),
     queryFn: ({ signal }) => api(`/trips/${tripId}`, { schema: TripDetailDto, signal }),
   });
+  const trip = tripQuery.data;
+  const isLocalBus = trip ? isLocalBusService(trip.busType.serviceType) : false;
   const seatsQuery = useQuery({
     queryKey: queryKeys.tripSeats(tripId),
     queryFn: ({ signal }) => api(`/trips/${tripId}/seats`, { schema: SeatMapDto, signal }),
     // Newly taken seats show up without a reload
     refetchInterval: SEATS_POLL_MS,
+    enabled: Boolean(trip && !isLocalBus),
   });
 
-  const trip = tripQuery.data;
   const boardingPoints = trip?.boardingPoints ?? [];
   const boarding =
     boardingPoints.find((p) => p.stopId === (boardingPick ?? draft?.from ?? initialFrom)) ??
@@ -83,10 +86,10 @@ export function SeatStep({
         schema: FareDto,
         signal,
       }),
-    enabled: Boolean(boarding && dropping),
+    enabled: Boolean(boarding && dropping && !isLocalBus),
   });
 
-  if (tripQuery.isLoading || seatsQuery.isLoading || fareQuery.isLoading || !draft) {
+  if (tripQuery.isLoading || (!isLocalBus && seatsQuery.isLoading) || fareQuery.isLoading || !draft) {
     return (
       <div className="flex flex-col gap-6" aria-busy="true">
         <span className="sr-only" role="status">
@@ -99,8 +102,8 @@ export function SeatStep({
     );
   }
 
-  const failed = tripQuery.error ?? seatsQuery.error;
-  if (failed || !trip || !seatsQuery.data) {
+  const failed = tripQuery.error ?? (!isLocalBus ? seatsQuery.error : null);
+  if (failed || !trip) {
     return (
       <ErrorState
         title={t("book.seat.errorTitle")}
@@ -110,6 +113,32 @@ export function SeatStep({
           void tripQuery.refetch();
           void seatsQuery.refetch();
         }}
+      />
+    );
+  }
+
+  if (isLocalBus) {
+    return (
+      <EmptyState
+        headingLevel="h1"
+        icon={Ban}
+        title={t("bus.localBookingUnavailable")}
+        action={
+          <Button variant="secondary" onClick={() => router.push(`/bus/${tripId}`)}>
+            {t("common.back")}
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (!seatsQuery.data) {
+    return (
+      <ErrorState
+        title={t("book.seat.errorTitle")}
+        message={t("errors.INTERNAL")}
+        retryLabel={t("common.retry")}
+        onRetry={() => void seatsQuery.refetch()}
       />
     );
   }
@@ -199,7 +228,7 @@ export function SeatStep({
     </Card>
   );
 
-  // D-045: no seats on local buses and trips of 50 km or less
+  // D-046: no seats on local buses and trips of 50 km or less
   if (fare?.seatless && boarding && dropping) {
     return (
       <LocalBooking

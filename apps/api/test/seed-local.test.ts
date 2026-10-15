@@ -9,7 +9,7 @@ const routeKm = (code: string) =>
     ),
   );
 
-describe("local services in the seed (D-045)", () => {
+describe("local services in the seed (D-046)", () => {
   it("never runs a local service on a route longer than the local limit", () => {
     for (const t of TIMETABLE_DEFS) {
       if (SEATLESS_SERVICE_TYPES.includes(t.serviceType)) {

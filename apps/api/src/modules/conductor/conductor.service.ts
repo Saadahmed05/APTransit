@@ -137,7 +137,7 @@ export class ConductorService {
     return {
       counts: { passengers, checked, pending: passengers - checked },
       seats: tickets.map((t) => ({
-        // D-045: local tickets have no seat, so the manifest shows them as unreserved
+        // D-046: local tickets have no seat, so the manifest shows them as unreserved
         seatNo:
           trip &&
           isSeatless(

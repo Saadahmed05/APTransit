@@ -154,7 +154,7 @@ export function TicketView({ id }: { id: string }) {
 
   const details = [
     { label: t("ticketDetail.details.passenger"), value: ticket.passengerName ?? t("common.notAvailable") },
-    // D-045: local tickets have no seat, so the row is left out
+    // D-046: local tickets have no seat, so the row is left out
     ...(ticket.seatNo ? [{ label: t("ticketDetail.details.seat"), value: ticket.seatNo }] : []),
     { label: t("ticketDetail.details.bus"), value: ticket.busRegNo ?? t("ticketDetail.details.busPending") },
     {

@@ -7,11 +7,11 @@ import { PublicId } from "./search";
 export const BOOKING_MAX_PASSENGERS = 6;
 
 export const CreateBookingPassengerInput = z.object({
-  /** Seatless local trips take the name from the account (D-045), so it is optional here. */
+  /** Seatless local trips take the name from the account (D-046), so it is optional here. */
   name: z.string().trim().min(1, "Name is required").max(100, "Name too long").optional(),
   age: z.coerce.number().int().min(1, "Age must be at least 1").max(120, "Age must be at most 120"),
   gender: z.enum(["F", "M", "X"]).optional(),
-  /** Seatless trips (D-045) get no seat number from the client: the server assigns one internally. */
+  /** Seatless trips (D-046) get no seat number from the client: the server assigns one internally. */
   seatNo: z.string().trim().min(1, "Seat number is required").optional(),
 });
 export type CreateBookingPassengerInput = z.infer<typeof CreateBookingPassengerInput>;

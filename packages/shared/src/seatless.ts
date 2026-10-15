@@ -1,8 +1,8 @@
 import type { ServiceType } from "./enums";
 
 /**
- * D-045: local buses are not booked by seat. Pallevelugu, Ultra Pallevelugu and City Ordinary are
- * always seatless, and so is any trip of 50 km or less (owner's rule). The ticket still counts
+ * D-046: local buses are not booked by seat. Pallevelugu, Ultra Pallevelugu and City Ordinary are
+ * always seatless (City Ordinary and Metro Express cannot be booked in the app at all, D-045), and so is any trip of 50 km or less (owner's rule). The ticket still counts
  * against the bus capacity (40 to 50 seats), but the passenger never picks or sees a seat.
  */
 export const SEATLESS_MAX_KM = 50;
@@ -18,7 +18,7 @@ export function isSeatless(serviceType: ServiceType, distanceKm: number): boolea
 }
 
 /**
- * D-045: Pallevelugu and city buses run locally only. No route that carries them is longer than
+ * D-046: Pallevelugu and city buses run locally only. No route that carries them is longer than
  * this. The owner said "nearby towns" (Nandyal, Adoni) without a number; Kurnool to Adoni is about
  * 120 km on the seeded route, so 130 km is an assumption (A), docs/18.
  */

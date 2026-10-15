@@ -67,3 +67,7 @@ Day 14 adds schemas/admin.ts for strict admin mutation inputs and validated resp
 - `fare.ts`: `CHILD_MAX_AGE`, `CHILD_FARE_PERCENT`, `passengerCategory`, `passengerFarePaise`, `groupFare`, `splitGroupTotal`.
 - `enums.ts`: `VILLAGE_SERVICE_TYPES`, `PassKind.DAILY`, `NotificationType.CHILD_BOARDED`. `qr.ts`: `QR_PERIOD_SEC = 3`.
 - Schemas: `GoogleSignInInput`, `PlacesNearbyQuery`, `NearbyPlaceDto`, `StageBoardingDto`, pass zone and child fields, `CHILD_CARD_MAX_AGE`.
+
+## Local bus booking (D-045)
+
+`LOCAL_BUS_SERVICE_TYPES` and `isLocalBusService` are the shared source for the local services that do not offer reserved-seat booking. Web and API must use this helper rather than repeating service type lists.

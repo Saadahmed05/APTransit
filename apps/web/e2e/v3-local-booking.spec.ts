@@ -1,15 +1,16 @@
 import { expect, type Page, test } from "@playwright/test";
 import { login, tomorrowIst, uniqueEmail } from "./helpers";
 
-// D-045: local buses have no seats. The traveller gives ages, the name comes from the account, and
-// the fare is adult, child or senior by age. Needs a seeded database (Kurnool malls line KCM-01).
+// D-046: local buses have no seats. The traveller gives ages, the name comes from the account, and
+// the fare is adult, child or senior by age. Needs a seeded database. Kurnool to Orvakal is a
+// Pallevelugu run; City Ordinary city lines cannot be booked at all (D-045).
 
 async function stopId(page: Page, q: string) {
   const res = await page.request.get(`/api/v1/places/search?q=${encodeURIComponent(q)}&limit=1`);
   return ((await res.json()) as { id: string }[])[0]!.id;
 }
 
-test.describe("D-045: seatless local booking", () => {
+test.describe("D-046: seatless local booking", () => {
   test("map pickup and drop, ages instead of seats, adult child and senior fares", async ({ page }) => {
     test.setTimeout(150_000);
     await login(page, uniqueEmail("v3-local"));
@@ -19,12 +20,12 @@ test.describe("D-045: seatless local booking", () => {
     await expect(page.getByTestId("map-field-from")).toHaveAttribute("aria-pressed", "true");
     await page.getByText("Stops near you (list)", { exact: true }).click();
     await page.getByRole("button", { name: "From Kurnool Bus Stand", exact: true }).click();
-    await page.getByRole("button", { name: "To Jyothi Mall", exact: true }).click();
+    await page.getByRole("button", { name: "To Orvakal", exact: true }).click();
     await expect(page.getByRole("combobox", { name: /^From$/ })).toHaveValue("Kurnool Bus Stand");
-    await expect(page.getByRole("combobox", { name: /^To$/ })).toHaveValue("Jyothi Mall");
+    await expect(page.getByRole("combobox", { name: /^To$/ })).toHaveValue("Orvakal");
 
     const from = await stopId(page, "Kurnool Bus Stand");
-    const to = await stopId(page, "Jyothi Mall");
+    const to = await stopId(page, "Orvakal");
     await page.goto(`/search?from=${from}&to=${to}&date=${tomorrowIst(1)}`);
     await page.locator("a[data-testid='trip-card']").first().click();
     await page.waitForURL(/\/bus\//);

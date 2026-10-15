@@ -128,3 +128,4 @@ New shared components go in `packages/ui/src/components`, exported from `index.t
 - `/` needs login (proxy). Home = `home-search.tsx` plus `map-picker.tsx` (dynamic MapView, tappable markers via `onMarkerClick`, list fallback for keyboard and screen readers).
 - `components/google-sign-in.tsx` loads Google Identity Services only when `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is set. CSP entries live in `lib/csp.ts`.
 - Pass buy handles zone district and child card fields. `/terms` is public.
+- D-045: local bus details and direct booking pages use `isLocalBusService` to remove paid and free-travel seat booking while keeping trip, schedule and fare information available.
