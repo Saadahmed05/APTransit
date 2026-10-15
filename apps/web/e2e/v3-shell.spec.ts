@@ -24,12 +24,12 @@ test.describe("v3 look and app shell", () => {
     });
   });
 
-  test("terms has nine sections in English and Telugu", async ({ page }) => {
+  test("terms has ten sections in English and Telugu", async ({ page }) => {
     await page.goto("/terms");
-    await expect(page.locator("h2")).toHaveCount(9);
+    await expect(page.locator("h2")).toHaveCount(10);
 
     await page.locator('button[lang="te"]').click();
     await expect(page.locator("html")).toHaveAttribute("lang", "te");
-    await expect(page.locator("h2")).toHaveCount(9);
+    await expect(page.locator("h2")).toHaveCount(10);
   });
 });
