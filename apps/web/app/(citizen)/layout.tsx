@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { User } from "lucide-react";
+import { BrandLogo } from "../../components/brand-logo";
 import { LanguageSwitch } from "../../components/language-switch";
 import { NotificationBell } from "../../components/notification-bell";
 import { ProfileGate } from "../../components/profile-gate";
@@ -24,8 +25,8 @@ export default async function CitizenLayout({ children }: { children: ReactNode 
       <header className="sticky top-0 z-header border-b border-default bg-surface-raised">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-2 px-gutter">
           <div className="flex min-w-0 items-center gap-6">
-            <Link href="/" className="truncate text-h3 text-primary">
-              {t("common.appName")}
+            <Link href="/" className="inline-flex min-h-11 min-w-0 items-center">
+              <BrandLogo name={t("common.appName")} />
             </Link>
             <CitizenTopNav />
           </div>

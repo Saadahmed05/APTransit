@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_Telugu } from "next/font/google";
 import { cookies } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
@@ -21,8 +21,14 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: { default: t("appName"), template: `%s · ${t("appName")}` },
     description: t("appDescription"),
+    // iOS Safari ignores most of the manifest: it needs these tags to install as an app
+    icons: { icon: "/icons/icon.svg", apple: "/icons/apple-touch-icon.png" },
+    appleWebApp: { capable: true, title: t("appShortName"), statusBarStyle: "default" },
+    formatDetection: { telephone: false },
   };
 }
+
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const cookieStore = await cookies();
