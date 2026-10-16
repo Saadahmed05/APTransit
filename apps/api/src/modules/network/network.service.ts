@@ -22,6 +22,7 @@ import { AppError } from "../../common/errors/app-error";
 import { TtlCache } from "../../common/services/ttl-cache";
 import { RedisService } from "../../redis/redis.service";
 import { holdCountKey } from "../bookings/seat-holds";
+import { TripWindowService } from "../trips/trip-window.service";
 import { NetworkRepository, type StopSearchRow, type TripRow } from "./network.repository";
 import { boardingDepartureMs, hasFare, medianGapMinutes, toTripSummary } from "./trip-summary";
 
@@ -45,6 +46,7 @@ export class NetworkService {
   constructor(
     private readonly repo: NetworkRepository,
     private readonly redis?: RedisService,
+    private readonly tripWindow?: TripWindowService,
   ) {}
 
   /** Prefix and contains match on English and Telugu names. Bus stands first, then prefix matches, then by name. */
@@ -120,6 +122,7 @@ export class NetworkService {
   ): Promise<TimetableDto> {
     const route = await this.route(routeId);
     const serviceDate = date ?? formatIstDate(now);
+    await this.tripWindow?.ensureDate(serviceDate, now);
     const rows = (
       await this.repo.tripRows({
         fromStopId: route.origin.id,
@@ -161,6 +164,8 @@ export class NetworkService {
       "booking.closeMinutesBefore",
       DEFAULT_CLOSE_MINUTES_BEFORE,
     );
+    // D-048: a date in the booking window with no trips yet is generated before the search
+    await this.tripWindow?.ensureDate(query.date, now);
     const rows = villageFit(
       await this.repo.tripRows({
         fromStopId: query.from,

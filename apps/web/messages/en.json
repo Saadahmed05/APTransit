@@ -93,6 +93,7 @@
     "changeRoute": "Change route",
     "nextDay": "{time}, next day",
     "previousDay": "Previous day",
+    "tryNextDay": "Try the next day",
     "emptyTitle": "No buses for this date.",
     "emptyHint": "Try picking another date or searching between nearby bus stands.",
     "errorTitle": "Search could not load",

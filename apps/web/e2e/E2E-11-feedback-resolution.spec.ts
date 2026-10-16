@@ -44,5 +44,6 @@ test("E2E-11 Feedback: submit as a guest, ops resolves, status shows the note", 
   // 4. A wrong email gets the generic not found message
   await guest.getByLabel(en.feedbackPage.email).fill("someone.else@example.test");
   await guest.getByRole("button", { name: en.feedbackPage.check }).click();
-  await expect(guest.getByRole("alert")).toBeVisible();
+  // Inside main: Next.js adds its own role="alert" route announcer after a client side navigation
+  await expect(guest.getByRole("main").getByRole("alert")).toBeVisible();
 });

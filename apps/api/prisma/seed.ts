@@ -4,8 +4,10 @@ import { encodePolyline, formatIstDate } from "@aptransit/shared";
 import { PrismaPg } from "@prisma/adapter-pg";
 import type { Prisma } from "../src/generated/prisma/client";
 import { PrismaClient } from "../src/generated/prisma/client";
+import type { PrismaService } from "../src/prisma/prisma.service";
 import type { TimetableInput } from "../src/modules/trips/trip-generator";
-import { generateTripsForTimetables } from "../src/modules/trips/trip-generator";
+import { addDateDays } from "../src/modules/trips/trip-generator";
+import { type AutoAssignSetting, TripGeneratorService } from "../src/modules/trips/trip-generator.service";
 import {
   AP_STATE,
   BUS_TYPES,
@@ -542,7 +544,7 @@ export async function runSeed(): Promise<void> {
   const driverUserId = userMap.get("driver.knl@aptransit.test")!;
   const conductorUserId = userMap.get("conductor.knl@aptransit.test")!;
 
-  const driverRow = await prisma.driver.upsert({
+  await prisma.driver.upsert({
     where: { userId: driverUserId },
     create: {
       userId: driverUserId,
@@ -556,7 +558,7 @@ export async function runSeed(): Promise<void> {
     },
   });
 
-  const conductorRow = await prisma.conductor.upsert({
+  await prisma.conductor.upsert({
     where: { userId: conductorUserId },
     create: {
       userId: conductorUserId,
@@ -687,6 +689,7 @@ export async function runSeed(): Promise<void> {
       routeId: route.id,
       routeCode: td.routeCode,
       busTypeId,
+      serviceType: td.serviceType,
       departureLocal: td.departureLocal,
       daysMask: 127,
       validFrom: new Date("2026-01-01T00:00:00.000Z"),
@@ -702,67 +705,38 @@ export async function runSeed(): Promise<void> {
   });
   console.log(`Timetables seeded: ${timetableInputs.length}`);
 
-  // 13. Generate trips for today to today plus 7 days
-  const nowUtc = new Date();
-  const todayIstStr = formatIstDate(nowUtc);
-  const plus7Date = new Date(nowUtc.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const plus7IstStr = formatIstDate(plus7Date);
+  // 13. Trips for the whole booking window (D-048), with the same generator the API and the worker use
+  const generator = new TripGeneratorService(prisma as unknown as PrismaService);
+  const todayIstStr = formatIstDate(new Date());
+  const lastIstStr = addDateDays(todayIstStr, await generator.windowDays());
+  await generator.pruneInactiveFuture(todayIstStr);
+  const generatedCount = await generator.generateRange(todayIstStr, lastIstStr);
+  console.log(`Generated ${generatedCount} new trips from ${todayIstStr} to ${lastIstStr}.`);
 
-  const tripRows = generateTripsForTimetables(timetableInputs, todayIstStr, plus7IstStr);
-  console.log(`Generated ${tripRows.length} trips from ${todayIstStr} to ${plus7IstStr}.`);
-
-  // Available buses at Kurnool for initial assignment
+  // Demo crew (D-048): the Kurnool driver and conductor run the KCM-01 mall line with usable
+  // Kurnool buses. The API applies the same setting to every day it generates later.
   const availableBuses = buses.filter(
     (b) => b.depotId === knlDepotId && b.status !== "BREAKDOWN" && b.status !== "MAINTENANCE",
   );
-
-  // docs/19 has about 450 trips a day, so insert in batches (one row at a time takes minutes on Neon).
-  const BATCH = 500;
-  for (let i = 0; i < tripRows.length; i += BATCH) {
-    await prisma.trip.createMany({
-      data: tripRows.slice(i, i + BATCH).map((t) => ({
-        code: t.code,
-        timetableId: t.timetableId,
-        routeId: t.routeId,
-        busTypeId: t.busTypeId,
-        serviceDate: t.serviceDate,
-        scheduledDepartureAt: t.scheduledDepartureAt,
-        scheduledArrivalAt: t.scheduledArrivalAt,
-        status: t.status,
-        delayMinutes: t.delayMinutes,
-        hasOpenIncident: t.hasOpenIncident,
-      })),
-      skipDuplicates: true,
-    });
-  }
-
-  // Initial assignment for trips that have none yet (idempotent on re-run)
-  if (availableBuses.length > 0) {
-    const assignedById = userMap.get("manager.knl@aptransit.test")!;
-    let busAssignIndex = 0;
-    for (let i = 0; i < tripRows.length; i += BATCH) {
-      const unassigned = await prisma.trip.findMany({
-        where: {
-          code: { in: tripRows.slice(i, i + BATCH).map((t) => t.code) },
-          assignments: { none: {} },
-        },
-        select: { id: true, scheduledDepartureAt: true },
-        orderBy: { scheduledDepartureAt: "asc" },
-      });
-      if (unassigned.length === 0) continue;
-      await prisma.tripAssignment.createMany({
-        data: unassigned.map((trip) => ({
-          tripId: trip.id,
-          busId: availableBuses[busAssignIndex++ % availableBuses.length]!.id,
-          driverId: driverRow.id,
-          conductorId: conductorRow.id,
-          reason: "INITIAL" as const,
-          assignedById,
-          startedAt: trip.scheduledDepartureAt,
-        })),
-      });
-    }
-  }
+  const rosterBuses = await prisma.bus.findMany({
+    where: { id: { in: availableBuses.slice(0, 6).map((b) => b.id) } },
+    select: { regNo: true },
+    orderBy: { regNo: "asc" },
+  });
+  const autoAssign: AutoAssignSetting = {
+    routeCodes: ["KCM-01", "MKC-02"],
+    driverEmployeeCode: "EMP-DRV-001",
+    conductorEmployeeCode: "EMP-CON-001",
+    busRegNos: rosterBuses.map((b) => b.regNo),
+    assignedByEmail: "manager.knl@aptransit.test",
+  };
+  await prisma.setting.upsert({
+    where: { key: "trips.autoAssign" },
+    create: { key: "trips.autoAssign", value: autoAssign as unknown as Prisma.InputJsonValue },
+    update: { value: autoAssign as unknown as Prisma.InputJsonValue },
+  });
+  const assigned = await generator.applyAutoAssign(todayIstStr, lastIstStr);
+  console.log(`Assigned the demo crew to ${assigned} trips.`);
   console.log("Trips and initial assignments seeded.");
 
   const args = process.argv.slice(2);

@@ -636,6 +636,8 @@ model Trip {
   tickets     Ticket[]
   scans       TicketScan[]
 
+  // D-048: one trip per timetable and day, whatever the code format (the generator and the seed rely on it)
+  @@unique([timetableId, serviceDate])
   @@index([routeId, serviceDate])
   @@index([serviceDate, status])
   @@map("trips")

@@ -4,6 +4,7 @@ import {
   CROCKFORD_ALPHABET,
   formatIstDate,
   localTimeToUtc,
+  type ServiceType,
   utcToIstParts,
 } from "@aptransit/shared";
 import { sealSecret } from "../src/common/crypto/secret-box";
@@ -263,6 +264,7 @@ export async function generateHistory(prisma: PrismaClient, days = 14, now = new
         routeId: tt.routeId,
         routeCode: route.code,
         busTypeId: tt.busTypeId,
+        serviceType: busTypeById.get(tt.busTypeId)!.serviceType as ServiceType,
         departureLocal: tt.departureLocal,
         daysMask: tt.daysMask,
         validFrom: tt.validFrom,

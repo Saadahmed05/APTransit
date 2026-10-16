@@ -2,7 +2,7 @@ import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 import type { Job } from "bullmq";
 import { RetentionService } from "../../lifecycle/retention.service";
-import { TripGeneratorService } from "../../trips/trip-generator.service";
+import { TripWindowService } from "../../trips/trip-window.service";
 import { QUEUES } from "../queue.constants";
 import { QueueStatusService } from "../queue-status.service";
 import { bullmqProcessorOptions } from "../worker-options";
@@ -15,7 +15,7 @@ export class MaintenanceProcessor extends WorkerHost {
   private readonly logger = new Logger(MaintenanceProcessor.name);
 
   constructor(
-    private readonly tripGeneratorService: TripGeneratorService,
+    private readonly tripWindow: TripWindowService,
     private readonly retention: RetentionService,
     private readonly queues: QueueStatusService,
   ) {
@@ -24,8 +24,9 @@ export class MaintenanceProcessor extends WorkerHost {
 
   async process(job: Job): Promise<void> {
     if (job.name === "generate-trips") {
-      this.logger.log("Running generate-trips maintenance job (7 days ahead)");
-      await this.tripGeneratorService.generateTripsForFutureDays(7);
+      // D-048: the whole booking window, the same code and lock as the API's own fill
+      const created = await this.tripWindow.ensureWindow();
+      this.logger.log(`generate-trips: ${created} new trips`);
     } else if (job.name === RETENTION_JOB) {
       await this.retention.run();
     } else if (job.name === FAILED_JOBS_SUMMARY_JOB) {

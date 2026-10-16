@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TimetableInput } from "./trip-generator";
-import { generateTripsForTimetables } from "./trip-generator";
+import { addDateDays, generateTripsForTimetables } from "./trip-generator";
 
 describe("trip generator", () => {
   const sampleTimetable: TimetableInput = {
@@ -8,6 +8,7 @@ describe("trip generator", () => {
     routeId: "rt_knl_vja",
     routeCode: "KNL-VJA-01",
     busTypeId: "bt_express",
+    serviceType: "EXPRESS",
     departureLocal: "06:30",
     daysMask: 127, // All days (Mon to Sun)
     validFrom: new Date("2026-09-01T00:00:00.000Z"),
@@ -20,8 +21,8 @@ describe("trip generator", () => {
     // 2026-09-21 (Mon) to 2026-09-27 (Sun) is 7 days
     const trips = generateTripsForTimetables([sampleTimetable], "2026-09-21", "2026-09-27");
     expect(trips).toHaveLength(7);
-    expect(trips[0]!.code).toBe("TRP-KNL-VJA-01-20260921-0630");
-    expect(trips[6]!.code).toBe("TRP-KNL-VJA-01-20260927-0630");
+    expect(trips[0]!.code).toBe("TRP-KNL-VJA-01-20260921-0630-EXP");
+    expect(trips[6]!.code).toBe("TRP-KNL-VJA-01-20260927-0630-EXP");
   });
 
   it("respects daysMask filter for weekdays only (Mon to Fri)", () => {
@@ -74,5 +75,20 @@ describe("trip generator", () => {
     const run2 = generateTripsForTimetables([sampleTimetable], "2026-09-24", "2026-09-25");
 
     expect(run1).toEqual(run2);
+  });
+
+  it("gives two services leaving at the same minute their own codes (D-048)", () => {
+    const superLuxury: TimetableInput = { ...sampleTimetable, id: "tt_slx", busTypeId: "bt_slx", serviceType: "SUPER_LUXURY" };
+    const trips = generateTripsForTimetables([sampleTimetable, superLuxury], "2026-09-21", "2026-09-21");
+    expect(trips.map((t) => t.code)).toEqual([
+      "TRP-KNL-VJA-01-20260921-0630-EXP",
+      "TRP-KNL-VJA-01-20260921-0630-SLX",
+    ]);
+  });
+
+  it("adds calendar days across month and year ends", () => {
+    expect(addDateDays("2026-10-31", 1)).toBe("2026-11-01");
+    expect(addDateDays("2026-12-31", 1)).toBe("2027-01-01");
+    expect(addDateDays("2026-10-16", 30)).toBe("2026-11-15");
   });
 });

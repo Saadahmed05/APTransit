@@ -81,6 +81,7 @@ export class FakeNetworkRepository {
         routeId: route.id,
         routeCode: route.code,
         busTypeId: t.serviceType,
+        serviceType: t.serviceType,
         departureLocal: t.departureLocal,
         daysMask: 127,
         validFrom: new Date("2026-01-01T00:00:00.000Z"),

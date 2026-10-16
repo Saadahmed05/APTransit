@@ -34,10 +34,12 @@ export function hasFare(row: TripRow): row is TripRow & { fare: FareRuleInput } 
 
 /** Median of the gaps between sorted times, in whole minutes. Null with fewer than two times. */
 export function medianGapMinutes(sortedMs: readonly number[]): number | null {
-  if (sortedMs.length < 2) return null;
-  const gaps = sortedMs
+  // D-048: several classes can leave at the same minute; the frequency is between departure times
+  const times = [...new Set(sortedMs)];
+  if (times.length < 2) return null;
+  const gaps = times
     .slice(1)
-    .map((t, i) => (t - sortedMs[i]!) / MS_PER_MIN)
+    .map((t, i) => (t - times[i]!) / MS_PER_MIN)
     .sort((a, b) => a - b);
   const mid = Math.floor(gaps.length / 2);
   const median = gaps.length % 2 === 1 ? gaps[mid]! : (gaps[mid - 1]! + gaps[mid]!) / 2;

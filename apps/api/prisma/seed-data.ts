@@ -1,3 +1,5 @@
+import { LOCAL_ROUTE_MAX_KM } from "@aptransit/shared";
+
 export interface StateSeed {
   /** Fixed for AP so the backfill migration and the seed agree; new states get a generated id. */
   id?: string;
@@ -1014,8 +1016,8 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
       { stopCode: "VCS", kmFromOrigin: 0.4, minutesFromOrigin: 3 },
       { stopCode: "CHM", kmFromOrigin: 0.4, minutesFromOrigin: 4 },
       { stopCode: "JYM", kmFromOrigin: 0.5, minutesFromOrigin: 7 },
-      { stopCode: "SVC", kmFromOrigin: 0.9, minutesFromOrigin: 5 },
-      { stopCode: "SKC", kmFromOrigin: 1.5, minutesFromOrigin: 7 },
+      { stopCode: "SVC", kmFromOrigin: 0.9, minutesFromOrigin: 8 },
+      { stopCode: "SKC", kmFromOrigin: 1.5, minutesFromOrigin: 9 },
       { stopCode: "KRS", kmFromOrigin: 1.7, minutesFromOrigin: 13 },
     ],
   },
@@ -1051,18 +1053,18 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
       { stopCode: "KNL", kmFromOrigin: 0, minutesFromOrigin: 0 },
       { stopCode: "KCH", kmFromOrigin: 0.1, minutesFromOrigin: 2 },
       { stopCode: "SVD", kmFromOrigin: 1.1, minutesFromOrigin: 6 },
-      { stopCode: "DTH", kmFromOrigin: 1.2, minutesFromOrigin: 6 },
-      { stopCode: "GGH", kmFromOrigin: 1.4, minutesFromOrigin: 6 },
-      { stopCode: "GVR", kmFromOrigin: 1.4, minutesFromOrigin: 7 },
-      { stopCode: "PCH", kmFromOrigin: 1.5, minutesFromOrigin: 8 },
-      { stopCode: "SNH", kmFromOrigin: 2.1, minutesFromOrigin: 9 },
-      { stopCode: "SRY", kmFromOrigin: 2.3, minutesFromOrigin: 10 },
-      { stopCode: "SIM", kmFromOrigin: 2.9, minutesFromOrigin: 12 },
+      { stopCode: "DTH", kmFromOrigin: 1.2, minutesFromOrigin: 7 },
+      { stopCode: "GGH", kmFromOrigin: 1.4, minutesFromOrigin: 8 },
+      { stopCode: "GVR", kmFromOrigin: 1.4, minutesFromOrigin: 9 },
+      { stopCode: "PCH", kmFromOrigin: 1.5, minutesFromOrigin: 10 },
+      { stopCode: "SNH", kmFromOrigin: 2.1, minutesFromOrigin: 11 },
+      { stopCode: "SRY", kmFromOrigin: 2.3, minutesFromOrigin: 12 },
+      { stopCode: "SIM", kmFromOrigin: 2.9, minutesFromOrigin: 13 },
       { stopCode: "KMH", kmFromOrigin: 3.1, minutesFromOrigin: 14 },
       { stopCode: "OMN", kmFromOrigin: 4.2, minutesFromOrigin: 18 },
-      { stopCode: "AMM", kmFromOrigin: 4.3, minutesFromOrigin: 17 },
+      { stopCode: "AMM", kmFromOrigin: 4.3, minutesFromOrigin: 19 },
       { stopCode: "SVH", kmFromOrigin: 5.9, minutesFromOrigin: 25 },
-      { stopCode: "OCH", kmFromOrigin: 6.2, minutesFromOrigin: 23 },
+      { stopCode: "OCH", kmFromOrigin: 6.2, minutesFromOrigin: 26 },
       { stopCode: "KIM", kmFromOrigin: 10.1, minutesFromOrigin: 37 },
     ],
   },
@@ -1079,9 +1081,9 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
       { stopCode: "KWD", kmFromOrigin: 0.7, minutesFromOrigin: 4 },
       { stopCode: "GJC", kmFromOrigin: 1.3, minutesFromOrigin: 5 },
       { stopCode: "COL", kmFromOrigin: 1.5, minutesFromOrigin: 8 },
-      { stopCode: "NJC", kmFromOrigin: 1.8, minutesFromOrigin: 8 },
+      { stopCode: "NJC", kmFromOrigin: 1.8, minutesFromOrigin: 9 },
       { stopCode: "STB", kmFromOrigin: 2.7, minutesFromOrigin: 13 },
-      { stopCode: "GUJ", kmFromOrigin: 3, minutesFromOrigin: 12 },
+      { stopCode: "GUJ", kmFromOrigin: 3, minutesFromOrigin: 14 },
       { stopCode: "SJU", kmFromOrigin: 4.1, minutesFromOrigin: 16 },
       { stopCode: "SJC", kmFromOrigin: 4.1, minutesFromOrigin: 18 },
       { stopCode: "GDM", kmFromOrigin: 10.9, minutesFromOrigin: 37 },
@@ -1299,61 +1301,69 @@ function everyMinutes(first: string, last: string, stepMin: number): string[] {
   return out;
 }
 
+/** Route length in km (the last stop's distance from the origin). */
+function routeKm(code: string): number {
+  const route = ROUTE_DEFS.find((r) => r.code === code);
+  if (!route) throw new Error(`Unknown route ${code}`);
+  return route.stops[route.stops.length - 1]!.kmFromOrigin;
+}
+
+type Departure = [string, BusTypeSeed["serviceType"]];
+
+/** D-048: intercity and town routes run every class every hour, 05:00 to 23:00. */
+const SERVICE_HOURS = everyMinutes("05:00", "23:00", 60);
+/** AC sleepers and seaters take the Super Luxury slot on the long runs from 20:00 (A). */
+const NIGHT_AC: Record<string, BusTypeSeed["serviceType"]> = {
+  "KNL-VJA-01": "AMARAVATI_AC",
+  "KNL-TPT-01": "INDRA_AC",
+  "VJA-VSP-01": "GARUDA_AC",
+};
+
+/**
+ * D-048 (owner, 2026-10-16): every hour an Express class bus and a Super Luxury class bus. Routes up
+ * to LOCAL_ROUTE_MAX_KM (130) also have Pallevelugu, every 30 min like other local buses (every
+ * fourth an Ultra Pallevelugu). Long runs alternate Express and Ultra Deluxe.
+ */
+function hourlyClasses(routeCode: string): Departure[] {
+  const km = routeKm(routeCode);
+  const departures: Departure[] = [];
+  SERVICE_HOURS.forEach((t, i) => {
+    departures.push([t, km > LOCAL_ROUTE_MAX_KM && i % 2 === 1 ? "ULTRA_DELUXE" : "EXPRESS"]);
+    departures.push([t, toMinutes(t) >= toMinutes("20:00") ? (NIGHT_AC[routeCode] ?? "SUPER_LUXURY") : "SUPER_LUXURY"]);
+  });
+  if (km <= LOCAL_ROUTE_MAX_KM) {
+    everyMinutes("05:00", "23:00", 30).forEach((t, i) =>
+      departures.push([t, i % 4 === 3 ? "ULTRA_PALLEVELUGU" : "PALLEVELUGU"]),
+    );
+  }
+  return departures;
+}
+
+const INTERCITY: [string, string][] = [
+  ["KNL-VJA-01", "VJA-KNL-02"],
+  ["KNL-TPT-01", "TPT-KNL-02"],
+  ["KNL-ATP-01", "ATP-KNL-02"],
+  ["KNL-NDL-01", "NDL-KNL-02"],
+  ["VJA-VSP-01", "VSP-VJA-02"],
+  ["KNL-ADN-01", "ADN-KNL-02"],
+  ["KNL-ATK-01", "ATK-KNL-02"],
+  ["DHN-NDL-01", "NDL-DHN-02"],
+];
+
 const FORWARD_TIMETABLES: {
   routeCode: string;
   reverseCode: string;
-  departures: [string, BusTypeSeed["serviceType"]][];
+  departures: Departure[];
 }[] = [
-  {
-    routeCode: "KNL-VJA-01",
-    reverseCode: "VJA-KNL-02",
-    departures: [
-      ["05:30", "EXPRESS"],
-      ["06:30", "EXPRESS"],
-      ["08:00", "SUPER_LUXURY"],
-      ["10:00", "EXPRESS"],
-      ["13:00", "ULTRA_DELUXE"],
-      ["21:30", "AMARAVATI_AC"],
-    ],
-  },
-  {
-    routeCode: "KNL-TPT-01",
-    reverseCode: "TPT-KNL-02",
-    departures: [
-      ["06:00", "EXPRESS"],
-      ["09:00", "SUPER_LUXURY"],
-      ["21:00", "INDRA_AC"],
-    ],
-  },
-  {
-    routeCode: "KNL-ATP-01",
-    reverseCode: "ATP-KNL-02",
-    // D-046: Pallevelugu is local only, so the 150 km Anantapur run uses express services
-    departures: everyMinutes("05:00", "20:00", 60).map((t, i) => [
-      t,
-      i % 2 === 0 ? "ULTRA_DELUXE" : "EXPRESS",
-    ]),
-  },
-  {
-    routeCode: "KNL-NDL-01",
-    reverseCode: "NDL-KNL-02",
-    departures: everyMinutes("05:00", "21:00", 30).map((t, i) => [
-      t,
-      i % 4 === 3 ? "ULTRA_PALLEVELUGU" : "PALLEVELUGU",
-    ]),
-  },
+  ...INTERCITY.map(([routeCode, reverseCode]) => ({ routeCode, reverseCode, departures: hourlyClasses(routeCode) })),
   {
     routeCode: "VJA-GNT-01",
     reverseCode: "GNT-VJA-02",
-    departures: everyMinutes("05:30", "22:00", 15).map((t) => [t, "METRO_EXPRESS"]),
-  },
-  {
-    routeCode: "VJA-VSP-01",
-    reverseCode: "VSP-VJA-02",
+    // Metro Express every 15 min is the Express class here; Super Luxury hourly and Pallevelugu every 30 min join it
     departures: [
-      ["07:00", "ULTRA_DELUXE"],
-      ["21:00", "GARUDA_AC"],
-      ["22:30", "SUPER_LUXURY"],
+      ...everyMinutes("05:30", "22:00", 15).map((t): Departure => [t, "METRO_EXPRESS"]),
+      ...SERVICE_HOURS.map((t): Departure => [t, "SUPER_LUXURY"]),
+      ...everyMinutes("05:00", "23:00", 30).map((t, i): Departure => [t, i % 4 === 3 ? "ULTRA_PALLEVELUGU" : "PALLEVELUGU"]),
     ],
   },
   {
@@ -1361,49 +1371,20 @@ const FORWARD_TIMETABLES: {
     reverseCode: "SMC-VSP-02",
     departures: everyMinutes("05:30", "22:30", 10).map((t) => [t, "CITY_ORDINARY"]),
   },
-  {
-    routeCode: "KNL-ADN-01",
-    reverseCode: "ADN-KNL-02",
-    departures: everyMinutes("05:30", "20:30", 60).map((t, i) => [
-      t,
-      i % 3 === 2 ? "ULTRA_PALLEVELUGU" : "PALLEVELUGU",
-    ]),
-  },
-  {
-    routeCode: "KNL-ATK-01",
-    reverseCode: "ATK-KNL-02",
-    departures: everyMinutes("06:00", "20:00", 90).map((t) => [t, "PALLEVELUGU"]),
-  },
-  {
-    routeCode: "DHN-NDL-01",
-    reverseCode: "NDL-DHN-02",
-    departures: everyMinutes("06:00", "20:00", 60).map((t) => [t, "PALLEVELUGU"]),
-  },
-  {
-    routeCode: "KCM-01",
-    reverseCode: "MKC-02",
-    departures: everyMinutes("06:00", "21:00", 20).map((t) => [t, "CITY_ORDINARY"]),
-  },
-  {
-    routeCode: "KCC-01",
-    reverseCode: "CCK-02",
-    departures: everyMinutes("06:00", "21:00", 20).map((t) => [t, "CITY_ORDINARY"]),
-  },
-  {
-    routeCode: "KHL-01",
-    reverseCode: "LHK-02",
-    departures: everyMinutes("06:00", "21:00", 30).map((t) => [t, "CITY_ORDINARY"]),
-  },
-  {
-    routeCode: "KCL-01",
-    reverseCode: "LCK-02",
-    departures: everyMinutes("06:00", "21:00", 30).map((t) => [t, "CITY_ORDINARY"]),
-  },
-  {
-    routeCode: "KOT-01",
-    reverseCode: "TOK-02",
-    departures: everyMinutes("06:00", "21:00", 30).map((t) => [t, "CITY_ORDINARY"]),
-  },
+  // Kurnool city lines (D-046, D-048): local buses at least every 30 min, 05:00 to 23:00
+  ...(
+    [
+      ["KCM-01", "MKC-02", 20],
+      ["KCC-01", "CCK-02", 20],
+      ["KHL-01", "LHK-02", 30],
+      ["KCL-01", "LCK-02", 30],
+      ["KOT-01", "TOK-02", 30],
+    ] as const
+  ).map(([routeCode, reverseCode, step]) => ({
+    routeCode,
+    reverseCode,
+    departures: everyMinutes("05:00", "23:00", step).map((t): Departure => [t, "CITY_ORDINARY"]),
+  })),
 ];
 
 /** docs/19 "Timetables": forward departures, and the reverse route with the same pattern 30 min later. */

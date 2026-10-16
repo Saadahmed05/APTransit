@@ -419,6 +419,30 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
   - **docs/19 (seed data):** add the 45 Kurnool spots as stops (OpenStreetMap positions, Telugu names pending native review), city lines `KCM-01`, `KCC-01`, `KHL-01`, `KCL-01`, `KOT-01`, and the local routes Adoni, Atmakur (via Nandikotkur) and Dhone to Nandyal (via Banaganapalle). Note that the 150 km Anantapur run now uses Ultra Deluxe and Express.
 - **Status:** Proposed. Waiting for Dev A to agree. The owner still has to confirm the **(A)** values.
 
+### D-048: Buses for the whole booking window, every class every hour, no details tickets, profile, map home, more Kurnool stops, field features
+- **Date:** 2026-10-16
+- **Raised by:** Product owner (Mukheeth), after testing production: "No buses for this date" for Kurnool to Vijayawada on 2026-10-16, and a button reading "{time}, next day".
+- **Docs affected:** 05, 06, 07, 08, 11, 12, 13, 18, 19. **Not edited:** docs stay locked until both devs agree. Each phase adds its proposed text here as it ships.
+- **Owner decisions (2026-10-16):**
+  - Frequency: every intercity route runs an Express class bus and a Super Luxury class bus every hour, 05:00 to 23:00. Routes up to `LOCAL_ROUTE_MAX_KM` (130) also run Pallevelugu every 30 min (local buses every 30 min). Kurnool city lines run at least every 30 min, 05:00 to 23:00. Pallevelugu stays local only.
+  - Tickets: no passenger names or gender. The traveller picks Adult, Child and Senior counts (different rates); long reserved trips then pick that many seats; local (seatless) buses never show seat selection anywhere.
+  - Sign up: name, email and phone are required; the channel not used to log in is verified by a code.
+  - Kurnool: keep the 45 spots and add about 40 more (schools, temples, markets, parks, university, stations) on city lines.
+  - Defaults the owner did not object to: home is a full screen map with a From and To card and a bottom sheet; account gets profile and verify, travel hub, settings and help; driver and conductor get SOS, break, delay minutes, alerts, day list, conductor report, GPS with scans and a richer manifest. Offline scanning stays parked.
+- **Phase 1, built 2026-10-16 (buses visible):**
+  - Cause: trips were created only by the BullMQ worker (never deployed) and the seed made 8 days, so every date after the last seed plus 7 was empty, while the date picker allows 30 days.
+  - `TripWindowService` (`apps/api/src/modules/trips/trip-window.service.ts`): on API boot and every 6 h it fills today to today plus `booking.daysAhead` (30), prunes unsold future trips of switched off timetables and applies the demo crew; a search for a date in the window with no trips generates that day first. The worker's daily job calls the same code under the same Redis lock.
+  - Trip codes carry the service (`TRP-KNL-VJA-01-20261016-0500-EXP`) because two classes leave at the same minute; migration `20261017000000_trip_per_timetable_day` adds a unique (timetableId, serviceDate) so old and new codes never double.
+  - Seed: the new timetable (about 1,800 trips a day), trips for the whole window, the demo crew from the `trips.autoAssign` setting (KCM-01 and MKC-02, demo driver and conductor) instead of one driver on every trip, and the city line minutes that went backwards fixed.
+  - The empty search state's button uses `search.tryNextDay` ("Try the next day"); `search.nextDay` keeps the overnight arrival label.
+- **Proposed doc text (Phase 1):**
+  - docs/19 "Timetables": replace the table with: "Intercity routes (KNL-VJA, KNL-TPT, KNL-ATP, KNL-NDL, VJA-VSP, KNL-ADN, KNL-ATK, DHN-NDL): every hour 05:00 to 23:00 one Express class bus (Express, on routes over 130 km alternating with Ultra Deluxe) and one Super Luxury class bus (Super Luxury, from 20:00 Amaravati AC on KNL-VJA, Indra AC on KNL-TPT, Garuda AC on VJA-VSP). Routes up to 130 km also Pallevelugu every 30 min 05:00 to 23:00, every fourth Ultra Pallevelugu. VJA-GNT: Metro Express every 15 min, Super Luxury hourly, Pallevelugu every 30 min. VSP-SMC unchanged. Kurnool city lines KCM and KCC every 20 min, KHL, KCL and KOT every 30 min, 05:00 to 23:00. Reverse routes 30 min later."
+  - docs/19: "Trips exist from today to today plus `booking.daysAhead`; the API fills the window on boot, every 6 h and on demand for a searched date; the worker runs the same fill nightly." Replace "today plus 7 days".
+  - docs/05 `trips`: add "unique (timetableId, serviceDate)"; code format `TRP-{route}-{yyyymmdd}-{HHmm}-{service}`.
+  - docs/18 (A): night AC slot from 20:00; Ultra Deluxe alternating on routes over 130 km; demo crew roster in the `trips.autoAssign` setting.
+- **Questions for the owner:** (1) Should same hour classes leave at different minutes (for example :00, :20, :40) instead of together? (2) Is the 50 percent senior discount right? (3) Without an SMS provider, should phone stay required for email sign ups? (4) Account deletion: wanted, and what is kept? (5) Which category goes on a Stree Shakti free ticket?
+- **Status:** Phase 1 built and tested locally. Proposed for the docs; needs Dev A review of the doc text.
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |

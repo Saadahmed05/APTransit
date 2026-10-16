@@ -62,7 +62,8 @@ test.describe("v3 Phase 3: map home and search", () => {
     const vijayawada = await placeId(page, "Vijayawada");
     const dwaraka = await placeId(page, "Dwaraka");
     await page.goto(`/search?from=${vijayawada}&to=${dwaraka}&date=${tomorrowIst()}`);
-    const overnight = page.locator("a[data-testid='trip-card']").filter({ hasText: "09:00 pm" });
+    // D-048: an Express class bus also leaves at 21:00; the overnight sleeper is the Garuda AC
+    const overnight = page.locator("a[data-testid='trip-card']").filter({ hasText: "09:00 pm" }).filter({ hasText: "Garuda" });
     await expect(overnight).toHaveCount(1, { timeout: 15_000 });
     await expect(overnight).toContainText("next day");
   });

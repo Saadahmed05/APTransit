@@ -19,32 +19,32 @@ describe("NetworkService.searchTrips", () => {
 
   it("closes booking 10 minutes before departure from the boarding stop", async () => {
     const { service } = makeService();
-    expect(times(await service.searchTrips(query, at("05:19")))).toContain("05:30");
-    // 05:20 is exactly the close time: closed
-    expect(times(await service.searchTrips(query, at("05:20")))).not.toContain("05:30");
-    expect(times(await service.searchTrips(query, at("05:20")))[0]).toBe("06:30");
+    expect(times(await service.searchTrips(query, at("04:49")))).toContain("05:00");
+    // 04:50 is exactly the close time: closed
+    expect(times(await service.searchTrips(query, at("04:50")))).not.toContain("05:00");
+    expect(times(await service.searchTrips(query, at("04:50")))[0]).toBe("06:00");
   });
 
   it("uses the boarding stop departure for the close check", async () => {
     const { service } = makeService();
-    // The 05:30 bus leaves Nandyal at 06:45, so it is still bookable from Nandyal at 06:30
+    // The 05:00 bus leaves Nandyal at 06:15, so it is still bookable from Nandyal at 06:00
     const trips = await service.searchTrips(
       { from: stopId("NDL"), to: stopId("VJA"), date: DATE },
-      at("06:30"),
+      at("06:00"),
     );
-    expect(times(trips)[0]).toBe("06:45");
+    expect(times(trips)[0]).toBe("06:15");
   });
 
   it("reads the close time from settings", async () => {
     const { repo, service } = makeService();
     repo.settings.set("booking.closeMinutesBefore", 60);
-    expect(times(await service.searchTrips(query, at("04:45")))[0]).toBe("06:30");
+    expect(times(await service.searchTrips(query, at("04:15")))[0]).toBe("06:00");
   });
 
   it("falls back to 10 minutes when the setting is missing", async () => {
     const { repo, service } = makeService();
     repo.settings.clear();
-    expect(times(await service.searchTrips(query, at("05:19")))[0]).toBe("05:30");
+    expect(times(await service.searchTrips(query, at("04:49")))[0]).toBe("05:00");
   });
 
   it("returns nothing for a past date", async () => {
@@ -64,7 +64,7 @@ describe("NetworkService.searchTrips", () => {
     const original = repo.tripRows.bind(repo);
     repo.tripRows = async (args) =>
       (await original(args)).map((r, i) => (i === 0 ? { ...r, fare: null } : r));
-    expect(await service.searchTrips(query, at("00:00"))).toHaveLength(5);
+    expect(await service.searchTrips(query, at("00:00"))).toHaveLength(37);
   });
 
   it("shows a delayed trip as DELAYED with its delay", async () => {
@@ -87,22 +87,23 @@ describe("NetworkService.timetable", () => {
   it("has no next departure after the last bus", async () => {
     const { service } = makeService();
     expect(
-      (await service.timetable(routeId("KNL-NDL-01"), DATE, at("21:01"))).nextDepartureAt,
+      (await service.timetable(routeId("KNL-NDL-01"), DATE, at("23:01"))).nextDepartureAt,
     ).toBeNull();
   });
 
   it("keeps cancelled trips in the list but not in first, last or next", async () => {
     const { repo, service } = makeService();
     const route = routeId("KNL-VJA-01");
-    const first = repo.trips.find(
-      (t) => t.routeId === route && formatIstTime(new Date(t.departureMs)) === "05:30",
-    )!;
-    first.status = "CANCELLED";
+    const firstHour = repo.trips.filter(
+      (t) => t.routeId === route && formatIstTime(new Date(t.departureMs)) === "05:00",
+    );
+    expect(firstHour).toHaveLength(2);
+    for (const trip of firstHour) trip.status = "CANCELLED";
     const tt = await service.timetable(route, DATE, at("04:00"));
-    expect(tt.trips).toHaveLength(6);
+    expect(tt.trips).toHaveLength(38);
     expect(tt.trips[0]?.displayStatus).toBe("CANCELLED");
-    expect(tt.firstDepartureLocal).toBe("06:30");
-    expect(tt.nextDepartureAt).toBe(at("06:30").toISOString());
+    expect(tt.firstDepartureLocal).toBe("06:00");
+    expect(tt.nextDepartureAt).toBe(at("06:00").toISOString());
   });
 
   it("is empty with nulls on a date without trips", async () => {

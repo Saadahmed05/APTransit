@@ -396,7 +396,7 @@ export function SearchClient({
                 action={
                   <div className="flex flex-wrap items-center justify-center gap-3">
                     <Button variant="primary" onClick={handleNextDay}>
-                      {t("search.nextDay")}
+                      {t("search.tryNextDay")}
                     </Button>
                     <Button variant="secondary" onClick={() => setIsEditOpen(true)}>
                       {t("search.changeRoute")}

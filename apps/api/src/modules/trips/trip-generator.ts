@@ -1,10 +1,28 @@
-import { localTimeToUtc } from "@aptransit/shared";
+import { localTimeToUtc, type ServiceType } from "@aptransit/shared";
+
+/**
+ * Short service codes for trip codes. Two services can leave a route at the same minute (D-048:
+ * every class every hour), so the service is part of the code.
+ */
+export const SERVICE_CODE: Record<ServiceType, string> = {
+  PALLEVELUGU: "PLV",
+  ULTRA_PALLEVELUGU: "UPV",
+  CITY_ORDINARY: "CTO",
+  METRO_EXPRESS: "MEX",
+  EXPRESS: "EXP",
+  ULTRA_DELUXE: "UDX",
+  SUPER_LUXURY: "SLX",
+  INDRA_AC: "IND",
+  AMARAVATI_AC: "AMR",
+  GARUDA_AC: "GRD",
+};
 
 export interface TimetableInput {
   id: string;
   routeId: string;
   routeCode?: string;
   busTypeId: string;
+  serviceType: ServiceType;
   departureLocal: string; // HH:mm in IST
   daysMask: number; // Mon bit 0 to Sun bit 6 (127 = all days)
   validFrom: Date;
@@ -37,6 +55,13 @@ export function isDayMaskActive(daysMask: number, year: number, month: number, d
   const dayOfWeek = utcMidday.getUTCDay(); // 0 is Sunday, 1 is Monday... 6 is Saturday
   const bitIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
   return (daysMask & (1 << bitIndex)) !== 0;
+}
+
+/** A YYYY-MM-DD date plus `days` (calendar arithmetic, no time zone involved). */
+export function addDateDays(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(Date.UTC(y!, m! - 1, d! + days));
+  return formatDateStr(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
 }
 
 function formatDateStr(year: number, month: number, day: number): string {
@@ -107,7 +132,7 @@ export function generateTripsForTimetables(
       const timeClean = timetable.departureLocal.replace(":", "");
       const dateClean = dateStr.replace(/-/g, "");
       const routePrefix = timetable.routeCode || timetable.routeId.slice(0, 8);
-      const code = `TRP-${routePrefix}-${dateClean}-${timeClean}`;
+      const code = `TRP-${routePrefix}-${dateClean}-${timeClean}-${SERVICE_CODE[timetable.serviceType]}`;
 
       trips.push({
         code,
