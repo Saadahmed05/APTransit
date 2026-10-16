@@ -68,7 +68,7 @@ function PassTypesInner() {
       ) : list.data.length === 0 ? (
         <EmptyState icon={Ticket} headingLevel="h2" title={t("empty")} />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-default">
+        <div className="relative max-w-full overflow-x-auto rounded-lg border border-default">
           <table className="w-full text-left text-small">
             <caption className="sr-only">{t("title")}</caption>
             <thead className="bg-surface-sunken text-muted">

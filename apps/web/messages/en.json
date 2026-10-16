@@ -1238,6 +1238,8 @@
     "stopsTitle": "Stops",
     "stopsDesc": "Bus stands, boarding and dropping points across the network.",
     "timetablesTitle": "Timetables",
+    "timetables": "Timetables",
+    "departure": "Departure",
     "timetablesDesc": "Scheduled departures, operating days, and trip generation.",
     "usersTitle": "Users and roles",
     "usersDesc": "Manage user accounts, roles, and administrative scopes.",

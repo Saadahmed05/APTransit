@@ -49,6 +49,7 @@ test("E2E-8 scanner reasons, duplicate debounce and manual live code", async ({
           pending: Math.max(0, 10 - requests.length),
         },
       };
+    else if (path.endsWith("/alighting")) body = { nextStop: null, onBoard: 0, stops: [] };
     else if (path.endsWith("/tickets/validate")) {
       requests.push(route.request().postDataJSON());
       body = result;
@@ -168,6 +169,8 @@ test("E2E-8 scanner reasons, duplicate debounce and manual live code", async ({
       type: "PASS",
     },
   };
+  // Manual entry stays open after a check and ignores QR scans, so go back to the camera
+  await page.getByRole("button", { name: "Use camera" }).click();
   await inject("fixture-child-card");
   await expect(page.getByRole("status").filter({ hasText: "VALID" })).toBeVisible();
   await expect(page.getByText("Anu", { exact: true })).toBeVisible();

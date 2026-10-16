@@ -46,8 +46,11 @@ test.describe("v3 Phase 3: map home and search", () => {
       timeout: 10_000,
     });
 
-    await context.clearPermissions();
-    await context.setGeolocation(null);
+    // Headless Chromium leaves a prompt pending forever, so answer "denied" the way a blocked browser does
+    await page.addInitScript(() => {
+      navigator.geolocation.getCurrentPosition = (_ok, fail) =>
+        fail?.({ code: 1, message: "denied", PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 });
+    });
     await page.reload();
     await page.getByRole("button", { name: "Use my location", exact: true }).click();
     await expect(

@@ -143,7 +143,7 @@ export default function UsersClient() {
           {u.roles.map((r) => (
             <span
               key={r.id}
-              className="rounded-sm bg-primary/10 px-2 py-0.5 text-small font-semibold text-primary"
+              className="rounded-sm bg-primary-soft px-2 py-0.5 text-small font-semibold text-fg"
             >
               {r.role}
             </span>
