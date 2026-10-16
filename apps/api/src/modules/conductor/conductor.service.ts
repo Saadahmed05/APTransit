@@ -10,6 +10,7 @@ import { Injectable } from "@nestjs/common";
 import { AppError } from "../../common/errors/app-error";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { START_WINDOW_MINUTES } from "../driver/driver.service";
 import { readLive } from "../tracking/live-state";
 import { toTripDto } from "../tracking/trip-context.service";
 import { alightingPlan, nextStopSeqOf } from "./alighting";
@@ -39,7 +40,13 @@ export class ConductorService {
       },
       orderBy: { trip: { scheduledDepartureAt: "asc" } },
     });
-    return rows.find((a) => a.trip.status === "RUNNING") ?? rows[0] ?? null;
+    if (tripId) return rows[0] ?? null;
+    // Same pick as the driver: the running trip, else the next one not more than 60 min late to start
+    return (
+      rows.find((a) => a.trip.status === "RUNNING") ??
+      rows.find((a) => a.trip.scheduledDepartureAt.getTime() + START_WINDOW_MINUTES * 60_000 >= now.getTime()) ??
+      null
+    );
   }
 
   async current(userId: string, tripId: string, now = new Date()) {
