@@ -861,3 +861,18 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 - Locked docs 06, 07 and 11 require the other dev's agreement before a separate docs change.
 - Google OAuth, real map tiles, QR phone testing, native Telugu and screen reader review remain human tasks.
 
+
+## Kurnool spots handover, 2026-10-16
+
+**Done**
+
+- Added `prompts/next/README.md`, the single task list for the remaining work, and a trigger section in `AGENTS.md` so a dev can say "I am Mukheeth, complete the work".
+- Updated the handoff with a start here block.
+
+**Checks**
+
+- `pnpm check:dashes`, `pnpm i18n:check`, `pnpm lint`, `pnpm typecheck` and `pnpm test` passed.
+
+**Open**
+
+- Seeded E2E run, missing E2E specs, docs proposal and the human tasks, all listed in `prompts/next/README.md`.

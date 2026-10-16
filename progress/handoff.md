@@ -14,6 +14,10 @@ Read order for a new session:
 
 ---
 
+## START HERE: open work (2026-10-16)
+
+Open work is listed in `prompts/next/README.md`. Tell your agent: "I am Mukheeth (or Saad), complete the work" and it follows the trigger section in `AGENTS.md`. Branch `a/kurnool-spots` holds D-044, D-046 and the 45 Kurnool spots. On 2026-10-16 lint, typecheck, i18n, dashes and unit tests passed; the seeded E2E suite was not run.
+
 ## Current state (Kurnool spots, map view and staff portals, 2026-10-15)
 
 Branch `a/kurnool-spots` (from upstream main after D-046). 45 Kurnool spots are stops (OpenStreetMap positions; Telugu names need a native review) with city lines `KCM-01`, `KCC-01`, `KHL-01`, `KCL-01`, `KOT-01`. The map picker starts at street level on Kurnool (`center` and `zoom` in `map-picker.tsx`) and frames only A and B once they are set (`connect` and `fitKey` in `map-view.tsx`). The sign in page links to the staff portals (driver, conductor, depot, government, admin); `e2e/staff-portals.spec.ts` checks driver and conductor sign in.

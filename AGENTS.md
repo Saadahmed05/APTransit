@@ -54,6 +54,16 @@ progress/         daily log + decisions log
 12. **Check the installed framework docs, not memory.** Next.js 16 ships its own guides in `apps/web/node_modules/next/dist/docs/`. APIs may differ from what an AI tool learned. Read the relevant guide before using a Next.js API you are unsure about.
 13. **No secrets in code or logs.** Use `.env` (never committed). Never log OTPs, tokens, payment signatures or full phone numbers outside dev mode.
 
+## Trigger phrase: "I am Mukheeth, complete the work"
+
+If the human says they are Mukheeth (GitHub `syedmukheeth`, Dev B, backend and reviewer) or Saad (`Saadahmed05`, Dev A, frontend) and asks you to complete, continue or finish the work, do this without asking for more instructions:
+
+1. Read this file, then `progress/handoff.md` fully, then `prompts/next/README.md`.
+2. `git fetch --all`, branch from the latest `main` (or from `a/kurnool-spots` if its PR is not merged yet), named `a/<short-name>` or `b/<short-name>` for the dev who is speaking.
+3. Do every item under "Agent tasks" in `prompts/next/README.md`, in order, one commit per logical step. Tick each item in that file as it is done and fix real failures instead of skipping tests.
+4. Do not edit locked docs, do not invent business rules, do not add dependencies. Items under "Human tasks" are not yours: list them in your final message.
+5. Finish with the Definition of done, update `progress/handoff.md` and `progress/daily-log.md`, push and open a PR to upstream `main`. Ownership in the table above still decides who reviews.
+
 ## Commits and pull requests
 
 - Title only by default. Imperative mood, under 60 characters, no trailing period. Example: `Add seat hold with Redis TTL`.
