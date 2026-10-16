@@ -305,6 +305,13 @@
     "REFUNDED": "Refunded",
     "CANCELLED": "Cancelled"
   },
+  "busCategory": {
+    "LOCAL": "Local",
+    "EXPRESS": "Express",
+    "SUPER_EXPRESS": "Super Express",
+    "LUXURY": "Luxury",
+    "SUPER_LUXURY": "Super Luxury"
+  },
   "serviceType": {
     "PALLEVELUGU": "Pallevelugu",
     "ULTRA_PALLEVELUGU": "Ultra Pallevelugu",

@@ -19,6 +19,7 @@ import {
   Skeleton,
   ServiceTypeIcon,
   StatusBadge,
+  busCategoryOf,
 } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -311,6 +312,9 @@ export function RouteTimetableClient({
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <ServiceTypeIcon serviceType={trip.serviceType} />
+                          <span className="rounded-full border border-default px-2 py-0.5 text-caption font-semibold uppercase text-fg">
+                            {t(`busCategory.${busCategoryOf(trip.serviceType)}`)}
+                          </span>
                           <span className="text-small font-medium text-fg">
                             {serviceName}
                           </span>

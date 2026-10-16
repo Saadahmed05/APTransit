@@ -305,6 +305,13 @@
     "REFUNDED": "రీఫండ్ అయింది",
     "CANCELLED": "రద్దయింది"
   },
+  "busCategory": {
+    "LOCAL": "లోకల్",
+    "EXPRESS": "ఎక్స్‌ప్రెస్",
+    "SUPER_EXPRESS": "సూపర్ ఎక్స్‌ప్రెస్",
+    "LUXURY": "లగ్జరీ",
+    "SUPER_LUXURY": "సూపర్ లగ్జరీ"
+  },
   "serviceType": {
     "PALLEVELUGU": "పల్లెవెలుగు",
     "ULTRA_PALLEVELUGU": "అల్ట్రా పల్లెవెలుగు",

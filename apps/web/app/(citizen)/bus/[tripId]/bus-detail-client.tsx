@@ -18,6 +18,7 @@ import {
   Skeleton,
   ServiceTypeIcon,
   StatusBadge,
+  busCategoryOf,
 } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -198,6 +199,9 @@ export function BusDetailClient({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <ServiceTypeIcon serviceType={trip.busType.serviceType} className="size-9" />
+              <span className="rounded-full border border-default px-2 py-0.5 text-caption font-semibold uppercase text-fg">
+                {t(`busCategory.${busCategoryOf(trip.busType.serviceType)}`)}
+              </span>
               <span className="text-h2 font-bold text-fg">
                 {serviceName}
               </span>
