@@ -14,7 +14,6 @@ test.describe("D-048 map first home", () => {
     await expect(page.getByTestId("map-field-from")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Search buses", exact: true })).toBeVisible();
 
-    await page.getByText("Stops near you (list)", { exact: true }).click();
     await page.getByRole("button", { name: "From Kurnool Bus Stand", exact: true }).click();
     await page.getByRole("button", { name: "To Jyothi Mall", exact: true }).click();
     await page.getByRole("button", { name: "Save this route", exact: true }).click();

@@ -43,10 +43,10 @@ export function MapPicker({
   const [locateError, setLocateError] = useState<string | null>(null);
   const point = centre ?? START_CENTRE;
   const stops = useQuery({
-    queryKey: ["places", "nearby", point.lat, point.lng, centre ? 30 : 50],
+    queryKey: ["places", "nearby", point.lat, point.lng, centre ? 30 : 200],
     queryFn: () =>
       api("/places/nearby", {
-        query: { lat: point.lat, lng: point.lng, limit: centre ? 30 : 50 },
+        query: { lat: point.lat, lng: point.lng, limit: centre ? 30 : 200 },
         schema: PlacesNearbyResponse,
         redirectOn401: false,
       }),
@@ -101,6 +101,34 @@ export function MapPicker({
     tone:
       s.id === from?.id ? ("from" as const) : s.id === to?.id ? ("to" as const) : ("stop" as const),
   }));
+
+  const districtOf = (s: NearbyPlaceDto) => (locale === "te" ? s.districtNameTe : s.districtNameEn);
+  const homeDistrict = list[0] ? districtOf(list[0]) : null;
+  const homeStops = list.filter((s) => districtOf(s) === homeDistrict);
+  const otherStops = list.filter((s) => districtOf(s) !== homeDistrict);
+
+  const stopRows = (rows: NearbyPlaceDto[]) => (
+    <ul className="flex flex-col divide-y divide-hairline">
+      {rows.map((s) => (
+        <li key={s.id} className="flex items-center justify-between gap-2 px-4 py-2">
+          <span className="min-w-0 text-body text-fg">
+            {name(s)}
+            <span className="block text-small text-muted">
+              {centre || districtOf(s) === homeDistrict ? t("distance", { km: s.distanceKm }) : districtOf(s)}
+            </span>
+          </span>
+          <span className="flex shrink-0 gap-1">
+            <Button variant="ghost" aria-label={t("fromStop", { stop: name(s) })} onClick={() => choose(s, "from")}>
+              {t("from")}
+            </Button>
+            <Button variant="ghost" aria-label={t("toStop", { stop: name(s) })} onClick={() => choose(s, "to")}>
+              {t("to")}
+            </Button>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <section aria-labelledby="map-picker-title" className="flex flex-col">
@@ -158,10 +186,11 @@ export function MapPicker({
 
       {sheet}
 
-      <details className="mt-3 rounded-lg border border-default bg-surface-raised">
-        <summary className="cursor-pointer list-none p-4 text-body font-medium text-fg">
-          {t("listTitle")}
-        </summary>
+      {/* Always open: the city's own stops first (Kurnool on first load), then other cities */}
+      <section aria-labelledby="stop-list-title" className="mt-3 rounded-lg border border-default bg-surface-raised">
+        <h3 id="stop-list-title" className="p-4 pb-2 text-body font-medium text-fg">
+          {homeDistrict ? t("stopsIn", { place: homeDistrict }) : t("listTitle")}
+        </h3>
         {stops.isPending ? (
           <div className="flex flex-col gap-2 p-4 pt-0">
             <Skeleton className="h-11 w-full" />
@@ -170,40 +199,19 @@ export function MapPicker({
         ) : list.length === 0 ? (
           <p className="p-4 pt-0 text-body text-muted">{t("empty")}</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-hairline">
-            {list.slice(0, 50).map((s) => (
-              <li key={s.id} className="flex items-center justify-between gap-2 px-4 py-2">
-                <span className="min-w-0 text-body text-fg">
-                  {name(s)}
-                  <span className="block text-small text-muted">
-                    {centre
-                      ? t("distance", { km: s.distanceKm })
-                      : locale === "te"
-                        ? s.districtNameTe
-                        : s.districtNameEn}
-                  </span>
-                </span>
-                <span className="flex shrink-0 gap-1">
-                  <Button
-                    variant="ghost"
-                    aria-label={t("fromStop", { stop: name(s) })}
-                    onClick={() => choose(s, "from")}
-                  >
-                    {t("from")}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    aria-label={t("toStop", { stop: name(s) })}
-                    onClick={() => choose(s, "to")}
-                  >
-                    {t("to")}
-                  </Button>
-                </span>
-              </li>
-            ))}
-          </ul>
+          <div className="max-h-96 overflow-y-auto">
+            {stopRows(homeStops)}
+            {otherStops.length > 0 && (
+              <>
+                <h3 className="border-t border-default px-4 pb-2 pt-4 text-body font-medium text-fg">
+                  {t("otherCities")}
+                </h3>
+                {stopRows(otherStops)}
+              </>
+            )}
+          </div>
         )}
-      </details>
+      </section>
     </section>
   );
 }

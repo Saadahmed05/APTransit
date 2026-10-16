@@ -12,9 +12,8 @@ test.describe("v3 Phase 3: map home and search", () => {
     await login(page, uniqueEmail("v3-map"));
     await page.goto("/");
 
-    await page.getByText("Stops near you (list)", { exact: true }).click();
     await page.getByRole("button", { name: "From Kurnool Bus Stand", exact: true }).click();
-    // The nearby list shows the 50 stops closest to Kurnool, so a village is picked by typing
+    // The stop list shows Kurnool stops first, then other cities; a village is picked by typing
     await page.getByRole("combobox", { name: /^To$/ }).fill("Orvakal");
     await page.getByRole("option", { name: /Orvakal/ }).first().click();
 
