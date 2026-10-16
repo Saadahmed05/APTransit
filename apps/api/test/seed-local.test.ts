@@ -32,13 +32,31 @@ describe("local services in the seed (D-046)", () => {
   });
 
   it("puts every Kurnool spot on a city line with a Telugu name and a unique code", () => {
-    const cityLines = ROUTE_DEFS.filter((r) => ["KCM-01", "KCC-01", "KHL-01", "KCL-01", "KOT-01", "KSA-01", "KSB-01", "KSC-01", "KSD-01", "KSE-01", "KSF-01", "KSG-01", "KSH-01", "KSI-01"].includes(r.code));
+    const cityLines = ROUTE_DEFS.filter((r) => ["KCM-01", "KCC-01", "KHL-01", "KCL-01", "KOT-01", "KSA-01", "KSB-01", "KSC-01", "KSD-01", "KSE-01", "KSF-01", "KSG-01", "KSH-01", "KSI-01", "KSJ-01", "KSL-01"].includes(r.code));
     const onLine = new Set(cityLines.flatMap((r) => r.stops.map((s) => s.stopCode)));
     const spots = STOPS.filter((s) => s.districtCode === "KNL" && s.lat > 15.77 && s.lat < 15.88 && s.lng > 77.98 && s.lng < 78.1);
     expect(new Set(spots.map((s) => s.code)).size).toBe(spots.length);
     expect(new Set(spots.map((s) => s.nameEn)).size).toBe(spots.length);
     for (const s of spots) expect(s.nameTe, s.code).toMatch(/[ఀ-౿]/);
     expect(spots.filter((s) => !onLine.has(s.code)).map((s) => `${s.code} ${s.nameEn}`)).toEqual([]);
+  });
+
+  it("runs a local bus from City Square Mall to every college, and city stops on the way to Orvakal", () => {
+    const direct = (from: string, to: string) =>
+      ROUTE_DEFS.some((r) => {
+        const i = r.stops.findIndex((s) => s.stopCode === from);
+        const j = r.stops.findIndex((s) => s.stopCode === to);
+        // the reverse route runs the same stops the other way
+        return i >= 0 && j >= 0 && i !== j && TIMETABLE_DEFS.some((t) => t.routeCode === (i < j ? r.code : r.reverseCode));
+      });
+    for (const college of ["GPR", "GPC", "RCW", "RUV", "KMC", "OSU", "COL", "STB", "SJC", "NJC", "SJU"]) {
+      expect(direct("CSM", college), `CSM to ${college}`).toBe(true);
+      expect(direct(college, "CSM"), `${college} to CSM`).toBe(true);
+    }
+    const orvakal = ROUTE_DEFS.find((r) => r.code === "KSJ-01")!;
+    expect(orvakal.stops[0]!.stopCode).toBe("KNL");
+    expect(orvakal.stops.at(-1)!.stopCode).toBe("ORV");
+    expect(orvakal.stops.length).toBeGreaterThanOrEqual(10);
   });
 
   it("links nearby towns to Kurnool and Nandyal with local buses", () => {
@@ -107,7 +125,7 @@ describe("hourly services (D-048)", () => {
   });
 
   it("runs every Kurnool Local line every 15 min, 05:00 to 23:00", () => {
-    for (const code of ["KCM-01", "KCC-01", "KHL-01", "KCL-01", "KOT-01", "KSA-01", "KSB-01", "KSC-01", "KSD-01", "KSE-01", "KSF-01", "KSG-01", "KSH-01", "KSI-01"]) {
+    for (const code of ["KCM-01", "KCC-01", "KHL-01", "KCL-01", "KOT-01", "KSA-01", "KSB-01", "KSC-01", "KSD-01", "KSE-01", "KSF-01", "KSG-01", "KSH-01", "KSI-01", "KSJ-01", "KSL-01"]) {
       const times = departuresOf(code).map((t) => minutesOf(t.departureLocal));
       expect(times[0], code).toBe(minutesOf("05:00"));
       expect(times.at(-1), code).toBeGreaterThanOrEqual(minutesOf("23:00") - 30);

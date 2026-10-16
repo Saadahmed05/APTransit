@@ -635,6 +635,23 @@ export async function runSeed(): Promise<void> {
       update: { userId: pendingDriver.id },
     });
   }
+  // Approved simulator phones for five more Kurnool drivers (`pnpm simulate --fleet`)
+  for (let n = 3; n <= 7; n++) {
+    const fleetDriver = await prisma.user.findUnique({ where: { email: `driver${n}.knl@aptransit.test` } });
+    if (!fleetDriver) continue;
+    const keyHash = hashKey(`sim_driver_key_kurnool_0${n}`);
+    await prisma.device.upsert({
+      where: { deviceKeyHash: keyHash },
+      create: {
+        userId: fleetDriver.id,
+        label: `Simulator Device ${n}`,
+        deviceKeyHash: keyHash,
+        approvedAt: new Date("2026-09-01T00:00:00.000Z"),
+        approvedById: userMap.get("manager.knl@aptransit.test"),
+      },
+      update: { userId: fleetDriver.id },
+    });
+  }
   console.log(`Crew seeded: ${CREW.length} more drivers and conductors.`);
 
   // 11. Buses per depot (fictional AP 39 Z registrations)

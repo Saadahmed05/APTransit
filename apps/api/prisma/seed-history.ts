@@ -124,7 +124,8 @@ export function loadFactor(rng: Rng, routeCode: string, istHour: number, weekday
 export function delayFor(rng: Rng, routeCode: string, istHour: number): number {
   const peakRoute = routeCode.startsWith("KNL-VJA") || routeCode.startsWith("VJA-GNT");
   if (peakRoute && istHour >= 17 && istHour <= 20) return int(rng, 10, 30);
-  return int(rng, 0, 10);
+  // Mostly under the 5 min on time line, so on time sits near 80 percent like a well run depot
+  return rng() < 0.82 ? int(rng, 0, 4) : int(rng, 5, 10);
 }
 
 export const FIRST_NAMES = ["Ravi", "Lakshmi", "Suresh", "Padma", "Kiran", "Sravani", "Mahesh", "Anitha", "Naveen", "Swathi"];
@@ -402,8 +403,28 @@ export async function generateHistory(prisma: PrismaClient, days = 14, now = new
   const refunds: Prisma.RefundCreateManyInput[] = [];
   const scans: Prisma.TicketScanCreateManyInput[] = [];
   let paymentNo = 0;
+  // Written in batches: every bus every hour is about 8,000 trips a day, too many tickets to hold at once
+  const totals = { bookings: 0, tickets: 0, payments: 0, refunds: 0, scans: 0 };
+  const usedSample: Prisma.TicketCreateManyInput[] = [];
+  const flush = async () => {
+    await bulkInsert(prisma, "bookings", bookings, { status: '"BookingStatus"', totalPaise: "int4", holdExpiresAt: "timestamp" }, true);
+    await bulkInsert(prisma, "booking_passengers", passengers, { age: "int4", gender: '"Gender"', category: '"PassengerCategory"' }, false);
+    await bulkInsert(prisma, "payments", payments, PAYMENT_TYPES, true);
+    await bulkInsert(prisma, "tickets", tickets, { type: '"TicketType"', status: '"TicketStatus"', farePaise: "int4", activatedAt: "timestamp", validUntil: "timestamp", scannedAt: "timestamp", usedAt: "timestamp", expiresAt: "timestamp", giftable: "bool" }, true);
+    await bulkInsert(prisma, "refunds", refunds, { amountPaise: "int4", status: '"RefundStatus"', processedAt: "timestamp" }, true);
+    await bulkInsert(prisma, "ticket_scans", scans, { result: '"ScanResult"', reason: '"ScanReason"', scannedAt: "timestamp" }, false);
+    totals.bookings += bookings.length;
+    totals.tickets += tickets.length;
+    totals.payments += payments.length;
+    totals.refunds += refunds.length;
+    totals.scans += scans.length;
+    // Every 50th used paid ticket is kept for the complaints below
+    tickets.filter((x) => x.status === "USED" && x.type === "SINGLE").forEach((x, i) => i % 50 === 0 && usedSample.push(x));
+    for (const list of [bookings, passengers, payments, tickets, refunds, scans] as unknown[][]) list.length = 0;
+  };
 
   for (const t of trips) {
+    if (tickets.length >= 30_000) await flush();
     const route = routeById.get(t.routeId)!;
     const busType = busTypeById.get(t.busTypeId)!;
     const rule = busType.fareRules.find((r) => r.validFrom <= t.scheduledDepartureAt) ?? busType.fareRules.at(-1);
@@ -530,14 +551,8 @@ export async function generateHistory(prisma: PrismaClient, days = 14, now = new
     }
   }
 
-  step("tickets built in memory");
-  await bulkInsert(prisma, "bookings", bookings, { status: '"BookingStatus"', totalPaise: "int4", holdExpiresAt: "timestamp" }, true);
-  await bulkInsert(prisma, "booking_passengers", passengers, { age: "int4", gender: '"Gender"', category: '"PassengerCategory"' }, false);
-  await bulkInsert(prisma, "payments", payments, PAYMENT_TYPES, true);
-  step("bookings, passengers, payments inserted");
-  await bulkInsert(prisma, "tickets", tickets, { type: '"TicketType"', status: '"TicketStatus"', farePaise: "int4", activatedAt: "timestamp", validUntil: "timestamp", scannedAt: "timestamp", usedAt: "timestamp", expiresAt: "timestamp", giftable: "bool" }, true);
-  await bulkInsert(prisma, "refunds", refunds, { amountPaise: "int4", status: '"RefundStatus"', processedAt: "timestamp" }, true);
-  console.log(`Bookings: ${bookings.length}, tickets: ${tickets.length}, payments: ${payments.length}, refunds: ${refunds.length}`);
+  await flush();
+  console.log(`Bookings: ${totals.bookings}, tickets: ${totals.tickets}, payments: ${totals.payments}, refunds: ${totals.refunds}`);
 
   step("tickets and refunds inserted");
   // 7. Passes: 30 weekly and 20 monthly active (paid), 60 free travel (Stree Shakti, checked eligible).
@@ -636,14 +651,14 @@ export async function generateHistory(prisma: PrismaClient, days = 14, now = new
       passScans.push({ id: newId(), passId: p.id!, tripId: t.id, conductorId: t.conductorId, result: "VALID", reason: "OK", scannedAt: at, createdAt: at });
     }
   }
-  await bulkInsert(prisma, "ticket_scans", [...scans, ...passScans], { result: '"ScanResult"', reason: '"ScanReason"', scannedAt: "timestamp" }, false);
-  console.log(`Passes: ${passRows.length}, ticket scans: ${scans.length}, pass scans: ${passScans.length}`);
+  await bulkInsert(prisma, "ticket_scans", passScans, { result: '"ScanResult"', reason: '"ScanReason"', scannedAt: "timestamp" }, false);
+  console.log(`Passes: ${passRows.length}, ticket scans: ${totals.scans}, pass scans: ${passScans.length}`);
 
   step("passes and scans inserted");
   // 8. 25 complaints from real trips, across categories and statuses
   const categories = ["DELAY", "CLEANLINESS", "STAFF", "TICKET", "SAFETY", "OVERCROWDING", "OTHER"] as const;
   const statuses = ["RECEIVED", "IN_REVIEW", "RESOLVED", "CLOSED"] as const;
-  const usedTickets = tickets.filter((t) => t.status === "USED" && t.type === "SINGLE");
+  const usedTickets = usedSample;
   const tripById = new Map(trips.map((t) => [t.id, t]));
   const busRegById = new Map(buses.map((b) => [b.id, b.regNo]));
   const complaints: Prisma.ComplaintCreateManyInput[] = [];

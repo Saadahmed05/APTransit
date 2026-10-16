@@ -942,3 +942,11 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 
 - Live bus positions on the maps still come from `pnpm simulate` (not faked).
 - Native Telugu review of the 40 new stop names; Dev B review of D-050 and the docs/19 text.
+
+### Addendum, 2026-10-17 (owner round 2)
+
+- City Square Mall to G Pulla Reddy and every other college is now one local bus both ways (Kurnool Local O and P, test in `seed-local.test.ts`); Bus Stand to Orvakal runs through 14 city stops.
+- Fixed: history seed ran out of memory (now batched); off peak delays skewed so on time is near 80 percent.
+- Fleet: five more Kurnool crews with simulator phones, `pnpm simulate --fleet`.
+- Before the presentation: merge, run the Seed demo database action on the day (14 days of history, today on), then `pnpm simulate --fleet --api <deployed api>` during the demo.
+

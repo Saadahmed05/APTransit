@@ -28,6 +28,7 @@ jobs:
       DIRECT_URL: ${{ secrets.DEMO_DIRECT_URL }}
       QR_SECRET_KEY: ${{ secrets.DEMO_QR_SECRET_KEY }}
       HISTORY_DAYS: ${{ inputs.history_days }}
+      NODE_OPTIONS: --max-old-space-size=4096
       TODAY_FLAG: ${{ inputs.today_sample && '--today' || '' }}
     steps:
       - uses: actions/checkout@v4

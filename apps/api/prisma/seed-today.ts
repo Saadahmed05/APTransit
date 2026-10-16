@@ -302,6 +302,9 @@ export async function generateToday(prisma: PrismaClient, now = new Date()): Pro
     return ticketId;
   };
 
+  const routeCodeOf = (t: (typeof trips)[number]) => routeById.get(t.routeId)!.code;
+  const knlDepotId = routes.find((r) => r.depot.code === "D-KNL")?.depotId;
+
   // 5. Trips that already arrived today: completed, with crew, passengers and scans
   const done = trips.filter((t) => t.status === "SCHEDULED" && t.scheduledArrivalAt <= now);
   const completed: { id: string; delay: number; seq: number }[] = [];
@@ -373,6 +376,46 @@ export async function generateToday(prisma: PrismaClient, now = new Date()): Pro
   }
   console.log(`Demo crew: ${upcoming.length} next trips, ${waiting} passengers waiting`);
 
+  // 7. Five more Kurnool crews run city lines for the rest of today, so `pnpm simulate --fleet`
+  // fills the live maps. Each crew rotates over three buses the demo crew does not use.
+  const FLEET: [string, string, string[]][] = [
+    ["EMP-DRV-003", "EMP-CON-003", ["KSJ-01", "JSK-02"]],
+    ["EMP-DRV-004", "EMP-CON-004", ["KSL-01", "LSK-02"]],
+    ["EMP-DRV-005", "EMP-CON-005", ["KCC-01", "CCK-02"]],
+    ["EMP-DRV-006", "EMP-CON-006", ["KSE-01", "ESK-02"]],
+    ["EMP-DRV-007", "EMP-CON-007", ["KSF-01", "FSK-02"]],
+  ];
+  const autoAssign = await prisma.setting.findUnique({ where: { key: "trips.autoAssign" } });
+  const demoBuses = new Set(((autoAssign?.value as { busRegNos?: string[] } | null)?.busRegNos ?? []));
+  const fleetPool = buses.filter((b) => b.depotId === knlDepotId && !demoBuses.has(b.regNo));
+  let fleetTrips = 0;
+  for (const [index, [driverCode, conductorCode, codes]] of FLEET.entries()) {
+    const driver = drivers.find((d) => d.employeeCode === driverCode);
+    const conductor = conductors.find((c) => c.employeeCode === conductorCode);
+    const own = fleetPool.slice(index * 3, index * 3 + 3);
+    if (!driver || !conductor || !own.length) continue;
+    const lineTrips = trips.filter(
+      (t) =>
+        codes.includes(routeCodeOf(t)) &&
+        t.status === "SCHEDULED" &&
+        !t.assignments.length &&
+        !completedTrip.has(t.id) &&
+        t.scheduledDepartureAt.getTime() + START_WINDOW_MINUTES * MIN >= now.getTime(),
+    );
+    for (const [i, t] of lineTrips.entries()) {
+      assignments.push({ id: newId(), tripId: t.id, busId: own[i % own.length]!.id, driverId: driver.id, conductorId: conductor.id, reason: "INITIAL", assignedById: manager.id, startedAt: t.scheduledDepartureAt, createdAt: new Date(dayStart.getTime() - 2 * HOUR) });
+      fleetTrips++;
+      // A few passengers on the trips of the next two hours
+      if (t.scheduledDepartureAt.getTime() > now.getTime() + 2 * HOUR) continue;
+      const stops = routeById.get(t.routeId)!.routeStops;
+      for (let seat = 1; seat <= int(rng, 4, 9); seat++) {
+        const board = int(rng, 0, stops.length - 2);
+        book(t, pick(rng, riders), String(seat), board, int(rng, board + 1, stops.length - 1), null);
+      }
+    }
+  }
+  console.log(`Fleet: ${fleetTrips} trips on Kurnool Local O, P, B, J and K for five more crews`);
+
   // 7. Write the passengers, then the incidents, complaints and audit events
   await freeCodes(prisma, "bookings", bookings, generateBookingCode);
   await freeCodes(prisma, "tickets", tickets, generateTicketCode);
@@ -410,7 +453,6 @@ export async function generateToday(prisma: PrismaClient, now = new Date()): Pro
   }
   console.log(`Completed today so far: ${completed.length} trips`);
 
-  const routeCodeOf = (t: (typeof trips)[number]) => routeById.get(t.routeId)!.code;
   const lastDone = (code: string) => done.filter((t) => routeCodeOf(t) === code).at(-1);
   const stopAt = (t: (typeof trips)[number], minutes: number) => {
     const stops = routeById.get(t.routeId)!.routeStops;
