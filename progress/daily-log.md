@@ -876,3 +876,21 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 **Open**
 
 - Seeded E2E run, missing E2E specs, docs proposal and the human tasks, all listed in `prompts/next/README.md`.
+
+
+## Finish Kurnool round, 2026-10-16
+
+**Done**
+
+- Task 1: PR #15 is merged into upstream main (all three branches included). Nothing left to merge.
+- Task 5: every Kurnool spot has a unique code and name, a Telugu name and a city line (`apps/api/test/seed-local.test.ts`).
+- Task 6: D-047 lists the exact edits to locked docs 05, 06, 07, 11, 18 and 19. No doc was edited.
+
+**Checks**
+
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm i18n:check` and `pnpm check:dashes` passed.
+
+**Not done**
+
+- Seeded E2E run (tasks 2 to 4): no database or Redis in the cloud session. New specs for the conductor child scan and a senior in a group booking were not written because they could not be run.
+- Human tasks in `prompts/next/README.md`.

@@ -406,6 +406,19 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
   - The conductor "who gets down" feature already exists (D-044) and refreshes after every scan; local tickets feed it like any other.
 - **Status:** Built and tested locally. Owner to confirm the **(A)** values (senior percent, 130 km, reservation fee on seatless tickets). Needs the other dev review (shared contract change).
 
+### D-047: Proposed edits to locked docs for D-044 and D-046
+- **Date:** 2026-10-16
+- **Raised by:** Dev B (Mukheeth), from `prompts/next/README.md` task 6
+- **Docs affected:** 05, 06, 07, 11, 18, 19. **Nothing is edited yet.** The other dev must agree and the decision be logged as Accepted before any doc changes.
+- **Proposed text:**
+  - **docs/05 (data model), `booking_passengers`:** change `name, age, gender (F, M, X), seatNo` to say that on a seatless trip `seatNo` holds an internal label (`L1`, `L2`, ...) that is never shown to users, and `name` is derived from the account (`Name`, `Name +1`). Seatless capacity is capped by the bus type seat count. `tickets.seatNo` stays nullable and is hidden from the citizen view when the trip is seatless (`visibleSeat`).
+  - **docs/06 (API contract):** `POST /bookings` passengers: `{ name?, age, gender?, seatNo? }`. Name, gender and seat are required only when the trip is not seatless (`CreateBookingPassengerInput`); a seatless booking sends ages only. `GET /trips/:id/fare` response gains `seatless: boolean` and an adult, child and senior breakdown (`groupFare`). `GET /conductor/trips/:id/alighting` (D-044) is added to the conductor table.
+  - **docs/07 (rules), section 4 and 7a:** add the seatless rule (Pallevelugu, Ultra Pallevelugu and City Ordinary, plus any trip of 50 km or less, are never booked by seat; reserved long trips still pick seats). Add the senior category: age 60 and over, **(A)** 50 percent of the adult base fare, next to the child rule (under 12, 50 percent). Add the local route limit **(A)** 130 km and that the reservation fee **(A)** is still charged on seatless tickets. Section 7c (D-044) already covers bus classes; keep it as is.
+  - **docs/11 (screens):** the book screens gain a seatless variant: pickup and drop from the map picker, passenger ages only, no seat map, ticket without a seat line. The map picker home screen documents Pickup and Drop rows, a tap on a stop sets the active field, a dashed A to B line, name pills, 44 px tap areas, first view centred on Kurnool. The sign in screen lists links to the staff portals (driver, conductor, depot, government, admin).
+  - **docs/18 (open decisions):** add the **(A)** values to the "v3 values to confirm" table: senior percent (50), seatless limit (50 km), local route limit (130 km), reservation fee on seatless tickets (charged).
+  - **docs/19 (seed data):** add the 45 Kurnool spots as stops (OpenStreetMap positions, Telugu names pending native review), city lines `KCM-01`, `KCC-01`, `KHL-01`, `KCL-01`, `KOT-01`, and the local routes Adoni, Atmakur (via Nandikotkur) and Dhone to Nandyal (via Banaganapalle). Note that the 150 km Anantapur run now uses Ultra Deluxe and Express.
+- **Status:** Proposed. Waiting for Dev A to agree. The owner still has to confirm the **(A)** values.
+
 ## Parked (ideas outside the 20 day scope)
 
 | Idea | Raised by | Plan sec |
