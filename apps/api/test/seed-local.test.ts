@@ -31,6 +31,16 @@ describe("local services in the seed (D-046)", () => {
     expect(spots.length).toBeGreaterThanOrEqual(40);
   });
 
+  it("puts every Kurnool spot on a city line with a Telugu name and a unique code", () => {
+    const cityLines = ROUTE_DEFS.filter((r) => ["KCM-01", "KCC-01", "KHL-01", "KCL-01", "KOT-01"].includes(r.code));
+    const onLine = new Set(cityLines.flatMap((r) => r.stops.map((s) => s.stopCode)));
+    const spots = STOPS.filter((s) => s.districtCode === "KNL" && s.lat > 15.77 && s.lat < 15.88 && s.lng > 77.98 && s.lng < 78.1);
+    expect(new Set(spots.map((s) => s.code)).size).toBe(spots.length);
+    expect(new Set(spots.map((s) => s.nameEn)).size).toBe(spots.length);
+    for (const s of spots) expect(s.nameTe, s.code).toMatch(/[ఀ-౿]/);
+    expect(spots.filter((s) => !onLine.has(s.code)).map((s) => `${s.code} ${s.nameEn}`)).toEqual([]);
+  });
+
   it("links nearby towns to Kurnool and Nandyal with local buses", () => {
     for (const code of ["ADN", "ATK", "BNP"]) expect(STOPS.some((s) => s.code === code)).toBe(true);
     const adoni = TIMETABLE_DEFS.filter((t) => t.routeCode === "KNL-ADN-01");
