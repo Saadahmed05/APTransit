@@ -19,7 +19,8 @@ interface AuthContextValue {
   /** Retry the silent refresh after a network error. */
   retry: () => void;
   login: (result: AuthVerifyResponse) => void;
-  logout: () => Promise<void>;
+  /** Signs out, then opens `to` (default the home page). */
+  logout: (to?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -94,7 +95,7 @@ export function AuthProvider({ hasSession, children }: AuthProviderProps) {
     [queryClient],
   );
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (to = "/") => {
     setLoggingOut(true);
     try {
       await api("/auth/logout", { method: "POST", redirectOn401: false });
@@ -111,7 +112,7 @@ export function AuthProvider({ hasSession, children }: AuthProviderProps) {
       channel.postMessage("logout");
       channel.close();
     }
-    router.replace("/");
+    router.replace(to);
     router.refresh();
   }, [queryClient, router]);
 

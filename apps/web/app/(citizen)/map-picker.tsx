@@ -3,7 +3,7 @@
 import { type NearbyPlaceDto, PlacesNearbyResponse, type PlaceDto } from "@aptransit/shared";
 import { Button, Skeleton } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Circle, LocateFixed, MapPin } from "lucide-react";
+import { LocateFixed } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { type ReactNode, useState } from "react";
@@ -108,7 +108,7 @@ export function MapPicker({
         {t("title")}
       </h2>
 
-      {/* D-048: the map fills the first screen; Pickup and Drop float on it, the search sheet slides over its lower edge */}
+      {/* The map fills the first screen; tapping a bus stop fills From, then To. The search sheet holds both fields */}
       <div className="relative">
         {stops.isError ? (
           <div className="flex h-home-map flex-col items-start justify-end gap-2 rounded-lg border border-default bg-surface-raised p-4">
@@ -137,44 +137,6 @@ export function MapPicker({
             retryLabel={t("retry")}
           />
         )}
-
-        <div className="pointer-events-none absolute inset-x-3 top-3 md:max-w-sm">
-          <div className="pointer-events-auto flex flex-col gap-2 rounded-lg border border-default bg-surface-raised p-2 shadow-md">
-            {(["from", "to"] as const).map((field) => {
-              const place = field === "from" ? from : to;
-              const isActive = active === field;
-              return (
-                <button
-                  key={field}
-                  type="button"
-                  onClick={() => setActive(field)}
-                  aria-pressed={isActive}
-                  data-testid={`map-field-${field}`}
-                  className={`flex min-h-14 items-center gap-3 rounded-md border px-3 text-left ${
-                    isActive ? "border-primary bg-surface" : "border-transparent"
-                  }`}
-                >
-                  {field === "from" ? (
-                    <Circle className="size-5 shrink-0 text-primary" aria-hidden="true" />
-                  ) : (
-                    <MapPin className="size-5 shrink-0 text-status-danger" aria-hidden="true" />
-                  )}
-                  <span className="min-w-0">
-                    <span className="block text-caption text-muted">
-                      {field === "from" ? t("pickup") : t("drop")}
-                    </span>
-                    <span className="block truncate text-body font-medium text-fg">
-                      {place ? name(place) : field === "from" ? t("choosePickup") : t("chooseDrop")}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-            <p className="px-1 text-small text-muted" role="status">
-              {t(active === "from" ? "tapPickup" : "tapDrop")}
-            </p>
-          </div>
-        </div>
 
         <div className="absolute bottom-10 right-3">
           <Button

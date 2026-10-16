@@ -63,6 +63,7 @@ export function RequirePermission({ anyOf, children }: RequirePermissionProps) {
 function PermissionGate({ anyOf, children }: RequirePermissionProps) {
   const t = useTranslations();
   const me = useMe();
+  const { logout } = useAuth();
 
   if (me.isPending) return <PageSkeleton />;
   if (me.isError) {
@@ -85,9 +86,20 @@ function PermissionGate({ anyOf, children }: RequirePermissionProps) {
       title={t("auth.forbidden.title")}
       hint={t("auth.forbidden.hint")}
       action={
-        <Button asChild variant="secondary">
-          <Link href={roleHome(me.data)}>{t("auth.forbidden.home")}</Link>
-        </Button>
+        <div className="flex flex-wrap justify-center gap-2">
+          {/* A citizen account opened a staff portal: sign out and sign in again with the staff email */}
+          <Button
+            onClick={() => {
+              const next = `${window.location.pathname}${window.location.search}`;
+              void logout(`/login?next=${encodeURIComponent(next)}`);
+            }}
+          >
+            {t("auth.forbidden.switch")}
+          </Button>
+          <Button asChild variant="secondary">
+            <Link href={roleHome(me.data)}>{t("auth.forbidden.home")}</Link>
+          </Button>
+        </div>
       }
     />
   );

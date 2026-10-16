@@ -553,12 +553,17 @@ export class AuthService {
     return this.isDevelopment || Boolean(devEcho);
   }
 
-  /** D-048: what a citizen still has to add before the profile is complete. */
+  /**
+   * What a citizen still has to add before the profile is complete: a name. The email or phone
+   * they signed in with is already verified, so nobody is asked for a second contact (adding one
+   * that belongs to another account used to fail with "belongs to another account"). More contacts
+   * stay optional on the account page.
+   */
   private missingFields(user: { name: string | null; email: string | null; phone: string | null; emailVerifiedAt: Date | null; phoneVerifiedAt: Date | null }): ProfileField[] {
     const missing: ProfileField[] = [];
     if (!user.name?.trim()) missing.push("name");
-    if (!user.email || !user.emailVerifiedAt) missing.push("email");
-    if (!user.phone || (this.phoneCodesWork && !user.phoneVerifiedAt)) missing.push("phone");
+    const hasContact = Boolean(user.email && user.emailVerifiedAt) || Boolean(user.phone && (user.phoneVerifiedAt || !this.phoneCodesWork));
+    if (!hasContact) missing.push("email");
     return missing;
   }
 
