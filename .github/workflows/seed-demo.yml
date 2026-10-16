@@ -1,0 +1,54 @@
+name: Seed demo database
+
+# Manual only (Actions tab, "Run workflow"). Loads the AP demo data (stops, routes, every bus,
+# staff accounts and duties) and, optionally, past days for the dashboards into the deployed
+# database. The seed only adds and updates rows. Needs the repository secrets DEMO_DATABASE_URL
+# (pooled), DEMO_DIRECT_URL (direct) and DEMO_QR_SECRET_KEY (the same value as the API).
+on:
+  workflow_dispatch:
+    inputs:
+      history_days:
+        description: "Days of past tickets and complaints for the dashboards (0 for none)"
+        default: "14"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DEMO_DIRECT_URL }}
+      QR_SECRET_KEY: ${{ secrets.DEMO_QR_SECRET_KEY }}
+      HISTORY_DAYS: ${{ inputs.history_days }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared and generate the Prisma client
+        run: |
+          pnpm --filter @aptransit/shared build
+          pnpm --filter api generate
+
+      - name: Migrate and seed
+        working-directory: apps/api
+        run: |
+          test -n "$DATABASE_URL" || { echo "Set the DEMO_DATABASE_URL secret first"; exit 1; }
+          pnpm exec prisma migrate deploy
+          if [ "$HISTORY_DAYS" -gt 0 ]; then
+            pnpm exec tsx prisma/seed.ts --history "$HISTORY_DAYS"
+          else
+            pnpm exec tsx prisma/seed.ts
+          fi

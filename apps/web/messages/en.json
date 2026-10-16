@@ -74,7 +74,7 @@
       "retry": "Try again",
       "listTitle": "Stops near you (list)",
       "stopsIn": "Buses live in {place}",
-      "otherCities": "Other cities",
+      "comingSoon": "Local buses in other cities are coming soon. You can still search intercity buses above.",
       "empty": "No stops found here.",
       "distance": "{km} km away",
       "from": "From",
@@ -304,6 +304,13 @@
     "EXPIRED": "Expired",
     "REFUNDED": "Refunded",
     "CANCELLED": "Cancelled"
+  },
+  "busCategory": {
+    "LOCAL": "Local",
+    "EXPRESS": "Express",
+    "SUPER_EXPRESS": "Super Express",
+    "LUXURY": "Luxury",
+    "SUPER_LUXURY": "Super Luxury"
   },
   "serviceType": {
     "PALLEVELUGU": "Pallevelugu",

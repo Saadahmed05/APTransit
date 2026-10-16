@@ -92,7 +92,7 @@ describe("hourly services (D-048)", () => {
     }
   });
 
-  it("adds Pallevelugu at least every 30 min on routes up to the local limit, never beyond it", () => {
+  it("adds four local buses an hour (every 15 min) on routes up to the local limit, never beyond it", () => {
     for (const code of [...intercity, "VJA-GNT-01"]) {
       const local = departuresOf(code).filter((t) => BUS_CLASS_OF[t.serviceType] === "NORMAL").map((t) => minutesOf(t.departureLocal));
       if (routeKm(code) > LOCAL_ROUTE_MAX_KM) {
@@ -102,17 +102,17 @@ describe("hourly services (D-048)", () => {
       expect(Math.min(...local), code).toBeLessThanOrEqual(minutesOf("05:00"));
       expect(Math.max(...local), code).toBeGreaterThanOrEqual(minutesOf("23:00"));
       const gaps = local.slice(1).map((m, i) => m - local[i]!);
-      expect(Math.max(...gaps), code).toBeLessThanOrEqual(30);
+      expect(Math.max(...gaps), code).toBeLessThanOrEqual(15);
     }
   });
 
-  it("runs every Kurnool city line at least every 30 min, 05:00 to 23:00", () => {
+  it("runs every Kurnool Local line every 15 min, 05:00 to 23:00", () => {
     for (const code of ["KCM-01", "KCC-01", "KHL-01", "KCL-01", "KOT-01", "KSA-01", "KSB-01", "KSC-01", "KSD-01"]) {
       const times = departuresOf(code).map((t) => minutesOf(t.departureLocal));
       expect(times[0], code).toBe(minutesOf("05:00"));
       expect(times.at(-1), code).toBeGreaterThanOrEqual(minutesOf("23:00") - 30);
       const gaps = times.slice(1).map((m, i) => m - times[i]!);
-      expect(Math.max(...gaps), code).toBeLessThanOrEqual(30);
+      expect(Math.max(...gaps), code).toBeLessThanOrEqual(15);
     }
   });
 

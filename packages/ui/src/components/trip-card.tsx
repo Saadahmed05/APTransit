@@ -12,6 +12,8 @@ export interface TripCardProps extends React.HTMLAttributes<HTMLElement> {
   serviceTypeName: string;
   /** Shows the icon of this kind of bus next to its name. */
   serviceType?: ServiceType;
+  /** Category label shown as a chip (Local, Express, Super Express, Luxury, Super Luxury), already translated. */
+  categoryLabel?: string;
   /** Visible destination line, already translated (for example "to Vijayawada"). */
   destinationText: string;
   seatsLeft: number;
@@ -39,6 +41,7 @@ export const TripCard = React.forwardRef<HTMLElement, TripCardProps>(
       duration,
       serviceTypeName,
       serviceType,
+      categoryLabel,
       destinationText,
       seatsLeft,
       fareFormatted,
@@ -108,6 +111,11 @@ export const TripCard = React.forwardRef<HTMLElement, TripCardProps>(
         {/* Middle row: Service type name and route code */}
         <div className="mt-2 flex items-center gap-2 flex-wrap min-w-0">
           {serviceType && <ServiceTypeIcon serviceType={serviceType} />}
+          {categoryLabel && (
+            <span className="rounded-full border border-default px-2 py-0.5 text-caption font-semibold uppercase text-fg">
+              {categoryLabel}
+            </span>
+          )}
           <span className="text-small font-medium text-fg">
             {serviceTypeName}
           </span>

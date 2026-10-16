@@ -27,6 +27,7 @@ import {
   SheetTitle,
   Skeleton,
   TripCard,
+  busCategoryOf,
 } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, ArrowUpDown, Bus, Calendar, Filter, Pencil, Search } from "lucide-react";
@@ -446,6 +447,7 @@ export function SearchClient({
                       fare,
                     })}
                     serviceType={trip.serviceType}
+                    categoryLabel={t(`busCategory.${busCategoryOf(trip.serviceType)}`)}
                     departureTime={departure}
                     arrivalTime={arrival}
                     duration={formatDuration(trip.durationMin, locale)}

@@ -33,6 +33,26 @@ const TONES: Record<ServiceType, string> = {
   GARUDA_AC: "bg-status-info-soft text-fg",
 };
 
+/** The five categories travellers ask for. AC buses are "Luxury", Ultra Deluxe is "Super Express". */
+export type BusCategory = "LOCAL" | "EXPRESS" | "SUPER_EXPRESS" | "LUXURY" | "SUPER_LUXURY";
+
+const CATEGORY: Record<ServiceType, BusCategory> = {
+  PALLEVELUGU: "LOCAL",
+  ULTRA_PALLEVELUGU: "LOCAL",
+  CITY_ORDINARY: "LOCAL",
+  METRO_EXPRESS: "EXPRESS",
+  EXPRESS: "EXPRESS",
+  ULTRA_DELUXE: "SUPER_EXPRESS",
+  SUPER_LUXURY: "SUPER_LUXURY",
+  INDRA_AC: "LUXURY",
+  AMARAVATI_AC: "LUXURY",
+  GARUDA_AC: "LUXURY",
+};
+
+export function busCategoryOf(serviceType: ServiceType): BusCategory {
+  return CATEGORY[serviceType] ?? "LOCAL";
+}
+
 export function ServiceTypeIcon({ serviceType, className }: { serviceType: ServiceType; className?: string }) {
   const Icon = ICONS[serviceType] ?? Bus;
   return (
