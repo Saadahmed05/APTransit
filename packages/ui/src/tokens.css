@@ -175,7 +175,7 @@
   /* Press and hold (SOS) and the scan result auto reset both take 3 seconds */
   --dur-hold: 3s;
   /* D-042: the opening bus animation */
-  --dur-splash: 2.2s;
+  --dur-splash: 1.2s;
 
   /* Telugu glyphs are taller: line heights go up by this factor when lang is te */
   --leading-te: 1.15;

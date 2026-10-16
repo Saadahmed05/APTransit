@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AccountMenu } from "./account-menu";
+import { BrandMark } from "./brand-logo";
 import { LanguageSwitch } from "./language-switch";
 import { SkipLink } from "./skip-link";
 import { ThemeSwitch } from "./theme-switch";
@@ -25,7 +26,8 @@ export async function FieldShell({ title, homeHref, status, children }: FieldShe
 
       <header className="sticky top-0 z-header flex h-16 items-center justify-between gap-2 border-b border-default bg-surface-raised px-gutter">
         <div className="flex min-w-0 items-center gap-4">
-          <Link href={homeHref} className="inline-flex min-h-11 min-w-0 items-center text-h3 text-primary">
+          <Link href={homeHref} className="inline-flex min-h-11 min-w-0 items-center gap-2 text-h3 text-primary">
+            <BrandMark />
             <span className="truncate">{title}</span>
           </Link>
           {status}

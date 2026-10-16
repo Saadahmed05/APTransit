@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { BrandMark } from "./brand-logo";
 
 /**
  * D-042: the opening animation. A bus drives across a road, then the layer fades away by itself.
@@ -14,6 +15,7 @@ export async function BusSplash() {
       className="animate-splash-out pointer-events-none fixed inset-0 z-toast flex flex-col items-center justify-center gap-8 bg-linear-to-b from-primary-soft to-surface-raised"
     >
       <div className="flex flex-col items-center gap-2 px-gutter text-center">
+        <BrandMark className="size-20" />
         <span className="text-display-lg text-primary">{t("brand")}</span>
         <span className="text-body-lg text-muted">{t("tagline")}</span>
       </div>

@@ -867,7 +867,11 @@
     "reload": "Reload",
     "installTitle": "Install app",
     "installHint": "Add AP TransitOS to your home screen. Your active tickets open even without internet.",
-    "install": "Install app"
+    "install": "Install app",
+    "iosHint": "On iPhone and iPad, install from Safari. Other iOS browsers cannot add apps to the home screen.",
+    "iosStep1": "Open this site in Safari and tap the Share button (the square with an arrow).",
+    "iosStep2": "Scroll down and tap Add to Home Screen.",
+    "iosStep3": "Tap Add. AP TransitOS now opens like an app."
   },
   "offlinePage": {
     "title": "You are offline",

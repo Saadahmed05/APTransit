@@ -20,7 +20,7 @@ import { type FormEvent, type ReactNode, useState, useSyncExternalStore } from "
 import { useAuth, useMe } from "../../../components/auth-provider";
 import { LanguageSwitch } from "../../../components/language-switch";
 import { api, errorKey } from "../../../lib/api";
-import { useInstallPrompt } from "../../../lib/install-prompt";
+import { useInstallPrompt, useIosInstallSteps } from "../../../lib/install-prompt";
 import { writePreferenceCookie } from "../../../lib/preferences";
 import { queryKeys } from "../../../lib/query-keys";
 import { ROLE_HOME, sortedRoles } from "../../../lib/roles";
@@ -302,6 +302,19 @@ function ThemeChoice() {
 function InstallApp() {
   const t = useTranslations("pwa");
   const { canInstall, install } = useInstallPrompt();
+  const iosSteps = useIosInstallSteps();
+  if (iosSteps && !canInstall) {
+    return (
+      <Section id="account-install" title={t("installTitle")}>
+        <p className="text-body text-muted">{t("iosHint")}</p>
+        <ol className="list-decimal space-y-1 pl-6 text-body">
+          <li>{t("iosStep1")}</li>
+          <li>{t("iosStep2")}</li>
+          <li>{t("iosStep3")}</li>
+        </ol>
+      </Section>
+    );
+  }
   if (!canInstall) return null;
   return (
     <Section id="account-install" title={t("installTitle")}>

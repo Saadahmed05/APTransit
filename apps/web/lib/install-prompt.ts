@@ -38,6 +38,19 @@ const subscribe = (listener: () => void) => {
   return () => listeners.delete(listener);
 };
 const canInstall = () => deferred !== null;
+
+/** iPhone, iPad (also iPadOS posing as a Mac) in Safari and not yet installed: no prompt exists, show steps instead. */
+function needsIosSteps(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const standalone = (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return ios && !standalone;
+}
+const subscribeNone = () => () => {};
+
+export function useIosInstallSteps(): boolean {
+  return useSyncExternalStore(subscribeNone, needsIosSteps, () => false);
+}
 const serverCanInstall = () => false;
 
 /** Start listening as soon as the app loads (called from the service worker registration). */

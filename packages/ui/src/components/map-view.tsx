@@ -265,7 +265,9 @@ export function MapView({
               {m.tone === "stop" ? (
                 // The dot is small but the tap area is 44 px
                 <span className="flex size-11 cursor-pointer items-center justify-center" title={m.label}>
-                  <span className="block size-4 rounded-full border-2 border-surface-raised bg-primary shadow-md" />
+                  <span className="flex size-7 items-center justify-center rounded-full border-2 border-surface-raised bg-primary text-on-primary shadow-md">
+                    <Bus className="size-4" aria-hidden="true" />
+                  </span>
                 </span>
               ) : (
                 <span className="flex flex-col items-center gap-1">
@@ -276,7 +278,7 @@ export function MapView({
                   )}
                   <span
                     className={cn(
-                      "flex size-8 items-center justify-center rounded-full border-2 border-surface-raised text-small font-bold shadow-md",
+                      "relative flex size-9 items-center justify-center rounded-full border-2 border-surface-raised text-small font-bold shadow-md",
                       m.tone === "to"
                         ? "bg-status-danger-solid text-on-solid"
                         : "bg-primary text-on-primary",
@@ -284,7 +286,10 @@ export function MapView({
                     )}
                     title={m.label}
                   >
-                    {m.tone === "from" ? "A" : m.tone === "to" ? "B" : "*"}
+                    <Bus className="size-5" aria-hidden="true" />
+                    <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-surface-raised text-caption font-bold text-fg shadow-md">
+                      {m.tone === "from" ? "A" : m.tone === "to" ? "B" : "*"}
+                    </span>
                   </span>
                 </span>
               )}
