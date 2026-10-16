@@ -398,7 +398,8 @@
       "conductor": "Conductor portal",
       "depot": "Depot operations",
       "gov": "Government command center",
-      "admin": "Admin"
+      "admin": "Admin",
+      "demoHint": "Demo: tap a portal, the staff email is filled in. Tap Send code; the code shows on screen."
     }
   },
   "account": {

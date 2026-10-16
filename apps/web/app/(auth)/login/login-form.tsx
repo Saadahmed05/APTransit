@@ -60,15 +60,15 @@ function useNow(active: boolean): number {
   return now;
 }
 
-export function LoginForm({ next }: { next: string | null }) {
+export function LoginForm({ next, initialEmail = null }: { next: string | null; initialEmail?: string | null }) {
   const t = useTranslations();
   const router = useRouter();
-  const { status, login } = useAuth();
+  const { status, login, logout } = useAuth();
   const me = useMe();
   const safeNext = safeNextPath(next);
 
   const [channel, setChannel] = useState<OtpChannel>("EMAIL");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail ?? "");
   const [phone, setPhone] = useState("");
   const [targetError, setTargetError] = useState<string | null>(null);
   const [sent, setSent] = useState<Sent | null>(null);
@@ -85,9 +85,15 @@ export function LoginForm({ next }: { next: string | null }) {
   }, [codeStep]);
 
   // Logged in (just now, or already when opening /login): go to `next` or the role home.
+  // A demo staff link while signed in with another account: sign out first, then the form is ready.
   useEffect(() => {
-    if (status === "authenticated" && me.data) router.replace(destination(me.data, safeNext));
-  }, [status, me.data, safeNext, router]);
+    if (status !== "authenticated" || !me.data) return;
+    if (initialEmail && me.data.email !== initialEmail) {
+      void logout(`${window.location.pathname}${window.location.search}`);
+      return;
+    }
+    router.replace(destination(me.data, safeNext));
+  }, [status, me.data, safeNext, router, initialEmail, logout]);
 
   const describe = (error: unknown): string => {
     if (isApiError(error) && error.code === "RATE_LIMITED" && error.retryAfterSec) {
@@ -368,16 +374,20 @@ export function LoginForm({ next }: { next: string | null }) {
           </h2>
           <p className="text-small text-muted">{t("login.staff.intro")}</p>
         </div>
+        {DEMO_ACCOUNTS && <p className="text-small text-muted">{t("login.staff.demoHint")}</p>}
         <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {STAFF_PORTALS.map(({ path, key, Icon }) => (
+          {STAFF_PORTALS.map(({ path, key, Icon, demoEmail }) => (
             <li key={path}>
               <Link
-                href={`/login?next=${encodeURIComponent(path)}`}
+                href={`/login?${new URLSearchParams(DEMO_ACCOUNTS ? { next: path, email: demoEmail } : { next: path }).toString()}`}
                 data-testid={`portal-${key}`}
-                className="flex min-h-14 items-center gap-3 rounded-md border border-default bg-surface-raised px-3 text-body font-medium text-fg hover:bg-surface"
+                className="flex min-h-14 items-center gap-3 rounded-md border border-default bg-surface-raised px-3 py-2 text-body font-medium text-fg hover:bg-surface"
               >
                 <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
-                {t(`login.staff.${key}`)}
+                <span className="min-w-0">
+                  {t(`login.staff.${key}`)}
+                  {DEMO_ACCOUNTS && <span className="block truncate text-small font-normal text-muted">{demoEmail}</span>}
+                </span>
               </Link>
             </li>
           ))}
@@ -387,10 +397,13 @@ export function LoginForm({ next }: { next: string | null }) {
   );
 }
 
+/** Demo deployments (NEXT_PUBLIC_DEMO_ACCOUNTS=1) show the seeded staff emails and fill them in. Never in production. */
+const DEMO_ACCOUNTS = process.env.NEXT_PUBLIC_DEMO_ACCOUNTS === "1";
+
 const STAFF_PORTALS = [
-  { path: "/driver", key: "driver", Icon: Bus },
-  { path: "/conductor", key: "conductor", Icon: ScanLine },
-  { path: "/ops", key: "depot", Icon: Warehouse },
-  { path: "/gov", key: "gov", Icon: Landmark },
-  { path: "/admin", key: "admin", Icon: ShieldCheck },
+  { path: "/driver", key: "driver", Icon: Bus, demoEmail: "driver.knl@aptransit.test" },
+  { path: "/conductor", key: "conductor", Icon: ScanLine, demoEmail: "conductor.knl@aptransit.test" },
+  { path: "/ops", key: "depot", Icon: Warehouse, demoEmail: "manager.knl@aptransit.test" },
+  { path: "/gov", key: "gov", Icon: Landmark, demoEmail: "transport@aptransit.test" },
+  { path: "/admin", key: "admin", Icon: ShieldCheck, demoEmail: "admin@aptransit.test" },
 ] as const;

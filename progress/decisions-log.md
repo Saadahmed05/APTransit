@@ -469,3 +469,9 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
 | Idea | Raised by | Plan sec |
 | --- | --- | --- |
 | Offline scanning pack and batch validation (ADR 003) | Day 16 stretch | 77 |
+
+### D-049: Four buses of each class every hour, Kurnool Local A to I, demo staff sign in (2026-10-16)
+
+- Owner request for the government demo. Every intercity route runs four Express, four Ultra Deluxe (super express) and four Super Luxury buses every hour from 05:00 to 22:55, plus the route's AC bus hourly; routes up to 130 km keep Pallevelugu every 30 min. Kurnool city lines are named Kurnool Local A to I (codes unchanged).
+- New web env `NEXT_PUBLIC_DEMO_ACCOUNTS` (default 0): when 1, the staff portal links on the sign in page show and fill in the seeded staff emails. Only for demo deployments that also run the API with `OTP_DEV_ECHO=1`. docs/15 needs this row (Dev B to agree).
+- Supersedes the hourly mix in D-048. Needs Dev B review.
