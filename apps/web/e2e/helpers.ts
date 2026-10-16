@@ -40,7 +40,7 @@ export async function completeProfile(page: Page, next = "/"): Promise<void> {
   const codeResponse = page.waitForResponse((res) => res.url().includes("/me/contact/otp/request") && res.request().method() === "POST");
   await page.getByRole("button", { name: /^send code$/i }).click();
   const { devCode } = (await (await codeResponse).json()) as { devCode?: string };
-  expect(devCode, "API must run with OTP_DEV_ECHO=1").toMatch(/^d{6}$/);
+  expect(devCode, "API must run with OTP_DEV_ECHO=1").toMatch(/^\d{6}$/);
   await page.getByRole("textbox", { name: /digit 1 of 6/i }).click();
   await page.keyboard.type(devCode!);
   await page.waitForURL((url) => url.pathname === next, { timeout: 20_000 });
