@@ -1325,6 +1325,21 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
     ],
   },
   {
+    // Guntur into Palnadu: local, express, super express and luxury buses
+    code: "GNT-VKD-01",
+    reverseCode: "VKD-GNT-02",
+    nameEn: "Guntur to Vinukonda",
+    reverseNameEn: "Vinukonda to Guntur",
+    nameTe: "గుంటూరు నుండి వినుకొండ",
+    reverseNameTe: "వినుకొండ నుండి గుంటూరు",
+    depotCode: "D-VJA",
+    stops: [
+      { stopCode: "GNT", kmFromOrigin: 0, minutesFromOrigin: 0 },
+      { stopCode: "NRT", kmFromOrigin: 47, minutesFromOrigin: 75 },
+      { stopCode: "VKD", kmFromOrigin: 92, minutesFromOrigin: 150 },
+    ],
+  },
+  {
     // D-042: long overnight journey (350 km)
     code: "VJA-VSP-01",
     reverseCode: "VSP-VJA-02",
@@ -1810,15 +1825,16 @@ const NIGHT_AC: Record<string, BusTypeSeed["serviceType"]> = {
 };
 
 /**
- * D-048 (owner, 2026-10-16): every hour an Express class bus and a Super Luxury class bus. Routes up
- * to LOCAL_ROUTE_MAX_KM (130) also have Pallevelugu, every 30 min like other local buses (every
- * fourth an Ultra Pallevelugu). Long runs alternate Express and Ultra Deluxe.
+ * D-048 (owner, 2026-10-16): every hour an Express, an Ultra Deluxe (super express) and a Super
+ * Luxury bus. Routes up to LOCAL_ROUTE_MAX_KM (130) also have Pallevelugu (local), every 30 min
+ * like other local buses (every fourth an Ultra Pallevelugu).
  */
 function hourlyClasses(routeCode: string): Departure[] {
   const km = routeKm(routeCode);
   const departures: Departure[] = [];
-  SERVICE_HOURS.forEach((t, i) => {
-    departures.push([t, km > LOCAL_ROUTE_MAX_KM && i % 2 === 1 ? "ULTRA_DELUXE" : "EXPRESS"]);
+  SERVICE_HOURS.forEach((t) => {
+    departures.push([t, "EXPRESS"]);
+    departures.push([t, "ULTRA_DELUXE"]);
     departures.push([t, toMinutes(t) >= toMinutes("20:00") ? (NIGHT_AC[routeCode] ?? "SUPER_LUXURY") : "SUPER_LUXURY"]);
   });
   if (km <= LOCAL_ROUTE_MAX_KM) {
@@ -1838,6 +1854,7 @@ const INTERCITY: [string, string][] = [
   ["KNL-ADN-01", "ADN-KNL-02"],
   ["KNL-ATK-01", "ATK-KNL-02"],
   ["DHN-NDL-01", "NDL-DHN-02"],
+  ["GNT-VKD-01", "VKD-GNT-02"],
 ];
 
 const FORWARD_TIMETABLES: {
@@ -1852,6 +1869,8 @@ const FORWARD_TIMETABLES: {
     // Metro Express every 15 min is the Express class here; Super Luxury hourly and Pallevelugu every 30 min join it
     departures: [
       ...everyMinutes("05:30", "22:00", 15).map((t): Departure => [t, "METRO_EXPRESS"]),
+      ...SERVICE_HOURS.map((t): Departure => [t, "EXPRESS"]),
+      ...SERVICE_HOURS.map((t): Departure => [t, "ULTRA_DELUXE"]),
       ...SERVICE_HOURS.map((t): Departure => [t, "SUPER_LUXURY"]),
       ...everyMinutes("05:00", "23:00", 30).map((t, i): Departure => [t, i % 4 === 3 ? "ULTRA_PALLEVELUGU" : "PALLEVELUGU"]),
     ],

@@ -10,14 +10,10 @@ test.describe("D-048 map first home", () => {
     await login(page, "citizen2@aptransit.test");
     await page.goto("/");
 
-    const pickup = page.getByTestId("map-field-from");
-    const search = page.getByRole("button", { name: "Search buses", exact: true });
-    await expect(pickup).toBeVisible();
-    const pickupBox = (await pickup.boundingBox())!;
-    const searchBox = (await search.boundingBox())!;
-    expect(pickupBox.y, "Pickup floats on the map above the search sheet").toBeLessThan(searchBox.y);
+    // No floating Pickup and Drop panel on the map: From and To live in the search sheet
+    await expect(page.getByTestId("map-field-from")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Search buses", exact: true })).toBeVisible();
 
-    await page.getByText("Stops near you (list)", { exact: true }).click();
     await page.getByRole("button", { name: "From Kurnool Bus Stand", exact: true }).click();
     await page.getByRole("button", { name: "To Jyothi Mall", exact: true }).click();
     await page.getByRole("button", { name: "Save this route", exact: true }).click();

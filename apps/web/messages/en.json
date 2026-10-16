@@ -73,6 +73,8 @@
       "error": "The map could not load.",
       "retry": "Try again",
       "listTitle": "Stops near you (list)",
+      "stopsIn": "Buses live in {place}",
+      "otherCities": "Other cities",
       "empty": "No stops found here.",
       "distance": "{km} km away",
       "from": "From",
@@ -278,8 +280,9 @@
     "enterOtp": "Enter the 6 digit code",
     "forbidden": {
       "title": "You do not have access to this page",
-      "hint": "Your account does not have the role this page needs. Ask your depot or admin if you think this is wrong.",
-      "home": "Go to your home page"
+      "hint": "This page is for staff. Sign in with the staff email your depot or admin gave you, not your personal account.",
+      "home": "Go to your home page",
+      "switch": "Sign in with a staff account"
     }
   },
   "status": {

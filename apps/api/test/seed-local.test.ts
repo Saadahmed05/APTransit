@@ -75,9 +75,9 @@ const departuresOf = (routeCode: string) => TIMETABLE_DEFS.filter((t) => t.route
 const minutesOf = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3));
 
 describe("hourly services (D-048)", () => {
-  const intercity = ["KNL-VJA-01", "KNL-TPT-01", "KNL-ATP-01", "KNL-NDL-01", "VJA-VSP-01", "KNL-ADN-01", "KNL-ATK-01", "DHN-NDL-01"];
+  const intercity = ["KNL-VJA-01", "KNL-TPT-01", "KNL-ATP-01", "KNL-NDL-01", "VJA-VSP-01", "KNL-ADN-01", "KNL-ATK-01", "DHN-NDL-01", "GNT-VKD-01"];
 
-  it("runs an Express class and a Super Luxury class bus every hour, 05:00 to 23:00, both ways", () => {
+  it("runs Express, Ultra Deluxe and Super Luxury class buses every hour, 05:00 to 23:00, both ways", () => {
     for (const code of intercity) {
       const reverse = ROUTE_DEFS.find((r) => r.code === code)!.reverseCode;
       for (const [route, offset] of [[code, 0], [reverse, 30]] as const) {
@@ -86,6 +86,7 @@ describe("hourly services (D-048)", () => {
           const classes = new Set(at.map((t) => BUS_CLASS_OF[t.serviceType]));
           expect(classes.has("EXPRESS"), `${route} ${hour} express`).toBe(true);
           expect(classes.has("SUPER_LUXURY"), `${route} ${hour} super luxury`).toBe(true);
+          expect(at.some((t) => t.serviceType === "ULTRA_DELUXE"), `${route} ${hour} ultra deluxe`).toBe(true);
         }
       }
     }

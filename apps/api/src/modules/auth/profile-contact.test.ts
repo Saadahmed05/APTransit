@@ -137,16 +137,21 @@ function build(users: FakeUser[], env: Partial<Record<keyof Env, unknown>> = {},
 const codeOf = (res: { devCode?: string }) => res.devCode!;
 
 describe("profile completion", () => {
-  it("lists what is missing: name, verified email and phone", async () => {
+  it("lists what is missing: a name and one verified contact", async () => {
     const { service } = build([user({ name: null, email: null, emailVerifiedAt: null })]);
     const me = await service.getMe("u1");
     expect(me.profileComplete).toBe(false);
-    expect(me.missing).toEqual(["name", "email", "phone"]);
+    expect(me.missing).toEqual(["name", "email"]);
   });
 
-  it("an email that is stored but never verified still counts as missing", async () => {
-    const { service } = build([user({ emailVerifiedAt: null, phone: "+919876543210", phoneVerifiedAt: new Date() })]);
+  it("an email that is stored but never verified does not count as a contact", async () => {
+    const { service } = build([user({ emailVerifiedAt: null })]);
     expect((await service.getMe("u1")).missing).toEqual(["email"]);
+  });
+
+  it("is complete with a name and a verified email only, a second contact is optional", async () => {
+    const { service } = build([user()]);
+    expect(await service.getMe("u1")).toMatchObject({ profileComplete: true, missing: [] });
   });
 
   it("is complete with a name, a verified email and a verified phone", async () => {

@@ -3,7 +3,7 @@
 import { type NearbyPlaceDto, PlacesNearbyResponse, type PlaceDto } from "@aptransit/shared";
 import { Button, Skeleton } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Circle, LocateFixed, MapPin } from "lucide-react";
+import { LocateFixed } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { type ReactNode, useState } from "react";
@@ -43,10 +43,10 @@ export function MapPicker({
   const [locateError, setLocateError] = useState<string | null>(null);
   const point = centre ?? START_CENTRE;
   const stops = useQuery({
-    queryKey: ["places", "nearby", point.lat, point.lng, centre ? 30 : 50],
+    queryKey: ["places", "nearby", point.lat, point.lng, centre ? 30 : 200],
     queryFn: () =>
       api("/places/nearby", {
-        query: { lat: point.lat, lng: point.lng, limit: centre ? 30 : 50 },
+        query: { lat: point.lat, lng: point.lng, limit: centre ? 30 : 200 },
         schema: PlacesNearbyResponse,
         redirectOn401: false,
       }),
@@ -102,13 +102,41 @@ export function MapPicker({
       s.id === from?.id ? ("from" as const) : s.id === to?.id ? ("to" as const) : ("stop" as const),
   }));
 
+  const districtOf = (s: NearbyPlaceDto) => (locale === "te" ? s.districtNameTe : s.districtNameEn);
+  const homeDistrict = list[0] ? districtOf(list[0]) : null;
+  const homeStops = list.filter((s) => districtOf(s) === homeDistrict);
+  const otherStops = list.filter((s) => districtOf(s) !== homeDistrict);
+
+  const stopRows = (rows: NearbyPlaceDto[]) => (
+    <ul className="flex flex-col divide-y divide-hairline">
+      {rows.map((s) => (
+        <li key={s.id} className="flex items-center justify-between gap-2 px-4 py-2">
+          <span className="min-w-0 text-body text-fg">
+            {name(s)}
+            <span className="block text-small text-muted">
+              {centre || districtOf(s) === homeDistrict ? t("distance", { km: s.distanceKm }) : districtOf(s)}
+            </span>
+          </span>
+          <span className="flex shrink-0 gap-1">
+            <Button variant="ghost" aria-label={t("fromStop", { stop: name(s) })} onClick={() => choose(s, "from")}>
+              {t("from")}
+            </Button>
+            <Button variant="ghost" aria-label={t("toStop", { stop: name(s) })} onClick={() => choose(s, "to")}>
+              {t("to")}
+            </Button>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+
   return (
     <section aria-labelledby="map-picker-title" className="flex flex-col">
       <h2 id="map-picker-title" className="sr-only">
         {t("title")}
       </h2>
 
-      {/* D-048: the map fills the first screen; Pickup and Drop float on it, the search sheet slides over its lower edge */}
+      {/* The map fills the first screen; tapping a bus stop fills From, then To. The search sheet holds both fields */}
       <div className="relative">
         {stops.isError ? (
           <div className="flex h-home-map flex-col items-start justify-end gap-2 rounded-lg border border-default bg-surface-raised p-4">
@@ -138,44 +166,6 @@ export function MapPicker({
           />
         )}
 
-        <div className="pointer-events-none absolute inset-x-3 top-3 md:max-w-sm">
-          <div className="pointer-events-auto flex flex-col gap-2 rounded-lg border border-default bg-surface-raised p-2 shadow-md">
-            {(["from", "to"] as const).map((field) => {
-              const place = field === "from" ? from : to;
-              const isActive = active === field;
-              return (
-                <button
-                  key={field}
-                  type="button"
-                  onClick={() => setActive(field)}
-                  aria-pressed={isActive}
-                  data-testid={`map-field-${field}`}
-                  className={`flex min-h-14 items-center gap-3 rounded-md border px-3 text-left ${
-                    isActive ? "border-primary bg-surface" : "border-transparent"
-                  }`}
-                >
-                  {field === "from" ? (
-                    <Circle className="size-5 shrink-0 text-primary" aria-hidden="true" />
-                  ) : (
-                    <MapPin className="size-5 shrink-0 text-status-danger" aria-hidden="true" />
-                  )}
-                  <span className="min-w-0">
-                    <span className="block text-caption text-muted">
-                      {field === "from" ? t("pickup") : t("drop")}
-                    </span>
-                    <span className="block truncate text-body font-medium text-fg">
-                      {place ? name(place) : field === "from" ? t("choosePickup") : t("chooseDrop")}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-            <p className="px-1 text-small text-muted" role="status">
-              {t(active === "from" ? "tapPickup" : "tapDrop")}
-            </p>
-          </div>
-        </div>
-
         <div className="absolute bottom-10 right-3">
           <Button
             variant="secondary"
@@ -196,10 +186,11 @@ export function MapPicker({
 
       {sheet}
 
-      <details className="mt-3 rounded-lg border border-default bg-surface-raised">
-        <summary className="cursor-pointer list-none p-4 text-body font-medium text-fg">
-          {t("listTitle")}
-        </summary>
+      {/* Always open: the city's own stops first (Kurnool on first load), then other cities */}
+      <section aria-labelledby="stop-list-title" className="mt-3 rounded-lg border border-default bg-surface-raised">
+        <h3 id="stop-list-title" className="p-4 pb-2 text-body font-medium text-fg">
+          {homeDistrict ? t("stopsIn", { place: homeDistrict }) : t("listTitle")}
+        </h3>
         {stops.isPending ? (
           <div className="flex flex-col gap-2 p-4 pt-0">
             <Skeleton className="h-11 w-full" />
@@ -208,40 +199,19 @@ export function MapPicker({
         ) : list.length === 0 ? (
           <p className="p-4 pt-0 text-body text-muted">{t("empty")}</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-hairline">
-            {list.slice(0, 50).map((s) => (
-              <li key={s.id} className="flex items-center justify-between gap-2 px-4 py-2">
-                <span className="min-w-0 text-body text-fg">
-                  {name(s)}
-                  <span className="block text-small text-muted">
-                    {centre
-                      ? t("distance", { km: s.distanceKm })
-                      : locale === "te"
-                        ? s.districtNameTe
-                        : s.districtNameEn}
-                  </span>
-                </span>
-                <span className="flex shrink-0 gap-1">
-                  <Button
-                    variant="ghost"
-                    aria-label={t("fromStop", { stop: name(s) })}
-                    onClick={() => choose(s, "from")}
-                  >
-                    {t("from")}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    aria-label={t("toStop", { stop: name(s) })}
-                    onClick={() => choose(s, "to")}
-                  >
-                    {t("to")}
-                  </Button>
-                </span>
-              </li>
-            ))}
-          </ul>
+          <div className="max-h-96 overflow-y-auto">
+            {stopRows(homeStops)}
+            {otherStops.length > 0 && (
+              <>
+                <h3 className="border-t border-default px-4 pb-2 pt-4 text-body font-medium text-fg">
+                  {t("otherCities")}
+                </h3>
+                {stopRows(otherStops)}
+              </>
+            )}
+          </div>
         )}
-      </details>
+      </section>
     </section>
   );
 }

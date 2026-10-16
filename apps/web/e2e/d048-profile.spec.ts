@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { login, uniqueEmail } from "./helpers";
 
-// D-048 Phase 3: a new citizen completes the profile on /welcome before anything else, the account
+// D-048 Phase 3: a new citizen adds a name on /welcome before anything else, the account
 // page shows what is verified, notification choices stick and other devices can be signed out.
 // Needs the API with OTP_DEV_ECHO=1 and a seeded database.
 
@@ -18,8 +18,7 @@ test.describe("D-048 profile", () => {
     await page.goto("/account");
     await expect(page.getByRole("heading", { level: 1, name: "Account" })).toBeVisible();
     await expect(page.getByTestId("contact-email")).toContainText("Verified");
-    await expect(page.getByTestId("contact-phone")).toContainText("Verified");
-    await expect(page.getByTestId("contact-phone")).not.toContainText("Not verified");
+    // A phone is optional now: the email they signed in with is enough
     await expect(page.getByLabel(/^name$/i)).toHaveValue("E2E Traveller");
   });
 

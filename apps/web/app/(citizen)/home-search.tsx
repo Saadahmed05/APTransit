@@ -90,7 +90,7 @@ function SearchForm() {
   };
 
   const sheet = (
-    <Card padding="lg" className="relative -mt-6 mx-2 flex flex-col gap-5 shadow-lg md:mx-0 md:max-w-xl">
+    <Card padding="lg" className="relative mt-3 flex flex-col gap-5 shadow-md md:max-w-xl">
         <form
           onSubmit={onSubmit}
           noValidate

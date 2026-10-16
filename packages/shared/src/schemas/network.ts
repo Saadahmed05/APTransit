@@ -39,7 +39,7 @@ export type PlaceDto = z.infer<typeof PlaceDto>;
 export const PlacesNearbyQuery = z.object({
   lat: z.coerce.number().min(-90).max(90),
   lng: z.coerce.number().min(-180).max(180),
-  limit: z.coerce.number().int().min(1).max(50).default(20),
+  limit: z.coerce.number().int().min(1).max(200).default(20),
 });
 export type PlacesNearbyQuery = z.infer<typeof PlacesNearbyQuery>;
 export const NearbyPlaceDto = PlaceDto.extend({

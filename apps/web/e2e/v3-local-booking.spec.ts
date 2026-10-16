@@ -16,9 +16,6 @@ test.describe("D-046: seatless local booking", () => {
     await login(page, uniqueEmail("v3-local"));
     await page.goto("/");
 
-    // Rapido style: Pickup is active first, a stop sets it and Drop becomes active
-    await expect(page.getByTestId("map-field-from")).toHaveAttribute("aria-pressed", "true");
-    await page.getByText("Stops near you (list)", { exact: true }).click();
     await page.getByRole("button", { name: "From Kurnool Bus Stand", exact: true }).click();
     await page.getByRole("button", { name: "To Jyothi Mall", exact: true }).click();
     await expect(page.getByRole("combobox", { name: /^From$/ })).toHaveValue("Kurnool Bus Stand");
