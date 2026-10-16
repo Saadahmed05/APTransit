@@ -1,4 +1,4 @@
-import { calculateFare, deriveTripDisplayStatus, type FareRuleInput, type TripSummaryDto } from "@aptransit/shared";
+import { calculateFare, deriveTripDisplayStatus, type FareRuleInput, isSeatless, type TripSummaryDto } from "@aptransit/shared";
 import type { TripRow } from "./network.repository";
 
 const MS_PER_MIN = 60_000;
@@ -25,6 +25,7 @@ export function toTripSummary(row: TripRow & { fare: FareRuleInput }, seatsTaken
     displayStatus: deriveTripDisplayStatus(row),
     delayMinutes: Math.max(0, row.delayMinutes),
     freeTravelEligible: row.freeTravelEligible,
+    seatless: isSeatless(row.serviceType, row.toKm - row.fromKm),
   };
 }
 

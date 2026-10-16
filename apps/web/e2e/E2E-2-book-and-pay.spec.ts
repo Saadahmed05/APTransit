@@ -32,18 +32,17 @@ test.describe("E2E-2: Citizen books and pays", () => {
     await page.locator(`a[data-testid='trip-card'][href*='${tripId}']`).click();
     await page.waitForURL(/\/bus\//);
 
-    // 3. Book: first free seat, passenger details, review
+    // 3. Book (D-048): one adult, no names, then exactly one seat, review
     await page.getByRole("button", { name: /book ticket/i }).click();
     await page.waitForURL(/\/book\/[^/]+\?/);
+    await expect(page.getByRole("heading", { level: 1, name: "Who is travelling?" })).toBeVisible();
+    await expect(page.getByLabel(/full name/i)).toHaveCount(0);
+    await page.getByRole("button", { name: /^choose 1 seat$/i }).click();
+    await page.waitForURL(/\/seats$/);
     // A random free seat: the desktop and phone projects run at the same time
     const free = page.getByRole("button", { name: /^Seat \d+, available$/ });
     await expect(free.first()).toBeVisible();
     await free.nth(Math.floor(Math.random() * (await free.count()))).click();
-    await page.getByRole("button", { name: /^continue$/i }).click();
-    await page.waitForURL(/\/details$/);
-    await page.getByLabel(/full name/i).first().fill("E2E Passenger");
-    await page.getByLabel(/^age/i).first().fill("30");
-    await page.getByText("Female", { exact: true }).first().click();
     await page.getByRole("button", { name: /^continue$/i }).click();
     await page.waitForURL(/\/review\?booking=/);
     await expect(page.getByRole("timer")).toBeVisible();

@@ -1,34 +1,33 @@
-import { CreateBookingPassengerInput, PublicId } from "@aptransit/shared";
+import { PublicId } from "@aptransit/shared";
 import { useCallback, useSyncExternalStore } from "react";
 import { z } from "zod";
 
-// The booking flow spans three pages. Its draft lives in session storage, one per trip, so Back,
-// Refresh and a SEAT_TAKEN round trip keep the user's choices and typed names.
+// The booking flow spans up to three pages. Its draft lives in session storage, one per trip, so
+// Back, Refresh and a SEAT_TAKEN round trip keep the user's choices.
 
-/** Half typed values are fine here; step 2 validates with the shared schema before booking. */
-const PassengerDraft = z.object({
-  name: z.string().max(100).optional(),
-  age: z.union([z.number(), z.string().max(3)]).optional(),
-  gender: CreateBookingPassengerInput.shape.gender.optional(),
+/** D-048: how many travellers of each category; nobody types names, ages or gender. */
+export const TravellerCounts = z.object({
+  ADULT: z.number().int().min(0).max(6).default(1),
+  CHILD: z.number().int().min(0).max(6).default(0),
+  SENIOR: z.number().int().min(0).max(6).default(0),
 });
+export type TravellerCounts = z.infer<typeof TravellerCounts>;
 
 export const BookingDraft = z.object({
   from: PublicId.optional(),
   to: PublicId.optional(),
+  counts: TravellerCounts.default({ ADULT: 1, CHILD: 0, SENIOR: 0 }),
   seats: z.array(z.string()).default([]),
-  /** Typed passenger details, by seat number. */
-  passengers: z.record(z.string(), PassengerDraft).default({}),
   /** Set after POST /bookings succeeds. */
   bookingId: PublicId.optional(),
-  /** What the booking was created with, to tell whether step 2 changed since. */
+  /** What the booking was created with, to tell whether the choices changed since. */
   bookedSnapshot: z.string().optional(),
-  /** Seat lost to someone else, shown once on step 1 (SEAT_TAKEN). */
+  /** Seat lost to someone else, shown once on the seats step (SEAT_TAKEN). */
   takenSeat: z.string().optional(),
 });
 export type BookingDraft = z.infer<typeof BookingDraft>;
-export type PassengerDraft = z.infer<typeof PassengerDraft>;
 
-const EMPTY: BookingDraft = { seats: [], passengers: {} };
+const EMPTY: BookingDraft = { counts: { ADULT: 1, CHILD: 0, SENIOR: 0 }, seats: [] };
 const listeners = new Set<() => void>();
 const cache = new Map<string, { raw: string | null; value: BookingDraft }>();
 
@@ -96,7 +95,11 @@ export function useBookingDraft(tripId: string): [BookingDraft | null, (update: 
   return [draft, update];
 }
 
-/** Passenger fields in seat order, for comparing with what the booking was created with. */
-export function passengerSnapshot(draft: BookingDraft): string {
-  return JSON.stringify(draft.seats.map((seatNo) => ({ seatNo, ...draft.passengers[seatNo] })));
+/** The choices a booking is made from, to tell whether it still matches the draft. */
+export function bookingSnapshot(draft: BookingDraft): string {
+  return JSON.stringify({ from: draft.from, to: draft.to, counts: draft.counts, seats: draft.seats });
+}
+
+export function travellerTotal(counts: TravellerCounts): number {
+  return counts.ADULT + counts.CHILD + counts.SENIOR;
 }

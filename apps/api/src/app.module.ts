@@ -25,6 +25,7 @@ import { ReportsModule } from "./modules/reports/reports.module";
 import { RollupsModule } from "./modules/rollups/rollups.module";
 import { EligibilityModule } from "./modules/eligibility/eligibility.module";
 import { HealthModule } from "./modules/health/health.module";
+import { MeModule } from "./modules/me/me.module";
 import { NetworkModule } from "./modules/network/network.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { PassesModule } from "./modules/passes/passes.module";
@@ -64,6 +65,7 @@ import { RedisService } from "./redis/redis.service";
     AuthModule,
     HealthModule,
     NetworkModule,
+    MeModule,
     TripsModule,
     BookingsModule,
     PaymentsModule,

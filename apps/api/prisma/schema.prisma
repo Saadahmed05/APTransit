@@ -242,11 +242,17 @@ model User {
   email           String?        @unique
   name            String?
   preferredLocale String         @default("en")
+  /// D-048: when the email or phone was proven by a code (login, Google or contact verification)
+  emailVerifiedAt   DateTime?
+  phoneVerifiedAt   DateTime?
+  /// D-048: NotificationPrefs from packages/shared (email per category); null means all on
+  notificationPrefs Json?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   deletedAt       DateTime?
 
   userRoles           UserRole[]
+  savedRoutes         SavedRoute[]
   refreshTokens       RefreshToken[]
   devices             Device[]
   driver              Driver?
@@ -442,6 +448,8 @@ model Stop {
   boardingTickets     Ticket[]    @relation("TicketBoardingStop")
   droppingTickets     Ticket[]    @relation("TicketDroppingStop")
   scans               TicketScan[]
+  savedFrom           SavedRoute[] @relation("SavedRouteFrom")
+  savedTo             SavedRoute[] @relation("SavedRouteTo")
   homePasses          Pass[]      @relation("PassHomeStop")
   destPasses          Pass[]      @relation("PassDestStop")
 
@@ -738,12 +746,22 @@ model Booking {
   @@map("bookings")
 }
 
+/// D-048: travellers are Adult, Child or Senior (counts on the booking screen, no ages or names).
+enum PassengerCategory {
+  ADULT
+  CHILD
+  SENIOR
+}
+
 model BookingPassenger {
-  id        String   @id @default(cuid(2))
+  id        String            @id @default(cuid(2))
   bookingId String
+  /// The account name (D-048); bookings before D-048 have the typed name.
   name      String
-  age       Int
-  gender    Gender
+  category  PassengerCategory @default(ADULT)
+  /// Only on bookings made with an age (before D-048).
+  age       Int?
+  gender    Gender            @default(X)
   seatNo    String
   createdAt DateTime @default(now())
 
@@ -1116,4 +1134,20 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([actorUserId, createdAt(sort: Desc)])
   @@map("audit_logs")
+}
+
+/// D-048: a citizen's saved From and To pairs (home sheet and account), at most 10 per user
+model SavedRoute {
+  id         String   @id @default(cuid(2))
+  userId     String
+  fromStopId String
+  toStopId   String
+  createdAt  DateTime @default(now())
+
+  user     User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromStop Stop @relation("SavedRouteFrom", fields: [fromStopId], references: [id])
+  toStop   Stop @relation("SavedRouteTo", fields: [toStopId], references: [id])
+
+  @@unique([userId, fromStopId, toStopId])
+  @@map("saved_routes")
 }

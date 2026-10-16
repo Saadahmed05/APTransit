@@ -422,6 +422,13 @@ export function ConductorScanner() {
                 <dt className="sr-only">{t("passenger")}</dt>
                 <dd>{result.ticket.passengerName}</dd>
               </div>
+              {result.ticket.category && (
+                <div>
+                  <dt className="sr-only">{root("ticketDetail.details.category")}</dt>
+                  {/* D-048: child and senior tickets are checked for proof of age */}
+                  <dd>{t(`category.${result.ticket.category}`)}</dd>
+                </div>
+              )}
               <div>
                 <dt className="sr-only">{t("seatLabel")}</dt>
                 <dd>

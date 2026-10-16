@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { RequireAuth } from "../../../../components/require-auth";
-import { SeatStep } from "./seat-step";
+import { TravellersStep } from "./travellers-step";
 
 interface BookSeatPageProps {
   params: Promise<{ tripId: string }>;
@@ -13,13 +13,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("book.title") };
 }
 
-/** docs/11 /book/[tripId]: step 1, boarding and destination, seats, fare bar. */
+/** D-048 /book/[tripId]: step 1, boarding and destination, Adult, Child and Senior counts, fare bar. */
 export default async function BookSeatPage({ params, searchParams }: BookSeatPageProps) {
   const { tripId } = await params;
   const { from, to } = await searchParams;
   return (
     <RequireAuth>
-      <SeatStep tripId={tripId} initialFrom={from} initialTo={to} />
+      <TravellersStep tripId={tripId} initialFrom={from} initialTo={to} />
     </RequireAuth>
   );
 }

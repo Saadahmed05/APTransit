@@ -2,7 +2,7 @@
 import { getQueueToken } from "@nestjs/bullmq";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
-import { groupFare } from "@aptransit/shared";
+import { groupFare, passengerCategory } from "@aptransit/shared";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppModule } from "../src/app.module";
@@ -159,7 +159,7 @@ describe("Payments (Day 6)", () => {
       holdExpiresAt: options.holdExpiresAt ?? new Date(Date.now() + 10 * 60_000),
     });
     for (const seatNo of seats) {
-      db.passengers.push({ id: nextId("bps"), bookingId: id, name: `P${seatNo}`, age: 30, gender: "F", seatNo });
+      db.passengers.push({ id: nextId("bps"), bookingId: id, name: `P${seatNo}`, category: "ADULT", age: 30, gender: "F", seatNo });
       redis.store.set(`hold:${tripId}:${seatNo}`, id);
     }
     redis.store.set(`holdcount:${tripId}`, String(Number(redis.store.get(`holdcount:${tripId}`) ?? 0) + seats.length));
@@ -266,7 +266,10 @@ describe("Payments (Day 6)", () => {
     it("splits a group booking over its tickets by age: parts add up, children and seniors pay half (v3 Phase 4)", async () => {
       const bookingId = seedBooking({ seats: ["1", "2", "3", "4", "5"] });
       const ages = [35, 33, 8, 4, 64];
-      db.passengers.forEach((p, i) => (p.age = ages[i]));
+      db.passengers.forEach((p, i) => {
+        p.age = ages[i];
+        p.category = passengerCategory(ages[i]!);
+      });
       const total = groupFare(54_100, ages).totalPaise;
       db.bookings[0].totalPaise = total;
 

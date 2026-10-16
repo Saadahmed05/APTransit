@@ -423,7 +423,9 @@ export function SearchClient({
                 const fare = formatMoney(trip.farePaise, locale);
                 const seats =
                   trip.seatsLeft > 0
-                    ? t("common.seatsLeft", { count: trip.seatsLeft })
+                    ? trip.seatless
+                      ? t("common.spaceLeft", { count: trip.seatsLeft })
+                      : t("common.seatsLeft", { count: trip.seatsLeft })
                     : t("search.full");
                 const statusKey = `status.${trip.displayStatus}`;
                 const statusLabel = t.has(statusKey) ? t(statusKey) : trip.displayStatus;

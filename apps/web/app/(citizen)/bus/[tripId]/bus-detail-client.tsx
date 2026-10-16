@@ -256,7 +256,7 @@ export function BusDetailClient({
         <div className="mt-2 flex items-center justify-between gap-4 border-t border-default pt-4 flex-wrap">
           <div>
             <span className="text-caption text-muted block">
-              {t("common.seat")}
+              {trip.seatless ? t("bus.space") : t("common.seat")}
             </span>
             <span
               className={`text-body font-semibold tabular-nums ${
@@ -267,7 +267,11 @@ export function BusDetailClient({
                   : "text-fg"
               }`}
             >
-              {isFull ? t("bus.busFull") : t("bus.seatsAvailable", { count: trip.seatsLeft })}
+              {isFull
+                ? t("bus.busFull")
+                : trip.seatless
+                  ? t("bus.spaceAvailable", { count: trip.seatsLeft })
+                  : t("bus.seatsAvailable", { count: trip.seatsLeft })}
             </span>
           </div>
 
@@ -307,7 +311,7 @@ export function BusDetailClient({
               onClick={() => router.push(freeUrl)}
               leftIcon={<HeartHandshake className="size-5" aria-hidden="true" />}
             >
-              {t("bus.bookFree")}
+              {trip.seatless ? t("bus.getFreeTicket") : t("bus.bookFree")}
             </Button>
           )}
 

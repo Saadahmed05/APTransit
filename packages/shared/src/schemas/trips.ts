@@ -74,6 +74,8 @@ export const TripDetailDto = z.object({
   scheduledArrivalAt: z.string().datetime(),
   freeTravelEligible: z.boolean(),
   farePaise: Paise.optional(),
+  /** D-046, D-048: no seats on this trip from end to end (local service, or the whole route is 50 km or less). */
+  seatless: z.boolean().default(false),
 });
 export type TripDetailDto = z.infer<typeof TripDetailDto>;
 

@@ -1,19 +1,28 @@
 import { z } from "zod";
 import { BookingStatus } from "../enums";
+import { PassengerCategory } from "../fare";
 import { Paise } from "../money";
 import { PublicId } from "./search";
 
 /** docs/07 booking.maxPassengers default. The API reads the live setting; forms use this cap. */
 export const BOOKING_MAX_PASSENGERS = 6;
 
-export const CreateBookingPassengerInput = z.object({
-  /** Seatless local trips take the name from the account (D-046), so it is optional here. */
-  name: z.string().trim().min(1, "Name is required").max(100, "Name too long").optional(),
-  age: z.coerce.number().int().min(1, "Age must be at least 1").max(120, "Age must be at most 120"),
-  gender: z.enum(["F", "M", "X"]).optional(),
-  /** Seatless trips (D-046) get no seat number from the client: the server assigns one internally. */
-  seatNo: z.string().trim().min(1, "Seat number is required").optional(),
-});
+export const CreateBookingPassengerInput = z
+  .object({
+    /** D-048: travellers are Adult, Child or Senior. The web sends only this (and a seat on reserved trips). */
+    category: PassengerCategory.optional(),
+    /** Older clients send an age instead; the server turns it into a category. */
+    age: z.coerce.number().int().min(1, "Age must be at least 1").max(120, "Age must be at most 120").optional(),
+    /** Never required: tickets carry the account name (D-048). */
+    name: z.string().trim().min(1, "Name is required").max(100, "Name too long").optional(),
+    gender: z.enum(["F", "M", "X"]).optional(),
+    /** Reserved trips need a seat. Seatless trips (D-046) never take one: the server assigns a hidden label. */
+    seatNo: z.string().trim().min(1, "Seat number is required").optional(),
+  })
+  .refine((p) => p.category !== undefined || p.age !== undefined, {
+    path: ["category"],
+    message: "Pick adult, child or senior",
+  });
 export type CreateBookingPassengerInput = z.infer<typeof CreateBookingPassengerInput>;
 
 export const CreateBookingInput = z.object({
@@ -31,7 +40,9 @@ export type CreateBookingInput = z.infer<typeof CreateBookingInput>;
 export const BookingPassengerDto = z.object({
   id: z.string(),
   name: z.string(),
-  age: z.number().int(),
+  category: PassengerCategory,
+  /** Only on bookings made with an age (before D-048). */
+  age: z.number().int().nullable(),
   gender: z.string(),
   seatNo: z.string(),
 });

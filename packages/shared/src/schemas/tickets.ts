@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { RefundStatus, ServiceType, TicketStatus, TicketType } from "../enums";
+import { PassengerCategory } from "../fare";
 import { Paise } from "../money";
 import { DisplayStatus } from "../status";
 
@@ -49,6 +50,8 @@ export const TicketsResponse = z.array(TicketSummaryDto);
 /** GET /tickets/:id (docs/06): the summary plus everything the ticket screen needs. */
 export const TicketDto = TicketSummaryDto.extend({
   passengerName: z.string().nullable(),
+  /** D-048: Adult, Child or Senior; null on passes and old free tickets. */
+  passengerCategory: PassengerCategory.nullable().default(null),
   farePaise: Paise,
   busRegNo: z.string().nullable(),
   /** Live trip status for the badge next to the ticket status. */

@@ -2,8 +2,11 @@ import { randomBytes } from "node:crypto";
 import {
   type BookingDto,
   calculateFare,
-  groupFare,
+  groupFareByCategory,
   isSeatless,
+  maskEmail,
+  maskPhone,
+  passengerCategory,
   type CreateBookingInput,
   generateBookingCode,
   SeatLayoutSchema,
@@ -53,7 +56,7 @@ type BookingWithPassengers = {
   boardingStopId: string;
   droppingStopId: string;
   createdAt: Date;
-  passengers: { id: string; name: string; age: number; gender: string; seatNo: string }[];
+  passengers: { id: string; name: string; category: "ADULT" | "CHILD" | "SENIOR"; age: number | null; gender: string; seatNo: string }[];
 };
 
 function toBookingDto(booking: BookingWithPassengers): BookingDto {
@@ -69,6 +72,7 @@ function toBookingDto(booking: BookingWithPassengers): BookingDto {
     passengers: booking.passengers.map((p) => ({
       id: p.id,
       name: p.name,
+      category: p.category,
       age: p.age,
       gender: p.gender,
       seatNo: p.seatNo,
@@ -243,16 +247,22 @@ export class BookingsService {
       }
     }
 
-    // Names: reserved trips need every name from the client; seatless trips use the account name.
-    const accountName = seatless
-      ? ((await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }))
-          ?.name ?? "Passenger")
-      : null;
-    const passengerRows = input.passengers.map((p, i) => {
-      const name = p.name ?? (seatless ? (i === 0 ? accountName! : `${accountName} +${i}`) : null);
-      if (!name) throw new AppError("VALIDATION_FAILED", "Passenger name is required");
-      return { name, age: p.age, gender: p.gender ?? "X", seatNo: seatNos[i]! };
+    // D-048: nobody types passenger details. Tickets carry the account name ("Name", "Name +1"),
+    // each traveller is Adult, Child or Senior (older clients may still send an age or a name).
+    const account = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true, phone: true },
     });
+    const accountName =
+      account?.name ??
+      (account?.email ? maskEmail(account.email) : account?.phone ? maskPhone(account.phone) : "Passenger");
+    const passengerRows = input.passengers.map((p, i) => ({
+      name: p.name ?? (i === 0 ? accountName : `${accountName} +${i}`),
+      category: p.category ?? passengerCategory(p.age!),
+      age: p.age ?? null,
+      gender: p.gender ?? ("X" as const),
+      seatNo: seatNos[i]!,
+    }));
 
     // 5. Check DB tickets for those seats
     const existingTickets = await this.prisma.ticket.findMany({
@@ -298,9 +308,9 @@ export class BookingsService {
     // D-042: children under CHILD_MAX_AGE pay half (group tickets with ages)
     const totalPaise = freePass
       ? 0
-      : groupFare(
+      : groupFareByCategory(
           singleFare.totalPaise,
-          input.passengers.map((p) => p.age),
+          passengerRows.map((p) => p.category),
         ).totalPaise;
 
     // 7. Hold all seats in one atomic Redis command. A hold we cannot place is never assumed free.

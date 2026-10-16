@@ -1,7 +1,7 @@
 "use client";
 
-import { BookingDto, CreateBookingPassengerInput, PassDto, SeatMapDto, TripDetailDto } from "@aptransit/shared";
-import { Button, Card, EmptyState, ErrorState, Field, Input, RadioGroup, RadioGroupItem, SeatMap, Skeleton } from "@aptransit/ui";
+import { BookingDto, type CreateBookingPassengerInput, FareDto, PassDto, SeatMapDto, TripDetailDto } from "@aptransit/shared";
+import { Button, Card, EmptyState, ErrorState, SeatMap, Skeleton } from "@aptransit/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, HeartHandshake } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -9,16 +9,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { z } from "zod";
-import { useMe } from "../../../../../components/auth-provider";
 import { api, errorKey, isApiError } from "../../../../../lib/api";
 import { queryKeys } from "../../../../../lib/query-keys";
 import { useNow } from "../../../../../lib/use-browser-state";
 
 const PassList = z.array(PassDto);
-const GENDERS = ["F", "M", "X"] as const;
 const SEATS_POLL_MS = 15_000;
 
-type Errors = Partial<Record<"seat" | "name" | "age" | "gender", string>>;
+type Errors = Partial<Record<"seat", string>>;
 
 export function FreeSeatView({ tripId, initialFrom, initialTo }: { tripId: string; initialFrom?: string; initialTo?: string }) {
   const t = useTranslations();
@@ -26,11 +24,7 @@ export function FreeSeatView({ tripId, initialFrom, initialTo }: { tripId: strin
   const router = useRouter();
   const queryClient = useQueryClient();
   const now = useNow(60_000);
-  const me = useMe();
   const [seat, setSeat] = useState<string | null>(null);
-  const [name, setName] = useState<string | null>(null);
-  const [age, setAge] = useState("");
-  const [gender, setGender] = useState("");
   const [errors, setErrors] = useState<Errors>({});
 
   const tripQuery = useQuery({
@@ -40,10 +34,17 @@ export function FreeSeatView({ tripId, initialFrom, initialTo }: { tripId: strin
   const trip = tripQuery.data;
   const boarding = trip?.boardingPoints.find((p) => p.stopId === initialFrom) ?? trip?.boardingPoints[0];
   const dropping = trip?.droppingPoints.find((p) => p.stopId === initialTo) ?? trip?.droppingPoints.at(-1);
+  const fareQuery = useQuery({
+    queryKey: queryKeys.tripFare(tripId, boarding?.stopId ?? "", dropping?.stopId ?? ""),
+    queryFn: ({ signal }) => api(`/trips/${tripId}/fare`, { query: { from: boarding?.stopId, to: dropping?.stopId }, schema: FareDto, signal }),
+    enabled: Boolean(boarding && dropping),
+  });
+  // D-046, D-048: a local (seatless) bus never shows a seat map, free travel included
+  const seatless = fareQuery.data?.seatless ?? trip?.seatless ?? false;
   const seatsQuery = useQuery({
     queryKey: queryKeys.tripSeats(tripId, boarding?.stopId, dropping?.stopId),
     queryFn: ({ signal }) => api(`/trips/${tripId}/seats`, { query: { from: boarding?.stopId, to: dropping?.stopId }, schema: SeatMapDto, signal }),
-    enabled: Boolean(boarding && dropping),
+    enabled: Boolean(boarding && dropping) && fareQuery.isSuccess && !seatless,
     refetchInterval: SEATS_POLL_MS,
   });
   const passesQuery = useQuery({
@@ -81,7 +82,7 @@ export function FreeSeatView({ tripId, initialFrom, initialTo }: { tripId: strin
     </Button>
   );
 
-  if (tripQuery.isLoading || passesQuery.isLoading || (Boolean(boarding && dropping) && seatsQuery.isLoading)) {
+  if (tripQuery.isLoading || passesQuery.isLoading || fareQuery.isLoading || (!seatless && Boolean(boarding && dropping) && seatsQuery.isLoading)) {
     return (
       <div className="mx-auto flex w-full max-w-xl flex-col gap-4" aria-busy="true">
         <span className="sr-only" role="status">
@@ -92,8 +93,8 @@ export function FreeSeatView({ tripId, initialFrom, initialTo }: { tripId: strin
       </div>
     );
   }
-  const failed = tripQuery.error ?? passesQuery.error ?? seatsQuery.error;
-  if (failed || !trip || !seatsQuery.data) {
+  const failed = tripQuery.error ?? passesQuery.error ?? fareQuery.error ?? seatsQuery.error;
+  if (failed || !trip || (!seatless && !seatsQuery.data)) {
     return (
       <ErrorState
         headingLevel="h1"
@@ -103,6 +104,7 @@ export function FreeSeatView({ tripId, initialFrom, initialTo }: { tripId: strin
         onRetry={() => {
           void tripQuery.refetch();
           void passesQuery.refetch();
+          void fareQuery.refetch();
           void seatsQuery.refetch();
         }}
       />
@@ -142,26 +144,19 @@ export function FreeSeatView({ tripId, initialFrom, initialTo }: { tripId: strin
   }
 
   const pick = (p: { nameEn: string; nameTe: string }) => (locale === "te" ? p.nameTe : p.nameEn);
-  const typedName = name ?? me.data?.name ?? "";
-  const seatStates = seatsQuery.data.seats;
+  const seatStates = seatsQuery.data?.seats ?? [];
   const selected = seat && seatStates.some((s) => s.seatNo === seat && s.state === "FREE") ? [seat] : [];
 
+  // D-048: no name, age or gender; the ticket carries the account name
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const parsed = CreateBookingPassengerInput.safeParse({ name: typedName.trim(), age: Number(age), gender, seatNo: selected[0] ?? "" });
-    const next: Errors = {};
-    if (selected.length === 0) next.seat = t("freeSeat.pickSeat");
-    if (!parsed.success) {
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0];
-        if (field === "name") next.name = t("book.details.errors.name");
-        if (field === "age") next.age = t("book.details.errors.age");
-        if (field === "gender") next.gender = t("book.details.errors.gender");
-      }
+    if (!seatless && selected.length === 0) {
+      setErrors({ seat: t("freeSeat.pickSeat") });
+      return;
     }
-    setErrors(next);
-    if (Object.keys(next).length > 0 || !parsed.success) return;
-    book.mutate({ passenger: parsed.data, key: crypto.randomUUID() });
+    setErrors({});
+    const passenger: CreateBookingPassengerInput = seatless ? { category: "ADULT" } : { category: "ADULT", seatNo: selected[0] };
+    book.mutate({ passenger, key: crypto.randomUUID() });
   };
 
   const bookError =
@@ -174,8 +169,8 @@ export function FreeSeatView({ tripId, initialFrom, initialTo }: { tripId: strin
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
       <div>{back}</div>
-      <h1 className="text-h1 text-fg">{t("freeSeat.title")}</h1>
-      <p className="text-body text-muted">{t("freeSeat.intro")}</p>
+      <h1 className="text-h1 text-fg">{seatless ? t("freeSeat.titleLocal") : t("freeSeat.title")}</h1>
+      <p className="text-body text-muted">{seatless ? t("freeSeat.introLocal") : t("freeSeat.intro")}</p>
       <Card padding="md" className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-body font-medium text-fg">
           {boarding && dropping ? t("freeSeat.segment", { from: pick(boarding), to: pick(dropping) }) : ""}
@@ -184,62 +179,40 @@ export function FreeSeatView({ tripId, initialFrom, initialTo }: { tripId: strin
       </Card>
 
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <section aria-labelledby="free-seat-heading" className="flex flex-col gap-3">
-          <h2 id="free-seat-heading" className="text-h2 text-fg">
-            {t("freeSeat.seatHeading")}
-          </h2>
-          <SeatMap
-            layout={seatsQuery.data.layout}
-            seats={seatStates}
-            selected={selected}
-            onToggle={(seatNo) => setSeat((current) => (current === seatNo ? null : seatNo))}
-            maxSelectable={1}
-            labels={{
-              map: t("book.seat.map"),
-              driver: t("book.seat.driver"),
-              legend: t("book.seat.legend"),
-              states: {
-                FREE: t("book.seat.states.FREE"),
-                SELECTED: t("book.seat.states.SELECTED"),
-                TAKEN: t("book.seat.states.TAKEN"),
-                HELD: t("book.seat.states.HELD"),
-                BLOCKED: t("book.seat.states.BLOCKED"),
-              },
-              seat: (seatNo, state) => t("book.seat.seatLabel", { seat: seatNo, state }),
-            }}
-          />
-          {errors.seat && (
-            <p role="alert" className="text-small text-status-danger">
-              {errors.seat}
-            </p>
-          )}
-        </section>
-
-        <Card padding="md" className="flex flex-col gap-4">
-          <h2 className="text-h3 text-fg">{t("freeSeat.passengerHeading")}</h2>
-          <Field id="free-name" label={t("book.details.name")} required error={errors.name}>
-            <Input id="free-name" autoComplete="name" value={typedName} onChange={(e) => setName(e.target.value)} aria-invalid={errors.name ? true : undefined} />
-          </Field>
-          <Field id="free-age" label={t("book.details.age")} required error={errors.age}>
-            <Input id="free-age" inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value.replace(/\D/g, "").slice(0, 3))} aria-invalid={errors.age ? true : undefined} />
-          </Field>
-          <fieldset className="flex flex-col gap-2">
-            <legend id="free-gender-label" className="text-body font-medium text-fg">
-              {t("book.details.gender")}
-            </legend>
-            <RadioGroup value={gender} onValueChange={setGender} aria-labelledby="free-gender-label" className="flex flex-wrap gap-2">
-              {GENDERS.map((value) => (
-                <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-strong px-3 has-[[data-state=checked]]:border-primary">
-                  <RadioGroupItem value={value} isError={Boolean(errors.gender)} aria-labelledby={`free-gender-${value}`} />
-                  <span id={`free-gender-${value}`} className="text-body text-fg">
-                    {t(`book.details.genders.${value}`)}
-                  </span>
-                </label>
-              ))}
-            </RadioGroup>
-            {errors.gender && <p className="text-small text-status-danger">{errors.gender}</p>}
-          </fieldset>
-        </Card>
+        {seatless ? (
+          <p className="text-body text-muted">{t("freeSeat.noSeat")}</p>
+        ) : (
+          <section aria-labelledby="free-seat-heading" className="flex flex-col gap-3">
+            <h2 id="free-seat-heading" className="text-h2 text-fg">
+              {t("freeSeat.seatHeading")}
+            </h2>
+            <SeatMap
+              layout={seatsQuery.data!.layout}
+              seats={seatStates}
+              selected={selected}
+              onToggle={(seatNo) => setSeat((current) => (current === seatNo ? null : seatNo))}
+              maxSelectable={1}
+              labels={{
+                map: t("book.seat.map"),
+                driver: t("book.seat.driver"),
+                legend: t("book.seat.legend"),
+                states: {
+                  FREE: t("book.seat.states.FREE"),
+                  SELECTED: t("book.seat.states.SELECTED"),
+                  TAKEN: t("book.seat.states.TAKEN"),
+                  HELD: t("book.seat.states.HELD"),
+                  BLOCKED: t("book.seat.states.BLOCKED"),
+                },
+                seat: (seatNo, state) => t("book.seat.seatLabel", { seat: seatNo, state }),
+              }}
+            />
+            {errors.seat && (
+              <p role="alert" className="text-small text-status-danger">
+                {errors.seat}
+              </p>
+            )}
+          </section>
+        )}
 
         {bookError && (
           <p role="alert" className="text-small text-status-danger">
@@ -247,7 +220,7 @@ export function FreeSeatView({ tripId, initialFrom, initialTo }: { tripId: strin
           </p>
         )}
         <Button type="submit" size="lg" loading={book.isPending}>
-          {t("freeSeat.book")}
+          {seatless ? t("freeSeat.bookLocal") : t("freeSeat.book")}
         </Button>
       </form>
     </div>

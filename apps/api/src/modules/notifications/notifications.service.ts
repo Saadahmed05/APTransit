@@ -1,8 +1,9 @@
-import type {
-  NotificationDto,
-  NotificationsPage,
-  NotificationType,
-  StoredNotificationParams,
+import {
+  type NotificationDto,
+  NotificationPrefs,
+  type NotificationsPage,
+  type NotificationType,
+  type StoredNotificationParams,
 } from "@aptransit/shared";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Injectable, Logger, Optional } from "@nestjs/common";
@@ -105,9 +106,9 @@ export class NotificationsService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true },
+      select: { email: true, notificationPrefs: true },
     });
-    if (user?.email && this.queue) {
+    if (user?.email && this.queue && wantsEmail(user.notificationPrefs, type)) {
       try {
         // A job id per notification: a retried notify can never send two emails
         await withTimeout(
@@ -208,4 +209,25 @@ export class NotificationsService {
       data: { readAt: now },
     });
   }
+}
+
+/** D-048: which notification emails a category switch controls. In app notifications always arrive. */
+const EMAIL_CATEGORY: Record<NotificationType, keyof NotificationPrefs["email"]> = {
+  BOOKING_CONFIRMED: "tickets",
+  TICKET_ACTIVATED: "tickets",
+  TICKET_RECEIVED: "tickets",
+  TRIP_DEPARTED: "trips",
+  TRIP_DELAYED: "trips",
+  BUS_NEAR_STOP: "trips",
+  TRIP_CANCELLED: "trips",
+  REPLACEMENT_BUS: "trips",
+  ROUTE_UPDATE: "trips",
+  PASS_EXPIRING: "passes",
+  COMPLAINT_UPDATE: "complaints",
+  CHILD_BOARDED: "passes",
+};
+
+export function wantsEmail(prefs: unknown, type: NotificationType): boolean {
+  const parsed = NotificationPrefs.safeParse(prefs);
+  return parsed.success ? parsed.data.email[EMAIL_CATEGORY[type]] : true;
 }

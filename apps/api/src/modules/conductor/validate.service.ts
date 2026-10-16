@@ -173,7 +173,7 @@ export class ValidateService {
                   scannedAt: true,
                   seatNo: true,
                   type: true,
-                  passenger: { select: { name: true } },
+                  passenger: { select: { name: true, category: true } },
                   holderUser: { select: { name: true } },
                   trip: {
                     select: {
@@ -349,6 +349,7 @@ export class ValidateService {
             detail = ticket
               ? {
                   passengerName: ticket.passenger?.name ?? ticket.holderUser.name ?? "",
+                  category: ticket.type === "FREE_TRAVEL" ? null : (ticket.passenger?.category ?? null),
                   // The seat belongs to the booked bus, not this one
                   // D-046: a local ticket has no seat to show either
                   seatNo:
@@ -366,6 +367,7 @@ export class ValidateService {
                 }
               : {
                   passengerName: pass!.holderName ?? pass!.user.name ?? "",
+                  category: null,
                   seatNo: null,
                   routeName: ctx.routeNameEn,
                   boarding: "",

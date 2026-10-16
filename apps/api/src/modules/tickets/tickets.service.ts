@@ -47,7 +47,7 @@ const MS_PER_MIN = 60_000;
 const REFUND_REASON_HOLDER = "HOLDER_CANCELLED";
 
 const TICKET_INCLUDE = {
-  passenger: { select: { name: true } },
+  passenger: { select: { name: true, category: true } },
   boardingStop: { select: { id: true, nameEn: true, nameTe: true } },
   droppingStop: { select: { id: true, nameEn: true, nameTe: true } },
   refunds: { orderBy: { createdAt: "desc" as const }, take: 1, select: { amountPaise: true, status: true } },
@@ -80,7 +80,7 @@ interface LoadedTicket {
   passengerId: string | null;
   boardingStopId: string;
   droppingStopId: string;
-  passenger: { name: string } | null;
+  passenger: { name: string; category: "ADULT" | "CHILD" | "SENIOR" } | null;
   boardingStop: { id: string; nameEn: string; nameTe: string };
   droppingStop: { id: string; nameEn: string; nameTe: string };
   refunds: { amountPaise: number; status: "PENDING" | "PROCESSED" | "FAILED" }[];
@@ -420,6 +420,7 @@ export class TicketsService {
     return {
       ...this.toSummary(ticket, settings),
       passengerName: ticket.passenger?.name ?? null,
+      passengerCategory: ticket.type === "FREE_TRAVEL" ? null : (ticket.passenger?.category ?? null),
       farePaise: ticket.farePaise,
       busRegNo: ticket.trip.assignments[0]?.bus?.regNo ?? null,
       displayStatus: deriveTripDisplayStatus({

@@ -574,9 +574,11 @@ describe("Trips and Bookings endpoints (Day 5)", () => {
         }
       });
 
-      it("still needs seat and name on a long reserved trip", async () => {
-        await post({ ...seatless, passengers: [{ age: 30, seatNo: "5" }] }).expect(400);
-        await post({ ...seatless, passengers: [{ age: 30, name: "A" }] }).expect(400);
+      it("still needs a seat on a long reserved trip, but never a name (D-048)", async () => {
+        await post({ ...seatless, passengers: [{ category: "ADULT" }] }).expect(400);
+        const res = await post({ ...seatless, passengers: [{ category: "ADULT", seatNo: "5" }, { category: "CHILD", seatNo: "6" }] }).expect(201);
+        expect(res.body.passengers.map((p: { name: string }) => p.name)).toEqual(["Citizen", "Citizen +1"]);
+        expect(res.body.passengers.map((p: { category: string }) => p.category)).toEqual(["ADULT", "CHILD"]);
       });
 
       it("caps tickets at the bus capacity", () =>

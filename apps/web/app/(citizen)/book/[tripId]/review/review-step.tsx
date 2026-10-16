@@ -7,8 +7,7 @@ import {
   formatMoney,
   formatTime,
   TripDetailDto,
-  groupFare,
-  passengerCategory,
+  groupFareByCategory,
 } from "@aptransit/shared";
 import { Button, Card, cn, EmptyState, ErrorState, Skeleton } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -166,7 +165,7 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
 
   return (
     <div className="flex flex-col gap-6">
-      <BookingStepper current={2} />
+      <BookingStepper current="pay" seatless={fare?.seatless ?? false} />
       <h1 className="text-h1 text-fg">{t("book.review.heading")}</h1>
 
       {expired ? (
@@ -222,12 +221,7 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
           {booking.passengers.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-3 py-2">
               <span className="min-w-0 break-words text-body text-fg">
-                {fare?.seatless
-                  ? t("book.review.localLine", {
-                      category: t(`book.local.category.${passengerCategory(p.age)}`),
-                      age: p.age,
-                    })
-                  : t("book.review.passengerLine", { name: p.name, age: p.age })}
+                {t("book.review.categoryLine", { category: t(`book.travellers.${p.category}`) })}
               </span>
               {fare && !fare.seatless && (
                 <span className="shrink-0 text-small font-medium text-muted">
@@ -257,19 +251,18 @@ export function ReviewStep({ tripId, bookingId }: { tripId: string; bookingId?: 
             )}
             <div className="flex justify-between gap-3 p-3 text-small">
               <dt className="text-muted">
-                {t("book.review.perPassenger", {
-                  count: booking.passengers.length,
-                  fare: formatMoney(fare.totalPaise, locale),
-                })}
-                {/* D-042, D-046 group ticket: children and seniors pay less */}
+                {/* D-048: children and seniors pay less than the adult fare shown */}
                 {(() => {
-                  const mix = groupFare(
+                  const mix = groupFareByCategory(
                     fare.totalPaise,
-                    booking.passengers.map((p) => p.age),
+                    booking.passengers.map((p) => p.category),
                   );
-                  return mix.children + mix.seniors > 0 ? (
-                    <span className="block">{t("book.review.mix", { adults: mix.adults, children: mix.children, seniors: mix.seniors })}</span>
-                  ) : null;
+                  return (
+                    <>
+                      {t("book.travellers.summary", { adults: mix.adults, children: mix.children, seniors: mix.seniors })}
+                      <span className="block">{t("book.review.adultFare", { fare: formatMoney(fare.totalPaise, locale) })}</span>
+                    </>
+                  );
                 })()}
               </dt>
               <dd className="tabular-nums text-body font-semibold text-fg">{total}</dd>

@@ -45,6 +45,8 @@ export const TripSummaryDto = z.object({
   displayStatus: DisplayStatus,
   delayMinutes: z.number().int().nonnegative(),
   freeTravelEligible: z.boolean(),
+  /** D-046, D-048: no seats on this segment (local service or 50 km or less). */
+  seatless: z.boolean().default(false),
 });
 export type TripSummaryDto = z.infer<typeof TripSummaryDto>;
 

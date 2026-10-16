@@ -192,6 +192,8 @@ export class TripsService {
       scheduledArrivalAt: trip.scheduledArrivalAt.toISOString(),
       freeTravelEligible: trip.busType.freeTravelEligible,
       farePaise,
+      // D-046, D-048: no seats anywhere on this trip (local service, or the whole route is 50 km or less)
+      seatless: isSeatless(trip.busType.serviceType, routeDto.stops.at(-1)?.kmFromOrigin ?? 0),
     };
   }
 

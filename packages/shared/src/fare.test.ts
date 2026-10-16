@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { CreateBookingPassengerInput } from "./schemas/booking";
 import {
+  categoriesFromCounts,
+  categoryFarePaise,
+  groupFareByCategory,
+  splitGroupTotalByCategory,
   calculateFare,
   DEFAULT_REFUND_TIERS,
   type FareRuleInput,
@@ -216,5 +221,41 @@ describe("group fares (D-042)", () => {
     const parts = splitGroupTotal(g.totalPaise, [35, 33, 8, 4]);
     expect(parts.reduce((s, p) => s + p, 0)).toBe(g.totalPaise);
     expect(Math.abs((parts[2] ?? 0) - 7_600)).toBeLessThan(100);
+  });
+});
+
+describe("category fares (D-048)", () => {
+  it("prices each category from the adult ticket", () => {
+    expect(categoryFarePaise(57_100, "ADULT")).toBe(57_100);
+    expect(categoryFarePaise(57_100, "CHILD")).toBe(28_600);
+    expect(categoryFarePaise(57_100, "SENIOR")).toBe(28_600);
+  });
+
+  it("matches the age based group fare for the same travellers", () => {
+    const byAge = groupFare(57_100, [35, 8, 65]);
+    const byCategory = groupFareByCategory(57_100, ["ADULT", "CHILD", "SENIOR"]);
+    expect(byCategory).toEqual(byAge);
+    expect(byCategory).toMatchObject({ adults: 1, children: 1, seniors: 1, totalPaise: 114_300 });
+  });
+
+  it("splits a total by category so the parts add up", () => {
+    const parts = splitGroupTotalByCategory(114_301, ["ADULT", "CHILD", "SENIOR"]);
+    expect(parts.reduce((s, p) => s + p, 0)).toBe(114_301);
+    expect(parts[1]).toBe(parts[2]);
+    expect(splitGroupTotal(114_301, [35, 8, 65])).toEqual(parts);
+  });
+
+  it("turns counts into a category list, adults first", () => {
+    expect(categoriesFromCounts({ ADULT: 2, CHILD: 1, SENIOR: 1 })).toEqual(["ADULT", "ADULT", "SENIOR", "CHILD"]);
+    expect(categoriesFromCounts({ CHILD: -1 })).toEqual([]);
+  });
+});
+
+describe("booking passenger input (D-048)", () => {
+  it("takes a category, or an age from older clients, and never needs a name or gender", () => {
+    expect(CreateBookingPassengerInput.safeParse({ category: "SENIOR" }).success).toBe(true);
+    expect(CreateBookingPassengerInput.safeParse({ age: 30, seatNo: "4" }).success).toBe(true);
+    expect(CreateBookingPassengerInput.safeParse({ seatNo: "4" }).success).toBe(false);
+    expect(CreateBookingPassengerInput.safeParse({ category: "TEEN" }).success).toBe(false);
   });
 });

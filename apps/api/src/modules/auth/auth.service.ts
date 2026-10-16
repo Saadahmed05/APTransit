@@ -2,7 +2,14 @@ import { randomBytes, randomInt, createHash, timingSafeEqual } from "node:crypto
 import {
   type AuthRefreshResponse,
   type AuthVerifyResponse,
+  type ContactOtpRequestInput,
+  type ContactOtpRequestResponse,
+  type ContactOtpVerifyInput,
+  DEFAULT_NOTIFICATION_PREFS,
   maskPhone,
+  NotificationPrefs,
+  type ProfileField,
+  type SessionDto,
   type MeDto,
   type OtpRequestInput,
   type OtpRequestResponse,
@@ -29,6 +36,7 @@ const OTP_RESEND_SEC = 30;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_LOCK_SEC = 15 * 60;
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const LOGIN_PURPOSE = "LOGIN";
 
 @Injectable()
 export class AuthService {
@@ -92,6 +100,62 @@ export class AuthService {
     } catch (err) {
       if (err instanceof AppError) throw err;
       // Redis unreachable: attempts are still capped per code in the database.
+    }
+  }
+
+  /**
+   * Checks and consumes the latest unused code for this channel, target and purpose. Wrong codes
+   * count attempts and lock the target after OTP_MAX_ATTEMPTS (docs/12).
+   */
+  private async consumeCode(channel: OtpRequestInput["channel"], target: string, purpose: string, code: string): Promise<void> {
+    await this.assertNotLocked(target);
+
+    // Only the latest unused code counts; a new request makes older codes useless.
+    const record = await this.prisma.otpCode.findFirst({
+      where: { channel, target, purpose, consumedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!record || record.expiresAt < new Date()) {
+      throw new AppError("OTP_EXPIRED", "That code has expired. Send a new code.");
+    }
+
+    // Covers the case where the Redis lock could not be written.
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      throw new AppError("OTP_TOO_MANY_ATTEMPTS", "Too many invalid attempts. Try again in 15 minutes.");
+    }
+
+    const candidateBuf = Buffer.from(this.hashOtpCode(code), "hex");
+    const storedBuf = Buffer.from(record.codeHash, "hex");
+    const matches = candidateBuf.length === storedBuf.length && timingSafeEqual(candidateBuf, storedBuf);
+
+    if (!matches) {
+      // Atomic increment: parallel wrong guesses cannot share one attempt.
+      const { attempts } = await this.prisma.otpCode.update({
+        where: { id: record.id },
+        data: { attempts: { increment: 1 } },
+        select: { attempts: true },
+      });
+
+      if (attempts >= OTP_MAX_ATTEMPTS) {
+        try {
+          await this.redis.client.set(`otp:lock:${target}`, "1", "EX", OTP_LOCK_SEC);
+        } catch {
+          // Redis unreachable: the attempts check above still blocks this code.
+        }
+        throw new AppError("OTP_TOO_MANY_ATTEMPTS", "Too many invalid attempts. Try again in 15 minutes.");
+      }
+
+      throw new AppError("OTP_INVALID", "That code is not right. Check the latest code and try again.");
+    }
+
+    // Consume atomically so one code can never be used twice (parallel verify requests).
+    const consumed = await this.prisma.otpCode.updateMany({
+      where: { id: record.id, consumedAt: null },
+      data: { consumedAt: new Date() },
+    });
+    if (consumed.count !== 1) {
+      throw new AppError("OTP_EXPIRED", "That code has expired. Send a new code.");
     }
   }
 
@@ -159,71 +223,8 @@ export class AuthService {
     const target = this.normaliseTarget(input);
 
     await this.rateLimit.assertOtpVerifyLimit(target, res);
-    await this.assertNotLocked(target);
-
-    // Only the latest unused code counts; a new request makes older codes useless.
-    const record = await this.prisma.otpCode.findFirst({
-      where: {
-        channel: input.channel,
-        target,
-        consumedAt: null,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    if (!record || record.expiresAt < new Date()) {
-      throw new AppError("OTP_EXPIRED", "That code has expired. Send a new code.");
-    }
-
-    // Covers the case where the Redis lock could not be written.
-    if (record.attempts >= OTP_MAX_ATTEMPTS) {
-      throw new AppError(
-        "OTP_TOO_MANY_ATTEMPTS",
-        "Too many invalid attempts. Try again in 15 minutes.",
-      );
-    }
-
-    const candidateBuf = Buffer.from(this.hashOtpCode(input.code), "hex");
-    const storedBuf = Buffer.from(record.codeHash, "hex");
-    const matches =
-      candidateBuf.length === storedBuf.length && timingSafeEqual(candidateBuf, storedBuf);
-
-    if (!matches) {
-      // Atomic increment: parallel wrong guesses cannot share one attempt.
-      const { attempts } = await this.prisma.otpCode.update({
-        where: { id: record.id },
-        data: { attempts: { increment: 1 } },
-        select: { attempts: true },
-      });
-
-      if (attempts >= OTP_MAX_ATTEMPTS) {
-        try {
-          await this.redis.client.set(`otp:lock:${target}`, "1", "EX", OTP_LOCK_SEC);
-        } catch {
-          // Redis unreachable: the attempts check above still blocks this code.
-        }
-        throw new AppError(
-          "OTP_TOO_MANY_ATTEMPTS",
-          "Too many invalid attempts. Try again in 15 minutes.",
-        );
-      }
-
-      throw new AppError(
-        "OTP_INVALID",
-        "That code is not right. Check the latest code and try again.",
-      );
-    }
-
-    // Consume atomically so one code can never log in twice (parallel verify requests).
-    const consumed = await this.prisma.otpCode.updateMany({
-      where: { id: record.id, consumedAt: null },
-      data: { consumedAt: new Date() },
-    });
-    if (consumed.count !== 1) {
-      throw new AppError("OTP_EXPIRED", "That code has expired. Send a new code.");
-    }
+    // D-048: only login codes log in; a contact verification code never does
+    await this.consumeCode(input.channel, target, LOGIN_PURPOSE, input.code);
 
     return this.signIn(
       input.channel === "EMAIL" ? { email: target } : { phone: target },
@@ -329,6 +330,16 @@ export class AuthService {
         },
       });
       user.userRoles.push(newRole);
+    }
+
+    // D-048: the channel used to log in is proven; stamp it once
+    const proved = "email" in where ? "emailVerifiedAt" : "phoneVerifiedAt";
+    if (!user[proved]) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { [proved]: new Date() },
+        include: { userRoles: true },
+      });
     }
 
     const rolesPayload = user.userRoles.map((r) => ({
@@ -525,11 +536,30 @@ export class AuthService {
       data: {
         ...(input.name ? { name: input.name } : {}),
         ...(input.preferredLocale ? { preferredLocale: input.preferredLocale } : {}),
+        ...(input.notificationPrefs ? { notificationPrefs: input.notificationPrefs } : {}),
       },
       include: { userRoles: true },
     });
 
     return this.formatMeDto(user);
+  }
+
+  /**
+   * Phone codes reach the user only through an SMS provider (none yet, docs/18 G14) or, outside
+   * production, the dev echo and the local log. Without them a phone is stored unverified.
+   */
+  private get phoneCodesWork(): boolean {
+    const devEcho = this.config.get("OTP_DEV_ECHO", { infer: true }) && this.config.get("APP_ENV", { infer: true }) !== "production";
+    return this.isDevelopment || Boolean(devEcho);
+  }
+
+  /** D-048: what a citizen still has to add before the profile is complete. */
+  private missingFields(user: { name: string | null; email: string | null; phone: string | null; emailVerifiedAt: Date | null; phoneVerifiedAt: Date | null }): ProfileField[] {
+    const missing: ProfileField[] = [];
+    if (!user.name?.trim()) missing.push("name");
+    if (!user.email || !user.emailVerifiedAt) missing.push("email");
+    if (!user.phone || (this.phoneCodesWork && !user.phoneVerifiedAt)) missing.push("phone");
+    return missing;
   }
 
   private formatMeDto(user: {
@@ -538,6 +568,9 @@ export class AuthService {
     email: string | null;
     phone: string | null;
     preferredLocale: string;
+    emailVerifiedAt: Date | null;
+    phoneVerifiedAt: Date | null;
+    notificationPrefs: unknown;
     userRoles: { role: string; depotId: string | null; districtId: string | null; stateId: string | null }[];
   }): MeDto {
     const roles: UserRoleDto[] = user.userRoles.map((r) => ({
@@ -546,6 +579,8 @@ export class AuthService {
       districtId: r.districtId,
       stateId: r.stateId,
     }));
+    const missing = this.missingFields(user);
+    const prefs = NotificationPrefs.safeParse(user.notificationPrefs);
 
     return {
       id: user.id,
@@ -554,6 +589,161 @@ export class AuthService {
       phone: user.phone ? maskPhone(user.phone) : null,
       preferredLocale: user.preferredLocale,
       roles,
+      emailVerified: Boolean(user.email && user.emailVerifiedAt),
+      phoneVerified: Boolean(user.phone && user.phoneVerifiedAt),
+      profileComplete: missing.length === 0,
+      missing,
+      notificationPrefs: prefs.success ? prefs.data : DEFAULT_NOTIFICATION_PREFS,
     };
   }
+
+  /**
+   * D-048: POST /me/contact/otp/request. Sends a code to a new email or phone for this account.
+   * Without phone codes (no SMS provider) a phone is stored right away, unverified.
+   */
+  async requestContactOtp(userId: string, input: ContactOtpRequestInput, ip: string, res?: Response): Promise<ContactOtpRequestResponse> {
+    const target = this.normaliseTarget(input);
+    const field = input.channel === "EMAIL" ? "email" : "phone";
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.deletedAt) throw new AppError("NOT_FOUND", "User not found");
+    const verifiedAt = field === "email" ? user.emailVerifiedAt : user.phoneVerifiedAt;
+    if (user[field] === target && verifiedAt) throw new AppError("VALIDATION_FAILED", "This is already your verified contact");
+    await this.assertContactFree(field, target, userId);
+
+    if (input.channel === "PHONE" && !this.phoneCodesWork) {
+      await this.saveContact(userId, field, target, null);
+      return { expiresInSec: 0, resendInSec: 0, saved: true };
+    }
+
+    await this.rateLimit.assertOtpRequestLimit(target, ip, res);
+    await this.assertNotLocked(target);
+    const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    await this.prisma.otpCode.create({
+      data: {
+        channel: input.channel,
+        target,
+        codeHash: this.hashOtpCode(code),
+        purpose: contactPurpose(userId),
+        expiresAt: new Date(Date.now() + OTP_TTL_SEC * 1000),
+      },
+    });
+    const otpDevEcho = this.config.get("OTP_DEV_ECHO", { infer: true });
+    const devCode = otpDevEcho && this.config.get("APP_ENV", { infer: true }) !== "production" ? code : undefined;
+    if (input.channel === "EMAIL") {
+      try {
+        await this.emailProvider.sendEmail(
+          target,
+          "Your AP TransitOS verification code",
+          `Your code to add this email to your AP TransitOS account is ${code}. It is valid for 5 minutes. Never share this code with anyone.`,
+        );
+      } catch (err) {
+        if (!(devCode && err instanceof AppError && err.code === "EMAIL_DELIVERY_FAILED")) throw err;
+        this.logger.warn("Verification email not delivered; the test code is shown on screen (OTP_DEV_ECHO)");
+      }
+    } else if (this.isDevelopment) {
+      this.logger.log(`[Dev SMS] ${maskPhone(target)} code ${code}`);
+    }
+    return { expiresInSec: OTP_TTL_SEC, resendInSec: OTP_RESEND_SEC, saved: false, ...(devCode ? { devCode } : {}) };
+  }
+
+  /** D-048: POST /me/contact/otp/verify. A right code sets and verifies the email or phone. */
+  async verifyContactOtp(userId: string, input: ContactOtpVerifyInput, ip: string, userAgent?: string, res?: Response): Promise<MeDto> {
+    const target = this.normaliseTarget(input);
+    const field = input.channel === "EMAIL" ? "email" : "phone";
+    await this.rateLimit.assertOtpVerifyLimit(target, res);
+    await this.consumeCode(input.channel, target, contactPurpose(userId), input.code);
+    const user = await this.saveContact(userId, field, target, new Date());
+    await this.audit.log({
+      action: "user.contact_verify",
+      entityType: "user",
+      entityId: userId,
+      after: { field },
+      actorUserId: userId,
+      ip,
+      userAgent,
+    });
+    return this.formatMeDto(user);
+  }
+
+  private async assertContactFree(field: "email" | "phone", target: string, userId: string): Promise<void> {
+    const owner = await this.prisma.user.findFirst({
+      where: field === "email" ? { email: target } : { phone: target },
+      select: { id: true },
+    });
+    if (owner && owner.id !== userId) throw new AppError("CONTACT_IN_USE", "This contact belongs to another account");
+  }
+
+  private async saveContact(userId: string, field: "email" | "phone", target: string, verifiedAt: Date | null) {
+    await this.assertContactFree(field, target, userId);
+    try {
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: field === "email" ? { email: target, emailVerifiedAt: verifiedAt } : { phone: target, phoneVerifiedAt: verifiedAt },
+        include: { userRoles: true },
+      });
+    } catch (err) {
+      // Two accounts verifying the same contact at once: the unique index decides
+      if ((err as { code?: string }).code === "P2002") throw new AppError("CONTACT_IN_USE", "This contact belongs to another account");
+      throw err;
+    }
+  }
+
+  /** D-048: GET /auth/sessions, one row per signed in device (refresh token family). */
+  async sessions(userId: string, rawRefreshToken?: string): Promise<SessionDto[]> {
+    const now = new Date();
+    const active = await this.prisma.refreshToken.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: now } },
+      select: { familyId: true, userAgent: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    });
+    const families = [...new Set(active.map((t) => t.familyId))];
+    if (families.length === 0) return [];
+    const first = await this.prisma.refreshToken.groupBy({
+      by: ["familyId"],
+      where: { familyId: { in: families } },
+      _min: { createdAt: true },
+    });
+    const startedAt = new Map(first.map((f) => [f.familyId, f._min.createdAt]));
+    const current = rawRefreshToken
+      ? (await this.prisma.refreshToken.findUnique({ where: { tokenHash: this.hashToken(rawRefreshToken) }, select: { familyId: true } }))?.familyId
+      : undefined;
+    return families.map((familyId) => {
+      const latest = active.find((t) => t.familyId === familyId)!;
+      return {
+        id: familyId,
+        userAgent: latest.userAgent ?? null,
+        signedInAt: (startedAt.get(familyId) ?? latest.createdAt).toISOString(),
+        lastActiveAt: latest.createdAt.toISOString(),
+        current: familyId === current,
+      };
+    });
+  }
+
+  /** D-048: POST /auth/sessions/revoke-others. Every other device has to sign in again. */
+  async revokeOtherSessions(user: AuthenticatedUser, rawRefreshToken: string | undefined, ip?: string, userAgent?: string): Promise<number> {
+    const current = rawRefreshToken
+      ? (await this.prisma.refreshToken.findUnique({ where: { tokenHash: this.hashToken(rawRefreshToken) }, select: { familyId: true, userId: true } }))
+      : null;
+    const keep = current?.userId === user.id ? current.familyId : undefined;
+    const result = await this.prisma.refreshToken.updateMany({
+      where: { userId: user.id, revokedAt: null, ...(keep ? { familyId: { not: keep } } : {}) },
+      data: { revokedAt: new Date() },
+    });
+    await this.audit.log({
+      action: "auth.logout_others",
+      entityType: "user",
+      entityId: user.id,
+      after: { revoked: result.count },
+      actorUserId: user.id,
+      actorRole: user.roles[0]?.role ?? null,
+      ip,
+      userAgent,
+    });
+    return result.count;
+  }
+}
+
+/** Contact codes are bound to the account that asked for them, and never log anyone in. */
+function contactPurpose(userId: string): string {
+  return `CONTACT:${userId}`;
 }

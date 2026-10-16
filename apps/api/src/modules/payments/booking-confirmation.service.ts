@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { generateTicketCode, splitGroupTotal } from "@aptransit/shared";
+import { generateTicketCode, splitGroupTotalByCategory } from "@aptransit/shared";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { sealSecret } from "../../common/crypto/secret-box";
@@ -113,9 +113,10 @@ export class BookingConfirmationService {
       },
       closesMinutes,
     );
-    const shares = splitGroupTotal(
+    // D-048: each ticket's share of the total follows its passenger category
+    const shares = splitGroupTotalByCategory(
       booking.totalPaise,
-      booking.passengers.map((p) => p.age),
+      booking.passengers.map((p) => p.category),
     );
 
     let ticketIds: string[];

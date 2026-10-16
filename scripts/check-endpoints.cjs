@@ -14,6 +14,13 @@ const ALLOWED_EXTRA = new Map([
   ["GET /ops/bus-types", "D-029"],
   ["GET /ops/routes", "D-029"],
   ["GET /driver/trips", "Day 11: today's trip list for the driver app (D-025)"],
+  ["POST /me/contact/otp/request", "D-048: add or change the email or phone"],
+  ["POST /me/contact/otp/verify", "D-048"],
+  ["GET /auth/sessions", "D-048: signed in devices"],
+  ["POST /auth/sessions/revoke-others", "D-048"],
+  ["GET /me/saved-routes", "D-048: saved routes"],
+  ["POST /me/saved-routes", "D-048"],
+  ["DELETE /me/saved-routes/:p", "D-048"],
 ]);
 
 const norm = (method, p) => `${method} ${("/" + p).replace(/\/+/g, "/").replace(/\/$/, "").replace(/:[A-Za-z]+/g, ":p") || "/"}`;

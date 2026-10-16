@@ -1,8 +1,9 @@
 import { expect, type Page, test } from "@playwright/test";
 import { login, tomorrowIst, uniqueEmail } from "./helpers";
 
-// D-046: local buses have no seats. The traveller gives ages, the name comes from the account, and
-// the fare is adult, child or senior by age. Needs a seeded database (Kurnool malls line KCM-01).
+// D-046, D-048: local buses have no seats. The traveller picks Adult, Child and Senior counts, the
+// name comes from the account, and each category has its own fare. Needs a seeded database
+// (Kurnool malls line KCM-01).
 
 async function stopId(page: Page, q: string) {
   const res = await page.request.get(`/api/v1/places/search?q=${encodeURIComponent(q)}&limit=1`);
@@ -10,7 +11,7 @@ async function stopId(page: Page, q: string) {
 }
 
 test.describe("D-046: seatless local booking", () => {
-  test("map pickup and drop, ages instead of seats, adult child and senior fares", async ({ page }) => {
+  test("map pickup and drop, counts instead of seats, adult child and senior fares", async ({ page }) => {
     test.setTimeout(150_000);
     await login(page, uniqueEmail("v3-local"));
     await page.goto("/");
@@ -30,29 +31,24 @@ test.describe("D-046: seatless local booking", () => {
     await page.waitForURL(/\/bus\//);
     await page.getByRole("button", { name: /^book ticket/i }).click();
 
-    // No seat map: the local booking screen
+    // No seat map anywhere: the travellers step books a local trip directly
     const local = page.getByTestId("local-booking");
     await expect(local).toBeVisible();
     await expect(page.getByRole("button", { name: /^Seat \d+, available$/ })).toHaveCount(0);
-
-    // The name comes from the account; a new OTP account has none, so it is asked once
-    await page.getByLabel("Your name").fill("Local Traveller");
-    await page.getByLabel("Age of traveller 1").fill("35");
-    await page.getByRole("button", { name: "Add another traveller" }).click();
-    await page.getByLabel("Age of traveller 2").fill("8");
-    await page.getByRole("button", { name: "Add another traveller" }).click();
-    await page.getByLabel("Age of traveller 3").fill("64");
-    await expect(local.getByText("Adult", { exact: false }).first()).toBeVisible();
-    await expect(local.getByText("Child", { exact: false }).first()).toBeVisible();
-    await expect(local.getByText("Senior citizen", { exact: false }).first()).toBeVisible();
+    await expect(page.getByText("Local bus: no seat to pick. Get on and sit anywhere.")).toBeVisible();
+    // No names: one adult is already counted, add a child and a senior
+    await expect(page.getByLabel(/name/i)).toHaveCount(0);
+    await page.getByRole("button", { name: "Add one Child", exact: true }).click();
+    await page.getByRole("button", { name: "Add one Senior citizen", exact: true }).click();
+    await expect(page.getByText("1 adult, 1 child, 1 senior")).toBeVisible();
 
     await page.getByRole("button", { name: "Continue to pay" }).click();
     await page.waitForURL(/\/review\?booking=/);
 
-    // Review: ages and categories, no names and no seats; the mix line shows the lower fares
-    await expect(page.getByText("Adult, age 35")).toBeVisible();
-    await expect(page.getByText("Child, age 8")).toBeVisible();
-    await expect(page.getByText("Senior citizen, age 64")).toBeVisible();
+    // Review: categories, no names and no seats; the mix line shows the lower fares
+    await expect(page.getByText("Adult", { exact: true })).toBeVisible();
+    await expect(page.getByText("Child", { exact: true })).toBeVisible();
+    await expect(page.getByText("Senior citizen", { exact: true })).toBeVisible();
     await expect(page.getByText(/^Seat \d+$/)).toHaveCount(0);
     await expect(page.getByText("1 adult, 1 child, 1 senior")).toBeVisible();
 

@@ -35,7 +35,8 @@
     "breadcrumb": "Breadcrumb",
     "notAvailable": "Not available",
     "routeFromTo": "{from} to {to}",
-    "appShortName": "TransitOS"
+    "appShortName": "TransitOS",
+    "spaceLeft": "{count, plural, one {Space for # more} other {Space for # more}}"
   },
   "home": {
     "question": "Where do you want to go?",
@@ -143,7 +144,10 @@
     "errorTitle": "Could not load bus details",
     "approx": "approx.",
     "bookFree": "Book free seat",
-    "bookFreeHint": "Free with your free travel pass."
+    "bookFreeHint": "Free with your free travel pass.",
+    "space": "Space",
+    "spaceAvailable": "{count, plural, one {Space for # more} other {Space for # more}}",
+    "getFreeTicket": "Get free ticket"
   },
   "timetable": {
     "title": "Timetable",
@@ -434,11 +438,11 @@
     "title": "Book ticket",
     "steps": {
       "label": "Booking steps",
-      "seat": "Seat",
-      "details": "Details",
       "pay": "Pay",
       "announce": "Step {step} of {total}: {name}",
-      "completed": "completed"
+      "completed": "completed",
+      "travellers": "Travellers",
+      "seats": "Seats"
     },
     "seat": {
       "heading": "Pick your seats",
@@ -463,29 +467,6 @@
       "lostSeat": "Seat {seat} is no longer free and was removed from your selection.",
       "errorTitle": "Seats could not load"
     },
-    "details": {
-      "heading": "Passenger details",
-      "passenger": "Passenger {number}, seat {seat}",
-      "name": "Full name",
-      "age": "Age",
-      "gender": "Gender",
-      "genderHint": "Used only for seat rules and free travel. Never shown to other travellers.",
-      "genders": {
-        "F": "Female",
-        "M": "Male",
-        "X": "Other"
-      },
-      "useMine": "Use my details",
-      "continue": "Continue",
-      "backToSeats": "Change seats",
-      "noSeats": "Pick your seats first.",
-      "errors": {
-        "name": "Enter the passenger's name.",
-        "age": "Enter an age from 1 to 120.",
-        "gender": "Choose a gender."
-      },
-      "childHint": "Under {age} travels at half fare."
-    },
     "review": {
       "heading": "Review and pay",
       "holdLabel": "Seats held for",
@@ -495,8 +476,6 @@
       "trip": "Trip",
       "passengers": "Passengers",
       "seat": "Seat {seat}",
-      "passengerLine": "{name}, {age}",
-      "perPassenger": "{count, plural, one {# passenger} other {# passengers}} x {fare}",
       "pay": "Pay {amount}",
       "cancel": "Cancel booking",
       "cancelFailed": "The booking could not be cancelled. Try again.",
@@ -510,8 +489,8 @@
       "checkingTitle": "We are checking your payment",
       "checkingHint": "If money left your account, your ticket appears in My tickets in a few minutes. If not, it is refunded on its own. Quote booking {code} if you contact support.",
       "paymentDescription": "{route}, {date}",
-      "mix": "{adults, plural, one {# adult} other {# adults}}, {children, plural, one {# child} other {# children}}, {seniors, plural, one {# senior} other {# seniors}}",
-      "localLine": "{category}, age {age}"
+      "categoryLine": "{category}",
+      "adultFare": "Adult fare {fare} each"
     },
     "done": {
       "title": "Ticket booked",
@@ -526,25 +505,34 @@
       "notConfirmedTitle": "We are still confirming this booking",
       "errorTitle": "Booking could not load"
     },
-    "local": {
-      "heading": "Book your local ticket",
-      "intro": "Local buses have no seats to book. Pick where you board and where you get down, then add the age of everyone travelling.",
-      "travellers": "Who is travelling",
-      "rules": "Under {child} is a child, {senior} and over is a senior citizen. Children and seniors pay a lower fare.",
-      "ageOf": "Age of traveller {n}",
-      "enterAge": "Enter an age from 1 to 120",
-      "category": {
-        "ADULT": "Adult",
-        "CHILD": "Child",
-        "SENIOR": "Senior citizen"
-      },
-      "add": "Add another traveller",
-      "remove": "Remove traveller {n}",
-      "noSeat": "No seat is reserved. Your name comes from your account.",
-      "book": "Continue to pay",
-      "dash": "Enter all ages",
-      "nameLabel": "Your name",
-      "nameHint": "Used on your local tickets. You can change it later in your account."
+    "travellers": {
+      "heading": "Who is travelling?",
+      "intro": "Pick how many adults, children and senior citizens. No names needed: tickets carry your account name.",
+      "ADULT": "Adult",
+      "CHILD": "Child",
+      "SENIOR": "Senior citizen",
+      "adultHint": "{child} to {lastAdult} years",
+      "childHint": "Under {child} years",
+      "seniorHint": "{senior} years and over",
+      "each": "{price} each",
+      "add": "Add one {category}",
+      "remove": "Remove one {category}",
+      "count": "{category}: {count}",
+      "max": "Up to {max} travellers per booking.",
+      "none": "Add at least one traveller.",
+      "proof": "The conductor may ask for proof of age on child and senior tickets.",
+      "noSeat": "Local bus: no seat to pick. Get on and sit anywhere.",
+      "chooseSeats": "{count, plural, one {Choose 1 seat} other {Choose # seats}}",
+      "continuePay": "Continue to pay",
+      "total": "Total",
+      "summary": "{adults, plural, one {# adult} other {# adults}}, {children, plural, one {# child} other {# children}}, {seniors, plural, one {# senior} other {# seniors}}"
+    },
+    "seats": {
+      "heading": "{count, plural, one {Pick 1 seat} other {Pick # seats}}",
+      "picked": "{picked} of {count} seats picked",
+      "needExact": "{count, plural, one {Pick 1 seat to continue.} other {Pick # seats to continue.}}",
+      "changeTravellers": "Change travellers",
+      "noTravellers": "Pick your travellers first."
     }
   },
   "tickets": {
@@ -563,7 +551,8 @@
     "refundDone": "Refunded {amount}",
     "cardLabel": "{route}, {date} at {time}, seat {seat}, {status}",
     "errorTitle": "Tickets could not load",
-    "open": "Open ticket"
+    "open": "Open ticket",
+    "cardLabelNoSeat": "{route}, {date} at {time}, {status}"
   },
   "colourOfDay": {
     "RED": "Red",
@@ -586,7 +575,8 @@
       "destination": "Destination",
       "passenger": "Passenger",
       "fare": "Fare",
-      "free": "Free"
+      "free": "Free",
+      "category": "Ticket type"
     },
     "codeLabel": "Ticket code",
     "copy": "Copy code",
@@ -805,7 +795,6 @@
     "intro": "One seat at zero fare with your free travel pass. No payment needed.",
     "segment": "{from} to {to}",
     "seatHeading": "Pick your seat",
-    "passengerHeading": "Passenger",
     "pickSeat": "Pick a seat to continue.",
     "book": "Book free seat",
     "needPassTitle": "You need an active free travel pass",
@@ -813,7 +802,11 @@
     "getPass": "Get free travel",
     "notOnThisBus": "Free travel is not available on this bus.",
     "freeFare": "Fare: Free",
-    "errorTitle": "This bus could not load"
+    "errorTitle": "This bus could not load",
+    "titleLocal": "Free local ticket",
+    "introLocal": "Your free travel pass covers this local bus. No payment needed.",
+    "noSeat": "Local bus: no seat to pick. Get on and sit anywhere.",
+    "bookLocal": "Get free ticket"
   },
   "updates": {
     "title": "Updates",
@@ -1087,6 +1080,11 @@
       "onBoard": "{count, plural, one {# checked ticket passenger on board} other {# checked ticket passengers on board}}",
       "passesNote": "Pass holders are not counted: a pass has no dropping stop.",
       "loadFailed": "Could not load who gets down"
+    },
+    "category": {
+      "ADULT": "Adult",
+      "CHILD": "Child",
+      "SENIOR": "Senior citizen"
     }
   },
   "opsApp": {

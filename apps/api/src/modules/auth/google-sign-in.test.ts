@@ -19,6 +19,8 @@ interface FakeUser {
   name: string | null;
   preferredLocale: string;
   deletedAt: Date | null;
+  emailVerifiedAt?: Date | null;
+  phoneVerifiedAt?: Date | null;
   userRoles: { id: string; userId: string; role: string; depotId: null; districtId: null; stateId: null }[];
 }
 
@@ -48,6 +50,12 @@ function build(env: Partial<Record<keyof Env, unknown>> = {}) {
           })),
         };
         users.push(user);
+        return user;
+      },
+      // D-048: sign in stamps the verified time of the login channel
+      update: async ({ where, data }: { where: { id: string }; data: Partial<FakeUser> }) => {
+        const user = users.find((u) => u.id === where.id)!;
+        Object.assign(user, data);
         return user;
       },
     },

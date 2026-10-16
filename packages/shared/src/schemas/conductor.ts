@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BusClass } from "../bus-class";
 import { ScanReason, StopSource, TicketType } from "../enums";
+import { PassengerCategory } from "../fare";
 import { PublicId } from "./search";
 import { TripDto } from "./tracking";
 
@@ -78,6 +79,8 @@ export const ValidateTicketResult = z.object({
   ticket: z
     .object({
       passengerName: z.string(),
+      /** D-048: the fare category the conductor checks (proof of age for child and senior). */
+      category: PassengerCategory.nullable().default(null),
       seatNo: z.string().nullable(),
       routeName: z.string(),
       boarding: z.string(),

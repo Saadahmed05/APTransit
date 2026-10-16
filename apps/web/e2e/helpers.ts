@@ -58,14 +58,12 @@ export async function bookAndPay(page: Page): Promise<string> {
   await page.waitForURL(/\/bus\//);
   await page.getByRole("button", { name: /^book ticket/i }).click();
   await page.waitForURL(/\/book\/[^/]+\?/);
+  // D-048: one adult by default, no names; a reserved trip then picks exactly one seat
+  await page.getByRole("button", { name: /^choose 1 seat$/i }).click();
+  await page.waitForURL(/\/seats$/);
   const free = page.getByRole("button", { name: /^Seat \d+, available$/ });
   await expect(free.first()).toBeVisible();
   await free.nth(Math.floor(Math.random() * (await free.count()))).click();
-  await page.getByRole("button", { name: /^continue$/i }).click();
-  await page.waitForURL(/\/details$/);
-  await page.getByLabel(/full name/i).first().fill("E2E Passenger");
-  await page.getByLabel(/^age/i).first().fill("30");
-  await page.getByText("Female", { exact: true }).first().click();
   await page.getByRole("button", { name: /^continue$/i }).click();
   await page.waitForURL(/\/review\?booking=/);
   await page.getByRole("button", { name: /^pay/i }).click();

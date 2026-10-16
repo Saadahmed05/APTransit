@@ -4,6 +4,7 @@ import {
   CROCKFORD_ALPHABET,
   formatIstDate,
   localTimeToUtc,
+  passengerCategory,
   type ServiceType,
   utcToIstParts,
 } from "@aptransit/shared";
@@ -463,11 +464,14 @@ export async function generateHistory(prisma: PrismaClient, days = 14, now = new
       const boardAt = new Date(departed.getTime() + from.minutesFromOrigin * MIN);
       for (let p = 0; p < size; p++) {
         const passengerId = newId();
+        const name = p === 0 ? (user.name ?? "Passenger") : `${pick(rng, FIRST_NAMES)} ${user.name?.split(" ")[1] ?? ""}`.trim();
+        const age = int(rng, 18, 70);
         passengers.push({
           id: passengerId,
           bookingId,
-          name: p === 0 ? (user.name ?? "Passenger") : `${pick(rng, FIRST_NAMES)} ${user.name?.split(" ")[1] ?? ""}`.trim(),
-          age: int(rng, 18, 70),
+          name,
+          category: passengerCategory(age),
+          age,
           gender: freeTravel ? "F" : pick(rng, ["M", "F"] as const),
           seatNo: String(seat++),
           createdAt: bookedAt,
@@ -528,7 +532,7 @@ export async function generateHistory(prisma: PrismaClient, days = 14, now = new
 
   step("tickets built in memory");
   await bulkInsert(prisma, "bookings", bookings, { status: '"BookingStatus"', totalPaise: "int4", holdExpiresAt: "timestamp" }, true);
-  await bulkInsert(prisma, "booking_passengers", passengers, { age: "int4", gender: '"Gender"' }, false);
+  await bulkInsert(prisma, "booking_passengers", passengers, { age: "int4", gender: '"Gender"', category: '"PassengerCategory"' }, false);
   await bulkInsert(prisma, "payments", payments, PAYMENT_TYPES, true);
   step("bookings, passengers, payments inserted");
   await bulkInsert(prisma, "tickets", tickets, { type: '"TicketType"', status: '"TicketStatus"', farePaise: "int4", activatedAt: "timestamp", validUntil: "timestamp", scannedAt: "timestamp", usedAt: "timestamp", expiresAt: "timestamp", giftable: "bool" }, true);

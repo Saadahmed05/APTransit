@@ -20,7 +20,7 @@ export function TicketSummaryCard({ ticket }: { ticket: TicketSummaryDto }) {
     <Card asChild variant="interactive" padding="md" className="flex flex-col gap-3">
       <Link
         href={`/tickets/${ticket.id}`}
-        aria-label={t("tickets.cardLabel", {
+        aria-label={t(ticket.seatNo ? "tickets.cardLabel" : "tickets.cardLabelNoSeat", {
         route: t("common.routeFromTo", { from: pick(ticket.boarding), to: pick(ticket.dropping) }),
         date,
         time,

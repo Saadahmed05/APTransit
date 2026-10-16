@@ -154,6 +154,10 @@ export function TicketView({ id }: { id: string }) {
 
   const details = [
     { label: t("ticketDetail.details.passenger"), value: ticket.passengerName ?? t("common.notAvailable") },
+    // D-048: Adult, Child or Senior (the conductor may ask for proof of age)
+    ...(ticket.passengerCategory
+      ? [{ label: t("ticketDetail.details.category"), value: t(`book.travellers.${ticket.passengerCategory}`) }]
+      : []),
     // D-046: local tickets have no seat, so the row is left out
     ...(ticket.seatNo ? [{ label: t("ticketDetail.details.seat"), value: ticket.seatNo }] : []),
     { label: t("ticketDetail.details.bus"), value: ticket.busRegNo ?? t("ticketDetail.details.busPending") },

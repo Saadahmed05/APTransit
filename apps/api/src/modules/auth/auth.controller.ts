@@ -1,7 +1,11 @@
 import {
   type AuthRefreshResponse,
   type AuthVerifyResponse,
+  ContactOtpRequestInput,
+  type ContactOtpRequestResponse,
+  ContactOtpVerifyInput,
   type MeDto,
+  type SessionDto,
   OtpRequestInput,
   type OtpRequestResponse,
   GoogleSignInInput,
@@ -198,5 +202,44 @@ export class AuthController {
       throw new AppError("UNAUTHENTICATED", "Authentication required");
     }
     return this.authService.updateMe(user.id, body);
+  }
+
+  /** D-048: add or change the email or phone. Same per target and per IP limits as login codes. */
+  @Throttle({ default: { limit: 5, ttl: 600_000 } })
+  @Post("me/contact/otp/request")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async requestContactOtp(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(ContactOtpRequestInput)) body: ContactOtpRequestInput,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ContactOtpRequestResponse> {
+    return this.authService.requestContactOtp(user.id, body, req.ip ?? "unknown", res);
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 600_000 } })
+  @Post("me/contact/otp/verify")
+  @HttpCode(HttpStatus.OK)
+  async verifyContactOtp(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(ContactOtpVerifyInput)) body: ContactOtpVerifyInput,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<MeDto> {
+    return this.authService.verifyContactOtp(user.id, body, req.ip ?? "unknown", req.headers["user-agent"], res);
+  }
+
+  /** D-048: signed in devices. Under /auth because the refresh cookie (the current device) is scoped there. */
+  @Get("auth/sessions")
+  sessions(@CurrentUser() user: AuthenticatedUser, @Req() req: Request): Promise<SessionDto[]> {
+    return this.authService.sessions(user.id, getRefreshTokenFromReq(req));
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 3_600_000 } })
+  @Post("auth/sessions/revoke-others")
+  @HttpCode(HttpStatus.OK)
+  async revokeOtherSessions(@CurrentUser() user: AuthenticatedUser, @Req() req: Request): Promise<{ revoked: number }> {
+    const revoked = await this.authService.revokeOtherSessions(user, getRefreshTokenFromReq(req), req.ip, req.headers["user-agent"]);
+    return { revoked };
   }
 }

@@ -10,6 +10,7 @@ export * from "./permissions";
 export * from "./schemas/health";
 export * from "./schemas/seat-layout";
 export * from "./schemas/auth";
+export * from "./schemas/me";
 export * from "./fare";
 export * from "./bus-class";
 export * from "./seatless";

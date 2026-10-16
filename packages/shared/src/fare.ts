@@ -161,7 +161,9 @@ export const SENIOR_MIN_AGE = 60;
 /** Seniors pay this percent of the adult ticket. The owner gave the age, not the discount: (A), docs/18. */
 export const SENIOR_FARE_PERCENT = 50;
 
-export type PassengerCategory = "ADULT" | "CHILD" | "SENIOR";
+/** D-048: travellers are counted by category; the web never asks for names, gender or ages. */
+export const PassengerCategory = z.enum(["ADULT", "CHILD", "SENIOR"]);
+export type PassengerCategory = z.infer<typeof PassengerCategory>;
 
 export function passengerCategory(age: number): PassengerCategory {
   if (age < CHILD_MAX_AGE) return "CHILD";
@@ -176,11 +178,16 @@ export const CATEGORY_FARE_PERCENT: Record<PassengerCategory, number> = {
   SENIOR: SENIOR_FARE_PERCENT,
 };
 
-/** Fare for one passenger of a given age, from the adult ticket total. */
-export function passengerFarePaise(adultTotalPaise: number, age: number): number {
-  const percent = CATEGORY_FARE_PERCENT[passengerCategory(age)];
+/** Fare for one passenger of a category, from the adult ticket total (rounded to the rupee). */
+export function categoryFarePaise(adultTotalPaise: number, category: PassengerCategory): number {
+  const percent = CATEGORY_FARE_PERCENT[category];
   if (percent === 100) return adultTotalPaise;
   return roundToRupee(Math.round((adultTotalPaise * percent) / 100));
+}
+
+/** Fare for one passenger of a given age, from the adult ticket total. */
+export function passengerFarePaise(adultTotalPaise: number, age: number): number {
+  return categoryFarePaise(adultTotalPaise, passengerCategory(age));
 }
 
 export interface GroupFare {
@@ -192,10 +199,10 @@ export interface GroupFare {
   totalPaise: number;
 }
 
-/** Fare for a group (adults, children and seniors with ages). The booking total is the sum. */
-export function groupFare(adultTotalPaise: number, ages: readonly number[]): GroupFare {
-  const perPassengerPaise = ages.map((age) => passengerFarePaise(adultTotalPaise, age));
-  const count = (c: PassengerCategory) => ages.filter((age) => passengerCategory(age) === c).length;
+/** Fare for a group by category (D-048). The booking total is the sum. */
+export function groupFareByCategory(adultTotalPaise: number, categories: readonly PassengerCategory[]): GroupFare {
+  const perPassengerPaise = categories.map((c) => categoryFarePaise(adultTotalPaise, c));
+  const count = (c: PassengerCategory) => categories.filter((x) => x === c).length;
   return {
     adults: count("ADULT"),
     children: count("CHILD"),
@@ -205,15 +212,30 @@ export function groupFare(adultTotalPaise: number, ages: readonly number[]): Gro
   };
 }
 
+/** Fare for a group (adults, children and seniors with ages). The booking total is the sum. */
+export function groupFare(adultTotalPaise: number, ages: readonly number[]): GroupFare {
+  return groupFareByCategory(adultTotalPaise, ages.map(passengerCategory));
+}
+
 /**
- * Splits a paid booking total over passengers by their ages (adult weight 100, child and senior
- * their fare percent). Rounding leftovers go to the first passenger, so the parts add up to the total.
+ * Splits a paid booking total over passengers by category (adult weight 100, child and senior their
+ * fare percent). Rounding leftovers go to the first passenger, so the parts add up to the total.
  */
-export function splitGroupTotal(totalPaise: number, ages: readonly number[]): number[] {
-  if (ages.length === 0) return [];
-  const weights = ages.map((age) => CATEGORY_FARE_PERCENT[passengerCategory(age)]);
+export function splitGroupTotalByCategory(totalPaise: number, categories: readonly PassengerCategory[]): number[] {
+  if (categories.length === 0) return [];
+  const weights = categories.map((c) => CATEGORY_FARE_PERCENT[c]);
   const weightSum = weights.reduce((s, w) => s + w, 0);
   const parts = weights.map((w) => Math.floor((totalPaise * w) / weightSum));
   parts[0] = (parts[0] ?? 0) + totalPaise - parts.reduce((s, p) => s + p, 0);
   return parts;
+}
+
+/** Splits a paid booking total over passengers by their ages (see splitGroupTotalByCategory). */
+export function splitGroupTotal(totalPaise: number, ages: readonly number[]): number[] {
+  return splitGroupTotalByCategory(totalPaise, ages.map(passengerCategory));
+}
+
+/** Traveller counts as a category list: adults first, then seniors, then children. */
+export function categoriesFromCounts(counts: Partial<Record<PassengerCategory, number>>): PassengerCategory[] {
+  return (["ADULT", "SENIOR", "CHILD"] as const).flatMap((c) => Array.from({ length: Math.max(0, counts[c] ?? 0) }, () => c));
 }
