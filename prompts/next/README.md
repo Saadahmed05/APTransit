@@ -17,13 +17,13 @@ This is the single task list for what is left after D-044 (bus classes), D-046 (
 ## Agent tasks (in order)
 
 1. **Review and merge state.** (Checked 2026-10-16: PR #15 is merged into upstream `main`, which holds all three branches; this branch only adds the Kurnool data check.) Check the open PRs for `a/bus-classes`, `a/local-seatless` and `a/kurnool-spots`. The Kurnool branch already contains the other two. Merge order is bus-classes, local-seatless, kurnool-spots. If upstream `main` moved, merge it in and rerun the checks below.
-2. **Run the seeded E2E suite** (see "Run locally" in `progress/handoff.md`, Windows ports 15432 and 6380). Fix real failures. Specs to watch: `staff-portals.spec.ts`, `v3-shell.spec.ts`, `v3-map-home.spec.ts`, the booking specs. The dev OTP limit is 10 per IP per hour: restart `scripts/dev-redis.mjs` between runs.
-3. **Write the missing E2E specs:**
+2. **Run the seeded E2E suite. DONE 2026-10-16** (Desktop Chrome and Pixel 7 all pass, run in batches because of the OTP limit; E2E-11 failed once on Pixel 7 and passed on two reruns) (see "Run locally" in `progress/handoff.md`, Windows ports 15432 and 6380). Fix real failures. Specs to watch: `staff-portals.spec.ts`, `v3-shell.spec.ts`, `v3-map-home.spec.ts`, the booking specs. The dev OTP limit is 10 per IP per hour: restart `scripts/dev-redis.mjs` between runs.
+3. **Write the missing E2E specs. DONE** (`v3-group-booking`, `v3-passes`, `v3-local-booking`, new `v3-child-scan`):
    - Group booking on a long reserved trip (adults, child, senior, seats and names required).
    - Zone pass purchase and child card purchase.
    - Conductor scans a child ticket (`CHILD_BOARDED`).
    - Seatless local booking end to end (ages only, no seat shown on the ticket).
-4. **Route sweep and axe** (specs already list `/terms` and `/bus-types` in `route-sweep.spec.ts` and `a11y.spec.ts`; they have not been run, no seeded stack in the cloud session) for `/terms` and `/bus-types` (added, never run). Add them to the sweep in `apps/web/e2e`.
+4. **Route sweep and axe. DONE** (`/terms` and `/bus-types` pass; the admin sweep found and fixed missing keys, a contrast failure and a width overflow) for `/terms` and `/bus-types` (added, never run). Add them to the sweep in `apps/web/e2e`.
 5. **Kurnool data check. DONE** (`seed-local.test.ts`, passes). Open the map in a real browser if you have one, otherwise assert in a test that every one of the 45 stops has a unique code, a Telugu name, coordinates inside Kurnool and is on at least one city line. Do not change OpenStreetMap positions without a source.
 6. **Docs proposal, not an edit. DONE** (D-047 in `progress/decisions-log.md`). Write one entry in `progress/decisions-log.md` (next free id) that lists exactly which locked docs (05, 06, 07, 11, 18, 19) need changes for D-044 and D-046, with the proposed text. The other dev must agree before the docs change.
 7. **Housekeeping. DONE on 2026-10-16** (lint, typecheck, test, i18n:check, check:dashes passed; build passed). `pnpm lint`, `pnpm typecheck`, `pnpm test` (use `TURBO_CONCURRENCY=1` on the Windows laptop), `pnpm i18n:check`, `pnpm check:dashes`, `pnpm build`. Then update `progress/handoff.md` (Current state), `progress/daily-log.md` (end of day report) and the package READMEs if a pattern changed.

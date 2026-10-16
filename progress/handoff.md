@@ -16,7 +16,7 @@ Read order for a new session:
 
 ## START HERE: open work (2026-10-16)
 
-Open work is listed in `prompts/next/README.md`. Tell your agent: "I am Mukheeth (or Saad), complete the work" and it follows the trigger section in `AGENTS.md`. Branch `a/kurnool-spots` holds D-044, D-046 and the 45 Kurnool spots. On 2026-10-16 lint, typecheck, i18n, dashes and unit tests passed; the seeded E2E suite was not run. Update 2026-10-16 (branch `b/finish-kurnool-round-r3ppnx`): Kurnool data check added to `seed-local.test.ts`, D-047 lists the locked doc edits to agree with Dev A. Still open: seeded E2E run, E2E for conductor child scan and group booking with a senior (group, local, zone and child card specs already exist but never ran), and the human tasks.
+Open work is listed in `prompts/next/README.md`. Tell your agent: "I am Mukheeth (or Saad), complete the work" and it follows the trigger section in `AGENTS.md`. Branch `a/kurnool-spots` holds D-044, D-046 and the 45 Kurnool spots. On 2026-10-16 lint, typecheck, i18n, dashes and unit tests passed; the seeded E2E suite was not run. Update 2026-10-16 (branch `b/finish-kurnool-round-r3ppnx`): Kurnool data check added to `seed-local.test.ts`, D-047 lists the locked doc edits to agree with Dev A. Seeded E2E run on 2026-10-16: Desktop Chrome and Pixel 7 pass (E2E-11 flaked once on Pixel 7). New spec `v3-child-scan.spec.ts`; stale specs fixed (E2E-8, group, passes, map-home); admin sweep fixes (adminApp.timetables and departure keys, role chip contrast, pass types page width); `prisma/reset.ts` no longer passes the removed `--skip-seed`. Still open: the human tasks in `prompts/next/README.md`.
 
 ## Current state (Kurnool spots, map view and staff portals, 2026-10-15)
 

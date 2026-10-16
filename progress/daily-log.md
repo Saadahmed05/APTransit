@@ -894,3 +894,16 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 
 - Seeded E2E run (tasks 2 to 4): no database or Redis in the cloud session. New specs for the conductor child scan and a senior in a group booking were not written because they could not be run.
 - Human tasks in `prompts/next/README.md`.
+
+
+### Addendum, 2026-10-16 (E2E run)
+
+**Done**
+
+- Ran the seeded E2E suite on a local Postgres 16 and Redis (ports 15432 and 6380), API and web built with the CI env. Desktop Chrome and Pixel 7 pass. The OTP limit (10 per IP per hour) means the suite must run in batches with `ratelimit:*` keys cleared between them. E2E-11 failed once on Pixel 7 (two alerts at once), passed on two reruns.
+- New `v3-child-scan.spec.ts` (conductor scans a child card, parent gets CHILD_BOARDED). Group booking spec now covers a senior. Fixed stale E2E-8 (alighting mock, camera mode), passes labels and map-home denied location.
+- Real findings fixed: missing `adminApp.timetables` and `adminApp.departure` keys, role chip contrast on /admin/users, /admin/policies/pass-types overflow at 360 px, `prisma/reset.ts` flag.
+
+**Open**
+
+- Human tasks in `prompts/next/README.md`. Pallevelugu and other (A) values still need the owner.
