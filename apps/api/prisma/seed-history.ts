@@ -25,7 +25,7 @@ const DAY = 24 * HOUR;
 const BATCH = 5000;
 
 /** Mulberry32: small, fast and deterministic. */
-function createPrng(seed: number) {
+export function createPrng(seed: number) {
   let s = seed >>> 0;
   return () => {
     s = (s + 0x6d2b79f5) >>> 0;
@@ -35,10 +35,10 @@ function createPrng(seed: number) {
   };
 }
 
-type Rng = ReturnType<typeof createPrng>;
+export type Rng = ReturnType<typeof createPrng>;
 
-const int = (rng: Rng, min: number, max: number) => min + Math.floor(rng() * (max - min + 1));
-const pick = <T>(rng: Rng, list: readonly T[]): T => list[Math.floor(rng() * list.length)]!;
+export const int = (rng: Rng, min: number, max: number) => min + Math.floor(rng() * (max - min + 1));
+export const pick = <T>(rng: Rng, list: readonly T[]): T => list[Math.floor(rng() * list.length)]!;
 
 /** Lowercase id that passes the PublicId check (like cuid2, but reproducible). */
 function idMaker(rng: Rng) {
@@ -76,7 +76,7 @@ function codeMaker(rng: Rng) {
   }
 }
 
-const PAYMENT_TYPES = { amountPaise: "int4", status: '"PaymentStatus"', capturedAt: "timestamp" };
+export const PAYMENT_TYPES = { amountPaise: "int4", status: '"PaymentStatus"', capturedAt: "timestamp" };
 
 const BASE_TYPES = new Set(["text", "int4", "float8", "bool", "timestamp"]);
 
@@ -86,7 +86,7 @@ const BASE_TYPES = new Set(["text", "int4", "float8", "bool", "timestamp"]);
  * keeps the history under the 2 minute budget on Neon. `types` names every column that is not text
  * (enums by their quoted type name). Tables with `updatedAt` get it from `createdAt`.
  */
-async function bulkInsert(
+export async function bulkInsert(
   prisma: PrismaClient,
   table: string,
   rows: ReadonlyArray<object>,
@@ -113,7 +113,7 @@ async function bulkInsert(
 }
 
 /** Load factor for one trip (docs/19): 40 to 70 percent, more at the morning and evening peaks, KNL-TPT busier at weekends. */
-function loadFactor(rng: Rng, routeCode: string, istHour: number, weekday: number): number {
+export function loadFactor(rng: Rng, routeCode: string, istHour: number, weekday: number): number {
   let lf = 0.4 + rng() * 0.3;
   if ((istHour >= 7 && istHour <= 10) || (istHour >= 17 && istHour <= 20)) lf += 0.2;
   if (routeCode.startsWith("KNL-TPT") && (weekday === 0 || weekday === 6)) lf += 0.15;
@@ -121,15 +121,15 @@ function loadFactor(rng: Rng, routeCode: string, istHour: number, weekday: numbe
 }
 
 /** Delay for one completed trip (docs/19): mostly 0 to 10 min, 10 to 30 on the evening peak of KNL-VJA and VJA-GNT. */
-function delayFor(rng: Rng, routeCode: string, istHour: number): number {
+export function delayFor(rng: Rng, routeCode: string, istHour: number): number {
   const peakRoute = routeCode.startsWith("KNL-VJA") || routeCode.startsWith("VJA-GNT");
   if (peakRoute && istHour >= 17 && istHour <= 20) return int(rng, 10, 30);
   return int(rng, 0, 10);
 }
 
-const FIRST_NAMES = ["Ravi", "Lakshmi", "Suresh", "Padma", "Kiran", "Sravani", "Mahesh", "Anitha", "Naveen", "Swathi"];
+export const FIRST_NAMES = ["Ravi", "Lakshmi", "Suresh", "Padma", "Kiran", "Sravani", "Mahesh", "Anitha", "Naveen", "Swathi"];
 
-const COMPLAINT_TEXT: Record<string, string> = {
+export const COMPLAINT_TEXT: Record<string, string> = {
   DELAY: "The bus left the stand much later than the time shown in the app.",
   CLEANLINESS: "Seats near the back were dirty and the floor was not cleaned.",
   STAFF: "The conductor was rude when I asked about my stop.",

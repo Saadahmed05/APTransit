@@ -475,3 +475,13 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
 - Owner request for the government demo. Every intercity route runs four Express, four Ultra Deluxe (super express) and four Super Luxury buses every hour from 05:00 to 22:55, plus the route's AC bus hourly; routes up to 130 km keep Pallevelugu every 30 min. Kurnool city lines are named Kurnool Local A to I (codes unchanged).
 - New web env `NEXT_PUBLIC_DEMO_ACCOUNTS` (default 0): when 1, the staff portal links on the sign in page show and fill in the seeded staff emails. Only for demo deployments that also run the API with `OTP_DEV_ECHO=1`. docs/15 needs this row (Dev B to agree).
 - Supersedes the hourly mix in D-048. Needs Dev B review.
+
+### D-050: 40 Kurnool neighbourhood stops, more crew, sample data for today (2026-10-17)
+
+- Owner request (Saad): Kurnool bus stops people actually say (Raj Vihar Circle, Kotla Circle, Birla Gate, the A, B and C Camps, colonies and nearby villages), and dashboards with sample data in every portal.
+- **Stops:** 40 new stops on five city lines, Kurnool Local J to N (`KSE-01` to `KSI-01`, reverse `ESK-02` to `ISK-02`, every 15 min 05:00 to 23:00 like the other Kurnool Local lines). Positions are OpenStreetMap data fetched through Nominatim on 2026-10-17; km come from the positions with a road factor of 1.3 at 15 km/h. City Square Mall and G Pulla Reddy Engineering College were already stops. Telugu names are best effort and need the native review.
+- **Crew:** 6 more drivers and 6 more conductors at Kurnool, 2 and 2 at every other depot (`CREW` in `seed-data.ts`, codes from `EMP-DRV-002` and `EMP-CON-002`), and one driver phone waiting for approval. The demo pair keeps its own line.
+- **Today:** `pnpm db:seed --today` (`prisma/seed-today.ts`, on by default in the Seed demo database action) completes the trips that already arrived today with crew, paid tickets and scans, puts passengers on the demo crew's next 3 trips, and adds 5 incidents (2 open, 1 acknowledged, 2 resolved), 5 complaints and recent audit events. Live positions are not faked: the simulator drives them. Not in the base seed, so CI and E2E data do not change.
+- **Fix:** the conductor home showed the day's first scheduled trip even hours after it; it now picks like the driver app (the running trip, else the next one not more than 60 min late to start).
+- **Proposed doc text:** docs/19 "Stops": add the 40 stops and lines J to N; docs/19 "Accounts": add the crew list; docs/19 "History": add the `--today` paragraph above. Needs Dev B agreement.
+

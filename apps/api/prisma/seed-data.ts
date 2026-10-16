@@ -1586,6 +1586,58 @@ export const DEPOTS: DepotSeed[] = [
   },
 ];
 
+/** More crew per depot, so the depot portal has a roster and the history rotates real names. */
+export interface CrewSeed {
+  email: string;
+  name: string;
+  kind: "DRIVER" | "CONDUCTOR";
+  depotCode: string;
+  employeeCode: string;
+}
+
+const CREW_NAMES: Record<string, { drivers: string[]; conductors: string[] }> = {
+  "D-KNL": {
+    drivers: ["Mahesh Naidu", "Venkatesh", "Ramakrishna", "Nagaraju", "Suresh Babu", "Hussain Basha"],
+    conductors: ["Lakshmi Devi", "Raghavendra", "Shaik Imran", "Padmavathi", "Govindu", "Sravani"],
+  },
+  "D-NDL": { drivers: ["Chandra Sekhar", "Maddileti"], conductors: ["Yesu Ratnam", "Sarada"] },
+  "D-ATP": { drivers: ["Obulesu", "Pullaiah"], conductors: ["Rani", "Narasimhulu"] },
+  "D-TPT": { drivers: ["Munirathnam", "Gopi"], conductors: ["Kavitha", "Balaji"] },
+  "D-VJA": { drivers: ["Koteswara Rao", "Srinivasa Rao"], conductors: ["Durga Bhavani", "Prasanth"] },
+  "D-VSP": { drivers: ["Appala Naidu", "Simhachalam"], conductors: ["Satyavathi", "Ramana"] },
+};
+
+/** Employee codes continue after the seeded demo pair (EMP-DRV-001, EMP-CON-001). */
+export const CREW: CrewSeed[] = (() => {
+  const out: CrewSeed[] = [];
+  let driverNo = 2;
+  let conductorNo = 2;
+  for (const [depotCode, { drivers, conductors }] of Object.entries(CREW_NAMES)) {
+    const town = depotCode.slice(2).toLowerCase();
+    // Kurnool already has driver.knl and conductor.knl, so its new accounts start at 2
+    const first = depotCode === "D-KNL" ? 2 : 1;
+    drivers.forEach((name, i) =>
+      out.push({
+        email: `driver${first + i}.${town}@aptransit.test`,
+        name: `Driver ${name}`,
+        kind: "DRIVER",
+        depotCode,
+        employeeCode: `EMP-DRV-${String(driverNo++).padStart(3, "0")}`,
+      }),
+    );
+    conductors.forEach((name, i) =>
+      out.push({
+        email: `conductor${first + i}.${town}@aptransit.test`,
+        name: `Conductor ${name}`,
+        kind: "CONDUCTOR",
+        depotCode,
+        employeeCode: `EMP-CON-${String(conductorNo++).padStart(3, "0")}`,
+      }),
+    );
+  }
+  return out;
+})();
+
 export interface RouteStopDef {
   stopCode: string;
   kmFromOrigin: number;

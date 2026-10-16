@@ -923,3 +923,22 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 - About 40 more Kurnool spots: Overpass was down on three mirrors and positions must come from OpenStreetMap. Query is in D-048.
 - Phase 6 field features: needs owner answers, listed in D-048.
 - Docs proposal text for Phase 3 to 5 (docs 05, 06, 11) is not written yet.
+
+## 40 Kurnool stops and sample data for every portal, 2026-10-17
+
+**Done**
+
+- 40 Kurnool neighbourhood stops (Raj Vihar Circle, Kotla Circle, Birla Gate, A, B and C Camp, colonies, nearby villages) from OpenStreetMap on five new lines, Kurnool Local J to N, every 15 min (D-050).
+- More crew: 6 drivers and 6 conductors at Kurnool, 2 and 2 at every other depot, one driver phone waiting for approval.
+- `pnpm db:seed --today` (`prisma/seed-today.ts`): today so far for every portal. Run at 13:00 IST on a full seed: 2,229 trips completed with about 70,000 paid tickets and scans, 43 passengers waiting on the demo crew's next 3 trips, 5 incidents, 5 complaints, 15 audit events, in 67 s. Reruns replace their own rows and put the trips back first (checked at 13:00, 15:00 and the real time). On by default in the Seed demo database action.
+- Fix: the conductor home showed the day's first trip even hours later; it now picks the next trip like the driver app.
+- Checked through the built API as each demo account: driver, conductor (17 pending on the next trip), depot dashboard, incidents, staff and devices, government overview and map, admin audit, citizen tickets.
+
+**Checks**
+
+- API tests 587 passed (9 skipped), seed files type checked, eslint on the changed files, `check:dashes`.
+
+**Not done**
+
+- Live bus positions on the maps still come from `pnpm simulate` (not faked).
+- Native Telugu review of the 40 new stop names; Dev B review of D-050 and the docs/19 text.
