@@ -30,7 +30,7 @@ if (
 
 console.log("Resetting database for local/dev branch...");
 try {
-  execSync("prisma migrate reset --force --skip-seed", { stdio: "inherit" });
+  execSync("prisma migrate reset --force", { stdio: "inherit" });
   execSync("tsx prisma/seed.ts", { stdio: "inherit" });
   console.log("Database reset and seeded successfully.");
 } catch (error) {
