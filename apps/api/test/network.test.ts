@@ -226,9 +226,9 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
       expect(tt.date).toBe(tomorrow);
       expect(tt.firstDepartureLocal).toBe("05:00");
       expect(tt.lastDepartureLocal).toBe("23:00");
-      // D-048: Express and Super Luxury hourly, Pallevelugu every 30 min; two classes at one time count once
-      expect(tt.frequencyMin).toBe(30);
-      expect(tt.trips).toHaveLength(19 * 3 + 37);
+      // Four Express, four Ultra Deluxe and four Super Luxury every hour (a bus every 5 min), Pallevelugu every 30 min
+      expect(tt.frequencyMin).toBe(5);
+      expect(tt.trips).toHaveLength(18 * 12 + 37);
       expect(tt.nextDepartureAt).toBe(new Date(`${tomorrow}T05:00:00+05:30`).toISOString());
       // Origin to destination fare: 70 km Pallevelugu = Rs 77
       expect(tt.trips.find((t) => t.serviceType === "PALLEVELUGU")?.farePaise).toBe(7700);
@@ -250,14 +250,18 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
       const res = await search("KNL", "VJA", tomorrow);
       expect(res.status).toBe(200);
       const trips = SearchTripsResponse.parse(res.body);
-      expect(trips).toHaveLength(57);
+      expect(trips).toHaveLength(18 * 13);
       const times = trips.map((t) => formatIstTime(new Date(t.departureAt)));
       expect(times[0]).toBe("05:00");
-      expect(times.at(-1)).toBe("23:00");
+      expect(times.at(-1)).toBe("22:55");
       const at = (time: string) => trips.filter((t) => formatIstTime(new Date(t.departureAt)) === time);
-      expect(at("05:00").map((t) => t.serviceType).sort()).toEqual(["EXPRESS", "SUPER_LUXURY", "ULTRA_DELUXE"]);
-      expect(at("06:00").map((t) => t.serviceType).sort()).toEqual(["EXPRESS", "SUPER_LUXURY", "ULTRA_DELUXE"]);
-      expect(at("21:00").map((t) => t.serviceType).sort()).toEqual(["AMARAVATI_AC", "EXPRESS", "ULTRA_DELUXE"]);
+      expect(at("05:00").map((t) => t.serviceType).sort()).toEqual(["AMARAVATI_AC", "EXPRESS"]);
+      for (const hour of ["05", "12", "22"]) {
+        const inHour = trips.filter((t) => formatIstTime(new Date(t.departureAt)).startsWith(`${hour}:`));
+        for (const type of ["EXPRESS", "ULTRA_DELUXE", "SUPER_LUXURY"]) {
+          expect(inHour.filter((t) => t.serviceType === type), `${hour} ${type}`).toHaveLength(4);
+        }
+      }
       // Express 365 km is Rs 541 (docs/19). Super Luxury 657 + 30, Ultra Deluxe 584 + 30, Amaravati 912.50 rounds to 913 + 30.
       const fareOf = (type: string) => trips.find((t) => t.serviceType === type)?.farePaise;
       expect([fareOf("EXPRESS"), fareOf("SUPER_LUXURY"), fareOf("ULTRA_DELUXE"), fareOf("AMARAVATI_AC")]).toEqual([54100, 68700, 61400, 94300]);
@@ -276,7 +280,7 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
 
     it("uses the boarding stop times and the km between the two stops", async () => {
       const trips = SearchTripsResponse.parse((await search("NDL", "GNT", tomorrow)).body);
-      expect(trips).toHaveLength(57);
+      expect(trips).toHaveLength(18 * 13);
       // Leaves Kurnool 05:00, reaches Nandyal after 75 min and Guntur after 320 min. 260 km Express = 364 + 30.
       const express = trips.find((t) => t.serviceType === "EXPRESS")!;
       expect(formatIstTime(new Date(express.departureAt))).toBe("06:15");
@@ -290,7 +294,7 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
         (await search("KNL", "VJA", tomorrow, "&after=10:00")).body,
       );
       const times = trips.map((t) => formatIstTime(new Date(t.departureAt)));
-      expect(times).toHaveLength(42);
+      expect(times).toHaveLength(169);
       expect(times[0]).toBe("10:00");
       expect(times.every((t) => t >= "10:00")).toBe(true);
     });
@@ -311,7 +315,7 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
       const trip = repo.trips.find((t) => t.id === first[2]!.tripId)!;
       trip.status = "CANCELLED";
       const again = SearchTripsResponse.parse((await search("KNL", "VJA", tomorrow)).body);
-      expect(again).toHaveLength(56);
+      expect(again).toHaveLength(18 * 13 - 1);
       expect(again.some((t) => t.tripId === trip.id)).toBe(false);
       trip.status = "SCHEDULED";
     });
@@ -319,9 +323,9 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
     it("returns the reverse route trips from Vijayawada to Kurnool", async () => {
       const trips = SearchTripsResponse.parse((await search("VJA", "KNL", tomorrow)).body);
       const times = trips.map((t) => formatIstTime(new Date(t.departureAt)));
-      expect(times).toHaveLength(57);
+      expect(times).toHaveLength(18 * 13);
       expect(times[0]).toBe("05:30");
-      expect(times.at(-1)).toBe("23:30");
+      expect(times.at(-1)).toBe("23:25");
     });
 
     it("returns nothing for stops that are not on one route", async () => {
@@ -383,7 +387,7 @@ describe("Search on a one way network", () => {
     const forward = await request(app.getHttpServer()).get(
       `/api/v1/search/trips?from=${stopId("KNL")}&to=${stopId("VJA")}&date=${tomorrow}`,
     );
-    expect(forward.body).toHaveLength(57);
+    expect(forward.body).toHaveLength(18 * 13);
     const reverse = await request(app.getHttpServer()).get(
       `/api/v1/search/trips?from=${stopId("VJA")}&to=${stopId("KNL")}&date=${tomorrow}`,
     );

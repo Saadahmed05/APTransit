@@ -70,23 +70,23 @@ describe("local services in the seed (D-046)", () => {
 });
 
 const BUS_CLASS_OF: Record<string, "NORMAL" | "EXPRESS" | "SUPER_LUXURY"> = SERVICE_BUS_CLASS;
-const HOURS = Array.from({ length: 19 }, (_, i) => `${String(5 + i).padStart(2, "0")}:00`);
+const HOURS = Array.from({ length: 18 }, (_, i) => `${String(5 + i).padStart(2, "0")}:00`);
 const departuresOf = (routeCode: string) => TIMETABLE_DEFS.filter((t) => t.routeCode === routeCode);
 const minutesOf = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3));
 
 describe("hourly services (D-048)", () => {
   const intercity = ["KNL-VJA-01", "KNL-TPT-01", "KNL-ATP-01", "KNL-NDL-01", "VJA-VSP-01", "KNL-ADN-01", "KNL-ATK-01", "DHN-NDL-01", "GNT-VKD-01"];
 
-  it("runs Express, Ultra Deluxe and Super Luxury class buses every hour, 05:00 to 23:00, both ways", () => {
+  it("runs at least four Express, four Ultra Deluxe and four Super Luxury buses every hour, both ways", () => {
     for (const code of intercity) {
       const reverse = ROUTE_DEFS.find((r) => r.code === code)!.reverseCode;
       for (const [route, offset] of [[code, 0], [reverse, 30]] as const) {
         for (const hour of HOURS) {
-          const at = departuresOf(route).filter((t) => minutesOf(t.departureLocal) === minutesOf(hour) + offset);
-          const classes = new Set(at.map((t) => BUS_CLASS_OF[t.serviceType]));
-          expect(classes.has("EXPRESS"), `${route} ${hour} express`).toBe(true);
-          expect(classes.has("SUPER_LUXURY"), `${route} ${hour} super luxury`).toBe(true);
-          expect(at.some((t) => t.serviceType === "ULTRA_DELUXE"), `${route} ${hour} ultra deluxe`).toBe(true);
+          const start = minutesOf(hour) + offset;
+          const at = departuresOf(route).filter((t) => minutesOf(t.departureLocal) >= start && minutesOf(t.departureLocal) < start + 60);
+          for (const type of ["EXPRESS", "ULTRA_DELUXE", "SUPER_LUXURY"]) {
+            expect(at.filter((t) => t.serviceType === type).length, `${route} ${hour} ${type}`).toBeGreaterThanOrEqual(4);
+          }
         }
       }
     }

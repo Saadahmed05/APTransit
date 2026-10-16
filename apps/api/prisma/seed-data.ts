@@ -1419,10 +1419,10 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
   {
     code: "KCM-01",
     reverseCode: "MKC-02",
-    nameEn: "Kurnool malls line",
-    reverseNameEn: "Kurnool malls line, return",
-    nameTe: "కర్నూలు మాల్స్ లైన్",
-    reverseNameTe: "కర్నూలు మాల్స్ లైన్, తిరుగు ప్రయాణం",
+    nameEn: "Kurnool Local A (malls)",
+    reverseNameEn: "Kurnool Local A (malls), return",
+    nameTe: "కర్నూలు లోకల్ A, కర్నూలు మాల్స్ లైన్",
+    reverseNameTe: "కర్నూలు లోకల్ A, కర్నూలు మాల్స్ లైన్, తిరుగు ప్రయాణం",
     depotCode: "D-KNL",
     stops: [
       { stopCode: "KNL", kmFromOrigin: 0, minutesFromOrigin: 0 },
@@ -1439,10 +1439,10 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
   {
     code: "KCC-01",
     reverseCode: "CCK-02",
-    nameEn: "Kurnool colleges line",
-    reverseNameEn: "Kurnool colleges line, return",
-    nameTe: "కర్నూలు కాలేజీల లైన్",
-    reverseNameTe: "కర్నూలు కాలేజీల లైన్, తిరుగు ప్రయాణం",
+    nameEn: "Kurnool Local B (colleges)",
+    reverseNameEn: "Kurnool Local B (colleges), return",
+    nameTe: "కర్నూలు లోకల్ B, కర్నూలు కాలేజీల లైన్",
+    reverseNameTe: "కర్నూలు లోకల్ B, కర్నూలు కాలేజీల లైన్, తిరుగు ప్రయాణం",
     depotCode: "D-KNL",
     stops: [
       { stopCode: "KNL", kmFromOrigin: 0, minutesFromOrigin: 0 },
@@ -1459,10 +1459,10 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
   {
     code: "KHL-01",
     reverseCode: "LHK-02",
-    nameEn: "Kurnool hospitals line",
-    reverseNameEn: "Kurnool hospitals line, return",
-    nameTe: "కర్నూలు ఆసుపత్రుల లైన్",
-    reverseNameTe: "కర్నూలు ఆసుపత్రుల లైన్, తిరుగు ప్రయాణం",
+    nameEn: "Kurnool Local C (hospitals)",
+    reverseNameEn: "Kurnool Local C (hospitals), return",
+    nameTe: "కర్నూలు లోకల్ C, కర్నూలు ఆసుపత్రుల లైన్",
+    reverseNameTe: "కర్నూలు లోకల్ C, కర్నూలు ఆసుపత్రుల లైన్, తిరుగు ప్రయాణం",
     depotCode: "D-KNL",
     stops: [
       { stopCode: "KNL", kmFromOrigin: 0, minutesFromOrigin: 0 },
@@ -1486,10 +1486,10 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
   {
     code: "KCL-01",
     reverseCode: "LCK-02",
-    nameEn: "Kurnool colleges line 2",
-    reverseNameEn: "Kurnool colleges line 2, return",
-    nameTe: "కర్నూలు కాలేజీల లైన్ 2",
-    reverseNameTe: "కర్నూలు కాలేజీల లైన్ 2, తిరుగు ప్రయాణం",
+    nameEn: "Kurnool Local D (colleges 2)",
+    reverseNameEn: "Kurnool Local D (colleges 2), return",
+    nameTe: "కర్నూలు లోకల్ D, కర్నూలు కాలేజీల లైన్ 2",
+    reverseNameTe: "కర్నూలు లోకల్ D, కర్నూలు కాలేజీల లైన్ 2, తిరుగు ప్రయాణం",
     depotCode: "D-KNL",
     stops: [
       { stopCode: "KNL", kmFromOrigin: 0, minutesFromOrigin: 0 },
@@ -1509,10 +1509,10 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
   {
     code: "KOT-01",
     reverseCode: "TOK-02",
-    nameEn: "Kurnool old town line",
-    reverseNameEn: "Kurnool old town line, return",
-    nameTe: "కర్నూలు పాత పట్టణ లైన్",
-    reverseNameTe: "కర్నూలు పాత పట్టణ లైన్, తిరుగు ప్రయాణం",
+    nameEn: "Kurnool Local E (old town)",
+    reverseNameEn: "Kurnool Local E (old town), return",
+    nameTe: "కర్నూలు లోకల్ E, కర్నూలు పాత పట్టణ లైన్",
+    reverseNameTe: "కర్నూలు లోకల్ E, కర్నూలు పాత పట్టణ లైన్, తిరుగు ప్రయాణం",
     depotCode: "D-KNL",
     stops: [
       { stopCode: "KNL", kmFromOrigin: 0, minutesFromOrigin: 0 },
@@ -1526,10 +1526,10 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
   {
     code: "KSA-01",
     reverseCode: "SAK-02",
-    nameEn: "Kurnool spots line A",
-    reverseNameEn: "Kurnool spots line A, return",
-    nameTe: "కర్నూలు ప్రదేశాల లైన్ A",
-    reverseNameTe: "కర్నూలు ప్రదేశాల లైన్ A, తిరుగు ప్రయాణం",
+    nameEn: "Kurnool Local F (spots 1)",
+    reverseNameEn: "Kurnool Local F (spots 1), return",
+    nameTe: "కర్నూలు లోకల్ F, కర్నూలు ప్రదేశాల లైన్ A",
+    reverseNameTe: "కర్నూలు లోకల్ F, కర్నూలు ప్రదేశాల లైన్ A, తిరుగు ప్రయాణం",
     depotCode: "D-KNL",
     stops: [
       { stopCode: "KNL", kmFromOrigin: 0, minutesFromOrigin: 0 },
@@ -1549,10 +1549,10 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
   {
     code: "KSB-01",
     reverseCode: "SBK-02",
-    nameEn: "Kurnool spots line B",
-    reverseNameEn: "Kurnool spots line B, return",
-    nameTe: "కర్నూలు ప్రదేశాల లైన్ B",
-    reverseNameTe: "కర్నూలు ప్రదేశాల లైన్ B, తిరుగు ప్రయాణం",
+    nameEn: "Kurnool Local G (spots 2)",
+    reverseNameEn: "Kurnool Local G (spots 2), return",
+    nameTe: "కర్నూలు లోకల్ G, కర్నూలు ప్రదేశాల లైన్ B",
+    reverseNameTe: "కర్నూలు లోకల్ G, కర్నూలు ప్రదేశాల లైన్ B, తిరుగు ప్రయాణం",
     depotCode: "D-KNL",
     stops: [
       { stopCode: "KNL", kmFromOrigin: 0, minutesFromOrigin: 0 },
@@ -1572,10 +1572,10 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
   {
     code: "KSC-01",
     reverseCode: "SCK-02",
-    nameEn: "Kurnool spots line C",
-    reverseNameEn: "Kurnool spots line C, return",
-    nameTe: "కర్నూలు ప్రదేశాల లైన్ C",
-    reverseNameTe: "కర్నూలు ప్రదేశాల లైన్ C, తిరుగు ప్రయాణం",
+    nameEn: "Kurnool Local H (spots 3)",
+    reverseNameEn: "Kurnool Local H (spots 3), return",
+    nameTe: "కర్నూలు లోకల్ H, కర్నూలు ప్రదేశాల లైన్ C",
+    reverseNameTe: "కర్నూలు లోకల్ H, కర్నూలు ప్రదేశాల లైన్ C, తిరుగు ప్రయాణం",
     depotCode: "D-KNL",
     stops: [
       { stopCode: "KNL", kmFromOrigin: 0, minutesFromOrigin: 0 },
@@ -1595,10 +1595,10 @@ export const ROUTE_DEFS: RouteSeedDef[] = [
   {
     code: "KSD-01",
     reverseCode: "SDK-02",
-    nameEn: "Kurnool spots line D",
-    reverseNameEn: "Kurnool spots line D, return",
-    nameTe: "కర్నూలు ప్రదేశాల లైన్ D",
-    reverseNameTe: "కర్నూలు ప్రదేశాల లైన్ D, తిరుగు ప్రయాణం",
+    nameEn: "Kurnool Local I (spots 4)",
+    reverseNameEn: "Kurnool Local I (spots 4), return",
+    nameTe: "కర్నూలు లోకల్ I, కర్నూలు ప్రదేశాల లైన్ D",
+    reverseNameTe: "కర్నూలు లోకల్ I, కర్నూలు ప్రదేశాల లైన్ D, తిరుగు ప్రయాణం",
     depotCode: "D-KNL",
     stops: [
       { stopCode: "KNL", kmFromOrigin: 0, minutesFromOrigin: 0 },
@@ -1815,28 +1815,37 @@ function routeKm(code: string): number {
 
 type Departure = [string, BusTypeSeed["serviceType"]];
 
-/** D-048: intercity and town routes run every class every hour, 05:00 to 23:00. */
-const SERVICE_HOURS = everyMinutes("05:00", "23:00", 60);
-/** AC sleepers and seaters take the Super Luxury slot on the long runs from 20:00 (A). */
+/** Intercity and town routes: departure hours 05:00 to 22:00 (the last bus of an hour leaves at :55). */
+const SERVICE_HOURS = everyMinutes("05:00", "22:00", 60);
+/** The AC (luxury) bus of each long run, one every hour next to the Super Luxury buses (A). */
 const NIGHT_AC: Record<string, BusTypeSeed["serviceType"]> = {
   "KNL-VJA-01": "AMARAVATI_AC",
   "KNL-TPT-01": "INDRA_AC",
   "VJA-VSP-01": "GARUDA_AC",
 };
 
+/** Every hour at least four buses of each kind: Express, Ultra Deluxe (super express), Super Luxury. */
+const PER_HOUR: [BusTypeSeed["serviceType"], number[]][] = [
+  ["EXPRESS", [0, 15, 30, 45]],
+  ["ULTRA_DELUXE", [5, 20, 35, 50]],
+  ["SUPER_LUXURY", [10, 25, 40, 55]],
+];
+
 /**
- * D-048 (owner, 2026-10-16): every hour an Express, an Ultra Deluxe (super express) and a Super
- * Luxury bus. Routes up to LOCAL_ROUTE_MAX_KM (130) also have Pallevelugu (local), every 30 min
- * like other local buses (every fourth an Ultra Pallevelugu).
+ * Owner request (2026-10-16): four Express, four Ultra Deluxe and four Super Luxury buses every
+ * hour, plus the route's AC bus hourly. Routes up to LOCAL_ROUTE_MAX_KM (130) also have Pallevelugu
+ * (local) every 30 min (every fourth an Ultra Pallevelugu).
  */
 function hourlyClasses(routeCode: string): Departure[] {
   const km = routeKm(routeCode);
   const departures: Departure[] = [];
-  SERVICE_HOURS.forEach((t) => {
-    departures.push([t, "EXPRESS"]);
-    departures.push([t, "ULTRA_DELUXE"]);
-    departures.push([t, toMinutes(t) >= toMinutes("20:00") ? (NIGHT_AC[routeCode] ?? "SUPER_LUXURY") : "SUPER_LUXURY"]);
-  });
+  for (const hour of SERVICE_HOURS) {
+    for (const [type, minutes] of PER_HOUR) {
+      for (const m of minutes) departures.push([toHhmm(toMinutes(hour) + m), type]);
+    }
+    const ac = NIGHT_AC[routeCode];
+    if (ac) departures.push([hour, ac]);
+  }
   if (km <= LOCAL_ROUTE_MAX_KM) {
     everyMinutes("05:00", "23:00", 30).forEach((t, i) =>
       departures.push([t, i % 4 === 3 ? "ULTRA_PALLEVELUGU" : "PALLEVELUGU"]),
@@ -1869,10 +1878,7 @@ const FORWARD_TIMETABLES: {
     // Metro Express every 15 min is the Express class here; Super Luxury hourly and Pallevelugu every 30 min join it
     departures: [
       ...everyMinutes("05:30", "22:00", 15).map((t): Departure => [t, "METRO_EXPRESS"]),
-      ...SERVICE_HOURS.map((t): Departure => [t, "EXPRESS"]),
-      ...SERVICE_HOURS.map((t): Departure => [t, "ULTRA_DELUXE"]),
-      ...SERVICE_HOURS.map((t): Departure => [t, "SUPER_LUXURY"]),
-      ...everyMinutes("05:00", "23:00", 30).map((t, i): Departure => [t, i % 4 === 3 ? "ULTRA_PALLEVELUGU" : "PALLEVELUGU"]),
+      ...hourlyClasses("VJA-GNT-01"),
     ],
   },
   {
