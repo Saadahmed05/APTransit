@@ -226,9 +226,9 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
       expect(tt.date).toBe(tomorrow);
       expect(tt.firstDepartureLocal).toBe("05:00");
       expect(tt.lastDepartureLocal).toBe("23:00");
-      // Four Express, four Ultra Deluxe and four Super Luxury every hour (a bus every 5 min), Pallevelugu every 30 min
+      // Four Express, four Ultra Deluxe and four Super Luxury every hour (a bus every 5 min), Pallevelugu every 15 min
       expect(tt.frequencyMin).toBe(5);
-      expect(tt.trips).toHaveLength(18 * 12 + 37);
+      expect(tt.trips).toHaveLength(18 * 12 + 73);
       expect(tt.nextDepartureAt).toBe(new Date(`${tomorrow}T05:00:00+05:30`).toISOString());
       // Origin to destination fare: 70 km Pallevelugu = Rs 77
       expect(tt.trips.find((t) => t.serviceType === "PALLEVELUGU")?.farePaise).toBe(7700);

@@ -186,7 +186,7 @@ export function MapPicker({
 
       {sheet}
 
-      {/* Always open: the city's own stops first (Kurnool on first load), then other cities */}
+      {/* Always open: the city's own stops (Kurnool on first load). Other cities go live later; search still finds them */}
       <section aria-labelledby="stop-list-title" className="mt-3 rounded-lg border border-default bg-surface-raised">
         <h3 id="stop-list-title" className="p-4 pb-2 text-body font-medium text-fg">
           {homeDistrict ? t("stopsIn", { place: homeDistrict }) : t("listTitle")}
@@ -202,12 +202,7 @@ export function MapPicker({
           <div className="max-h-96 overflow-y-auto">
             {stopRows(homeStops)}
             {otherStops.length > 0 && (
-              <>
-                <h3 className="border-t border-default px-4 pb-2 pt-4 text-body font-medium text-fg">
-                  {t("otherCities")}
-                </h3>
-                {stopRows(otherStops)}
-              </>
+              <p className="border-t border-default p-4 text-small text-muted">{t("comingSoon")}</p>
             )}
           </div>
         )}

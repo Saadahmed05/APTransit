@@ -1834,7 +1834,7 @@ const PER_HOUR: [BusTypeSeed["serviceType"], number[]][] = [
 /**
  * Owner request (2026-10-16): four Express, four Ultra Deluxe and four Super Luxury buses every
  * hour, plus the route's AC bus hourly. Routes up to LOCAL_ROUTE_MAX_KM (130) also have Pallevelugu
- * (local) every 30 min (every fourth an Ultra Pallevelugu).
+ * (local) every 15 min, four an hour (every fourth an Ultra Pallevelugu).
  */
 function hourlyClasses(routeCode: string): Departure[] {
   const km = routeKm(routeCode);
@@ -1847,7 +1847,8 @@ function hourlyClasses(routeCode: string): Departure[] {
     if (ac) departures.push([hour, ac]);
   }
   if (km <= LOCAL_ROUTE_MAX_KM) {
-    everyMinutes("05:00", "23:00", 30).forEach((t, i) =>
+    // Four local buses every hour: three Pallevelugu and one Ultra Pallevelugu
+    everyMinutes("05:00", "23:00", 15).forEach((t, i) =>
       departures.push([t, i % 4 === 3 ? "ULTRA_PALLEVELUGU" : "PALLEVELUGU"]),
     );
   }
@@ -1889,15 +1890,15 @@ const FORWARD_TIMETABLES: {
   // Kurnool city lines (D-046, D-048): local buses at least every 30 min, 05:00 to 23:00
   ...(
     [
-      ["KCM-01", "MKC-02", 20],
-      ["KCC-01", "CCK-02", 20],
-      ["KHL-01", "LHK-02", 30],
-      ["KCL-01", "LCK-02", 30],
-      ["KOT-01", "TOK-02", 30],
-      ["KSA-01", "SAK-02", 30],
-      ["KSB-01", "SBK-02", 30],
-      ["KSC-01", "SCK-02", 30],
-      ["KSD-01", "SDK-02", 30],
+      ["KCM-01", "MKC-02", 15],
+      ["KCC-01", "CCK-02", 15],
+      ["KHL-01", "LHK-02", 15],
+      ["KCL-01", "LCK-02", 15],
+      ["KOT-01", "TOK-02", 15],
+      ["KSA-01", "SAK-02", 15],
+      ["KSB-01", "SBK-02", 15],
+      ["KSC-01", "SCK-02", 15],
+      ["KSD-01", "SDK-02", 15],
     ] as const
   ).map(([routeCode, reverseCode, step]) => ({
     routeCode,
