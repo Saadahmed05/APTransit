@@ -15,8 +15,8 @@ test.describe("v3 zone passes and child cards", () => {
 
     await page.goto("/passes/buy");
     await page.getByText("This pass is for my child", { exact: true }).click();
-    await page.getByLabel("Child's name").fill("Anu");
-    await page.getByLabel("Child's age").fill("9");
+    await page.getByLabel("Name of the child").fill("Anu");
+    await page.getByLabel("Age", { exact: true }).fill("9");
     await page.getByRole("button", { name: /^buy weekly pass for/i }).click();
     await page.waitForURL((url) => url.pathname === "/passes", { timeout: 20_000 });
 
