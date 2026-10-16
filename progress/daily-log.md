@@ -950,3 +950,9 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 - Fleet: five more Kurnool crews with simulator phones, `pnpm simulate --fleet`.
 - Before the presentation: merge, run the Seed demo database action on the day (14 days of history, today on), then `pnpm simulate --fleet --api <deployed api>` during the demo.
 
+### Addendum, 2026-10-17 (group ticket and one device, D-051)
+
+- One QR per group: activate, scan and cancel act on the whole group; tests in `party.test.ts` and `day12-validation.test.ts`.
+- One device per citizen login: a new sign in signs the other devices out at once (`SESSION_REPLACED`); test in `auth.test.ts`.
+- Checks: API 590 tests, shared and web tests, typecheck web and API, eslint on changed files, i18n and dashes.
+

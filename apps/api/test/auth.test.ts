@@ -129,11 +129,20 @@ describe("Auth endpoints and lifecycle", () => {
           if (t) Object.assign(t, data);
           return t;
         },
+        findMany: async ({ where }: any) =>
+          refreshTokens.filter(
+            (t) =>
+              (!where.userId || t.userId === where.userId) &&
+              (where.revokedAt !== null || t.revokedAt === null) &&
+              (!where.expiresAt?.gt || t.expiresAt > where.expiresAt.gt),
+          ),
         updateMany: async ({ where, data }: any) => {
           let count = 0;
           for (const t of refreshTokens) {
             if (where.id && t.id !== where.id) continue;
-            if (where.familyId && t.familyId !== where.familyId) continue;
+            if (where.userId && t.userId !== where.userId) continue;
+            if (typeof where.familyId === "string" && t.familyId !== where.familyId) continue;
+            if (where.familyId?.in && !where.familyId.in.includes(t.familyId)) continue;
             if (where.revokedAt === null && t.revokedAt !== null) continue;
             Object.assign(t, data);
             count++;
@@ -486,6 +495,26 @@ describe("Auth endpoints and lifecycle", () => {
       .post("/api/v1/auth/refresh")
       .set("Cookie", cookie);
     expect(res.status).toBe(401);
+  });
+
+  it("a citizen sign in on a second device signs the first device out (D-051)", async () => {
+    const target = "onedevice@aptransit.test";
+    const first = await verify(target, await requestCode(target));
+    const firstCookie = (first.headers["set-cookie"] as unknown as string[])[0]!;
+    const second = await verify(target, await requestCode(target));
+    expect(second.status).toBe(200);
+
+    const oldMe = await request(app.getHttpServer()).get("/api/v1/me").set("Authorization", `Bearer ${first.body.accessToken}`);
+    expect(oldMe.status).toBe(401);
+    expect(oldMe.body.error.code).toBe("SESSION_REPLACED");
+    const oldRefresh = await request(app.getHttpServer()).post("/api/v1/auth/refresh").set("Cookie", firstCookie);
+    expect(oldRefresh.status).toBe(401);
+    expect(oldRefresh.body.error.code).toBe("SESSION_REPLACED");
+    // Not treated as a stolen token
+    expect(auditLogs.some((a) => a.action === "auth.single_device")).toBe(true);
+
+    const newMe = await request(app.getHttpServer()).get("/api/v1/me").set("Authorization", `Bearer ${second.body.accessToken}`);
+    expect(newMe.status).toBe(200);
   });
 
   it("logged in routes report the default rate limit", async () => {

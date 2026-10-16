@@ -5,10 +5,12 @@ import { Card, TicketStatusBadge } from "@aptransit/ui";
 import { ArrowRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
+import { usePartyText } from "../lib/party";
 
 /** My tickets row and confirmation preview: route, date and departure, seat, status, code. Opens the ticket. */
 export function TicketSummaryCard({ ticket }: { ticket: TicketSummaryDto }) {
   const t = useTranslations();
+  const party = usePartyText();
   const locale = useLocale();
   const pick = (p: { nameEn: string; nameTe: string }) => (locale === "te" ? p.nameTe : p.nameEn);
   const statusLabel = t(TICKET_STATUS_MAP[ticket.status].i18nKey);
@@ -46,6 +48,8 @@ export function TicketSummaryCard({ ticket }: { ticket: TicketSummaryDto }) {
         </div>
         {ticket.seatNo && <p className="text-body font-semibold text-fg">{t("tickets.seat", { seat: ticket.seatNo })}</p>}
       </div>
+      {/* D-051: a group travels on this one ticket */}
+      {ticket.party && <p className="text-small font-semibold text-fg">{party.summary(ticket.party)}</p>}
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-default pt-2 text-caption text-muted">
         <span className="font-mono">{t("tickets.code", { code: ticket.code })}</span>

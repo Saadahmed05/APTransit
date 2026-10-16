@@ -23,6 +23,7 @@ import { ConfigService } from "@nestjs/config";
 import type { Response } from "express";
 import * as jose from "jose";
 import type { AuthenticatedUser } from "../../common/auth/auth.types";
+import { markSessionsEnded, sessionEnded } from "../../common/auth/session-end";
 import { AppError } from "../../common/errors/app-error";
 import { RateLimitService } from "../../common/services/rate-limit.service";
 import type { Env } from "../../config/env";
@@ -79,8 +80,10 @@ export class AuthService {
   private async generateAccessToken(
     userId: string,
     roles: { role: string; depotId?: string | null; districtId?: string | null }[],
+    sid: string,
   ): Promise<string> {
-    return new jose.SignJWT({ roles })
+    // sid is the refresh token family: the guard refuses a session that another sign in ended
+    return new jose.SignJWT({ roles, sid })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(userId)
       .setIssuedAt()
@@ -348,14 +351,18 @@ export class AuthService {
       districtId: r.districtId,
       stateId: r.stateId,
     }));
-    const accessToken = await this.generateAccessToken(user.id, rolesPayload);
+    const familyId = randomBytes(16).toString("hex");
+    const accessToken = await this.generateAccessToken(user.id, rolesPayload, familyId);
+    // One device per citizen: this sign in ends the citizen's sessions on every other device.
+    // Staff are exempt (drivers already need an approved phone, and demo staff accounts are shared).
+    if (user.userRoles.every((r) => r.role === "CITIZEN")) await this.endOtherDevices(user.id, ip, userAgent);
 
     const rawRefreshToken = randomBytes(32).toString("hex");
     await this.prisma.refreshToken.create({
       data: {
         userId: user.id,
         tokenHash: this.hashToken(rawRefreshToken),
-        familyId: randomBytes(16).toString("hex"),
+        familyId,
         expiresAt: new Date(Date.now() + REFRESH_TTL_MS),
         userAgent,
       },
@@ -396,6 +403,10 @@ export class AuthService {
     await this.rateLimit.assertRefreshLimit(tokenRecord.userId, res);
 
     if (tokenRecord.revokedAt !== null) {
+      // Ended by a sign in on another device: say so, it is not a stolen token
+      if (await sessionEnded(this.redis.client, tokenRecord.familyId)) {
+        throw new AppError("SESSION_REPLACED", "You signed in on another device");
+      }
       await this.revokeFamilyForReuse(tokenRecord, ip, userAgent);
     }
 
@@ -444,12 +455,37 @@ export class AuthService {
       districtId: r.districtId,
       stateId: r.stateId,
     }));
-    const accessToken = await this.generateAccessToken(user.id, rolesPayload);
+    const accessToken = await this.generateAccessToken(user.id, rolesPayload, tokenRecord.familyId);
 
     return {
       accessToken,
       newRefreshToken: newRawRefreshToken,
     };
+  }
+
+  /** Revokes every other live session of the user and marks it ended, so its next request is refused. */
+  private async endOtherDevices(userId: string, ip: string, userAgent: string | undefined): Promise<void> {
+    const live = await this.prisma.refreshToken.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      select: { familyId: true },
+    });
+    const families = [...new Set(live.map((t) => t.familyId))];
+    if (!families.length) return;
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, familyId: { in: families }, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    await markSessionsEnded(this.redis.client, families, REFRESH_TTL_MS / 1000);
+    await this.audit.log({
+      action: "auth.single_device",
+      entityType: "user",
+      entityId: userId,
+      after: { signedOutDevices: families.length },
+      actorUserId: userId,
+      actorRole: "CITIZEN",
+      ip,
+      userAgent,
+    });
   }
 
   private async revokeFamilyForReuse(

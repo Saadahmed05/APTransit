@@ -31,6 +31,8 @@ Branch `a/kurnool-40-stops-dashboards` (from upstream main after PR #19). See D-
 
 Update: Kurnool Local O (Bus Stand to Orvakal via City Square Mall and the engineering colleges) and P (cross town). `pnpm simulate --fleet` drives six Kurnool crews at once (needs `--today` on the same day and `OTP_DEV_ECHO=1`). The history generator now writes tickets in batches of 30,000 (it ran out of memory at 2 GB with 3 days).
 
+D-051 (same branch): group tickets have one QR and one scan boards the whole group (`tickets/party.ts`); a citizen sign in signs out the citizen's other devices (`common/auth/session-end.ts`, error `SESSION_REPLACED`). Gotcha: E2E specs that sign the same citizen in on two pages at once now see the first one signed out.
+
 What each portal shows after `--today`: driver (today's trips, the earlier ones completed), conductor (next trip with passengers pending, manifest), depot (completed trips, crew roster, open incidents, complaints, a device to approve), government (today's passengers, revenue, incidents and complaints on the map and drill downs), admin (recent audit events). Live bus positions still need `pnpm simulate`.
 
 Gotchas: seed-today rows have ids starting with `todayseed`; a rerun deletes them and puts the trips it completed back to scheduled first. Run it after `--history` (the seed does). A rerun late at night finds no next trips for the demo crew (none left today).

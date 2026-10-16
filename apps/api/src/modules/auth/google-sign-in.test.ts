@@ -60,7 +60,7 @@ function build(env: Partial<Record<keyof Env, unknown>> = {}) {
       },
     },
     userRole: { create: async () => ({}) },
-    refreshToken: { create: async () => ({}) },
+    refreshToken: { create: async () => ({}), findMany: async () => [], updateMany: async () => ({ count: 0 }) },
   } as unknown as PrismaService;
   const config = {
     get: (key: keyof Env) =>

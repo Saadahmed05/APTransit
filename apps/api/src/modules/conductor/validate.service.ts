@@ -168,6 +168,8 @@ export class ValidateService {
                   validUntil: true,
                   qrSecret: true,
                   tripId: true,
+                  bookingId: true,
+                  farePaise: true,
                   holderUserId: true,
                   version: true,
                   scannedAt: true,
@@ -300,7 +302,59 @@ export class ValidateService {
                 data: { status: "SCANNED", scannedAt: now, version: { increment: 1 } },
               });
               if (changed.count !== 1) reason = "ALREADY_SCANNED";
-              else holderUserId = ticket.holderUserId;
+              else {
+                holderUserId = ticket.holderUserId;
+                // D-051: one scan boards the whole group on this ticket (same booking, trip and holder)
+                const party = ticket.bookingId
+                  ? await tx.ticket.findMany({
+                      where: {
+                        id: { not: ticket.id },
+                        bookingId: ticket.bookingId,
+                        tripId: ticket.tripId,
+                        holderUserId: ticket.holderUserId,
+                        status: { in: ["BOOKED", "ACTIVE"] },
+                      },
+                      select: { id: true, farePaise: true, passenger: { select: { category: true } } },
+                    })
+                  : [];
+                if (party.length) {
+                  await tx.ticket.updateMany({
+                    where: { id: { in: party.map((p) => p.id) }, status: { in: ["BOOKED", "ACTIVE"] } },
+                    data: { status: "SCANNED", scannedAt: now, activatedAt: now, validUntil: ticket.validUntil, version: { increment: 1 } },
+                  });
+                  await tx.ticketScan.createMany({
+                    data: party.map((p) => ({
+                      ticketId: p.id,
+                      tripId: ctx.tripId,
+                      conductorId: ctx.conductorId,
+                      result: "VALID" as const,
+                      reason: "OK" as const,
+                      scannedAt: now,
+                      deviceTime: new Date(input.deviceTime),
+                      busId: ctx.busId,
+                      stopId: boarding.stopId,
+                      stopSource: boarding.source,
+                      lat: boarding.lat,
+                      lng: boarding.lng,
+                      deviceId: ctx.deviceId,
+                      validatorKind: ctx.kind,
+                    })),
+                  });
+                  const categories = [ticket.passenger?.category ?? "ADULT", ...party.map((p) => p.passenger?.category ?? "ADULT")];
+                  const count = (c: string) => categories.filter((x) => x === c).length;
+                  group = {
+                    boarded: categories.length,
+                    size: categories.length,
+                    party: {
+                      size: categories.length,
+                      adults: count("ADULT"),
+                      children: count("CHILD"),
+                      seniors: count("SENIOR"),
+                      totalPaise: ticket.farePaise + party.reduce((sum, p) => sum + p.farePaise, 0),
+                    },
+                  };
+                }
+              }
             } else {
               // Serialize pass scans for a trip across processes, then recheck the winning scan.
               const locked = await tx.pass.update({

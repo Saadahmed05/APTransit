@@ -357,7 +357,8 @@
     "EMAIL_DELIVERY_FAILED": "We could not send the code by email. Try again in a few minutes.",
     "INTERNAL": "Something went wrong on our side. Try again in a moment.",
     "BAD_RESPONSE": "We got an answer we did not understand. Try again in a moment.",
-    "CONTACT_IN_USE": "This email or phone number belongs to another account."
+    "CONTACT_IN_USE": "This email or phone number belongs to another account.",
+    "SESSION_REPLACED": "You signed in on another device, so this device was signed out."
   },
   "notFound": {
     "title": "Page not found",
@@ -407,7 +408,8 @@
       "gov": "Government command center",
       "admin": "Admin",
       "demoHint": "Demo: tap a portal, the staff email is filled in. Tap Send code; the code shows on screen."
-    }
+    },
+    "signedOutElsewhere": "You signed in on another device, so you were signed out here. Your account works on one device at a time."
   },
   "account": {
     "loadFailed": "Your account could not load",
@@ -605,7 +607,11 @@
     "cardLabel": "{route}, {date} at {time}, seat {seat}, {status}",
     "errorTitle": "Tickets could not load",
     "open": "Open ticket",
-    "cardLabelNoSeat": "{route}, {date} at {time}, {status}"
+    "cardLabelNoSeat": "{route}, {date} at {time}, {status}",
+    "party": "Group of {size}: {members}",
+    "partyAdults": "{count, plural, one {# adult} other {# adults}}",
+    "partyChildren": "{count, plural, one {# child} other {# children}}",
+    "partySeniors": "{count, plural, one {# senior citizen} other {# senior citizens}}"
   },
   "colourOfDay": {
     "RED": "Red",
@@ -682,7 +688,9 @@
       "title": "This ticket is refunded"
     },
     "offline": "You are offline. Showing your saved ticket. The QR code still works.",
-    "offlineNoCopy": "You are offline and this ticket is not saved on this phone. Connect to the internet and try again."
+    "offlineNoCopy": "You are offline and this ticket is not saved on this phone. Connect to the internet and try again.",
+    "groupNote": "One QR for the whole group. The conductor scans it once and everyone boards together.",
+    "groupTotal": "{amount} for the group"
   },
   "ticketCancel": {
     "title": "Cancel ticket",
@@ -1152,7 +1160,8 @@
       "confirm": "Yes, send SOS",
       "cancel": "Cancel",
       "sent": "SOS sent to the depot with your location. Code {code}."
-    }
+    },
+    "groupParty": "Whole group boarded: {members}"
   },
   "opsApp": {
     "dashboard": "Depot dashboard",

@@ -1,6 +1,7 @@
 import { AuthRefreshResponse, ErrorResponse } from "@aptransit/shared";
 import type { ZodType } from "zod";
 import { sessionStore } from "./session";
+import { markSignedOutElsewhere } from "./session-notice";
 
 // Small fetch wrapper (docs/04: no axios). Same origin /api/v1 through the Next rewrite (docs/06).
 // Every response is validated with the zod Dto from @aptransit/shared.
@@ -120,7 +121,12 @@ let refreshInFlight: Promise<string | null> | null = null;
 async function refreshOnce(): Promise<string | null> {
   const res = await send("/auth/refresh", { method: "POST" }, null);
   if (!res.ok) {
-    if (res.status === 401 || res.status === 403) return null;
+    if (res.status === 401 || res.status === 403) {
+      // D-051: a sign in on another device ended this session; the login page says so
+      const body = (await res.json().catch(() => null)) as { error?: { code?: string } } | null;
+      if (body?.error?.code === "SESSION_REPLACED") markSignedOutElsewhere();
+      return null;
+    }
     throw await toApiError(res);
   }
   const { accessToken } = AuthRefreshResponse.parse(await res.json());

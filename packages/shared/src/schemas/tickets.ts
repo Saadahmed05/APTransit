@@ -21,6 +21,17 @@ export const TicketRefundDto = z.object({
 export type TicketRefundDto = z.infer<typeof TicketRefundDto>;
 
 /** A row in My tickets (docs/11 /tickets). */
+/** D-051: the travellers on one group ticket (one QR, one scan boards them all). */
+export const PartyDto = z.object({
+  size: z.number().int().positive(),
+  adults: z.number().int().nonnegative(),
+  children: z.number().int().nonnegative(),
+  seniors: z.number().int().nonnegative(),
+  /** What the whole group paid. */
+  totalPaise: z.number().int().nonnegative(),
+});
+export type PartyDto = z.infer<typeof PartyDto>;
+
 export const TicketSummaryDto = z.object({
   id: z.string(),
   code: z.string(),
@@ -42,6 +53,8 @@ export const TicketSummaryDto = z.object({
   arrivalAt: z.string().datetime(),
   activationOpensAt: z.string().datetime(),
   refund: TicketRefundDto.nullable(),
+  /** D-051: set when this ticket stands for a group of two or more travellers. */
+  party: PartyDto.nullable().default(null),
 });
 export type TicketSummaryDto = z.infer<typeof TicketSummaryDto>;
 

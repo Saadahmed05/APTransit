@@ -434,6 +434,25 @@ describe("Day 12 validation HTTP order", () => {
       expect((await scan(await content("T", 0, { tr: OTHER })).expect(200)).body.reason).toBe("WRONG_TRIP");
     });
 
+    it("one scan of a group ticket boards everyone on it, but not a gifted ticket (D-051)", async () => {
+      const lead = tables.ticket![0]!;
+      Object.assign(lead, { bookingId: "bookinggroup01", farePaise: 5000 });
+      tables.ticket!.push(
+        { ...lead, id: "ticketgroup001", code: "APT-1234-5671", status: "ACTIVE", seatNo: "2" },
+        { ...lead, id: "ticketgroup002", code: "APT-1234-5672", status: "BOOKED", seatNo: "3" },
+        { ...lead, id: "ticketgifted01", code: "APT-1234-5673", status: "ACTIVE", seatNo: "4", holderUserId: "friend0000001" },
+      );
+      const res = await scan(await content()).expect(200);
+      expect(res.body.reason).toBe("OK");
+      expect(res.body.group).toMatchObject({ boarded: 3, size: 3, party: { size: 3, adults: 3, children: 0, seniors: 0, totalPaise: 15000 } });
+      const scanned = tables.ticket!.filter((t) => t.status === "SCANNED").map((t) => t.id).sort();
+      expect(scanned).toEqual([lead.id, "ticketgroup001", "ticketgroup002"].sort());
+      expect(tables.ticket!.find((t) => t.id === "ticketgifted01")!.status).toBe("ACTIVE");
+      expect(tables.ticketScan!.filter((x) => x.result === "VALID")).toHaveLength(3);
+      // A second scan of the same QR is refused
+      expect((await scan(await content()).expect(200)).body.reason).toBe("ALREADY_SCANNED");
+    });
+
     it("its own bus always accepts a ticket, whatever the class of the bus that runs it", async () => {
       tables.trip![0]!.busTypeId = "bustypepv00001";
       const res = await scan(await content()).expect(200);

@@ -3,12 +3,15 @@ import {
   type CanActivate,
   type ExecutionContext,
   Injectable,
+  Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
 import * as jose from "jose";
 import type { Env } from "../../config/env";
+import { RedisService } from "../../redis/redis.service";
+import { sessionEnded } from "../auth/session-end";
 import type { AuthenticatedUser } from "../auth/auth.types";
 import { PERMISSION_KEY } from "../decorators/can.decorator";
 import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
@@ -21,6 +24,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly config: ConfigService<Env, true>,
+    @Optional() private readonly redis?: RedisService,
   ) {
     this.jwtSecret = new TextEncoder().encode(this.config.get("JWT_SECRET", { infer: true }));
   }
@@ -42,7 +46,7 @@ export class JwtAuthGuard implements CanActivate {
       throw new AppError("UNAUTHENTICATED", "Authentication required");
     }
 
-    let payload: jose.JWTPayload & { roles?: AuthenticatedUser["roles"] };
+    let payload: jose.JWTPayload & { roles?: AuthenticatedUser["roles"]; sid?: string };
     try {
       const verified = await jose.jwtVerify(token, this.jwtSecret);
       payload = verified.payload as typeof payload;
@@ -56,6 +60,12 @@ export class JwtAuthGuard implements CanActivate {
     if (!payload.sub) {
       if (isPublic) return true;
       throw new AppError("UNAUTHENTICATED", "Invalid token payload");
+    }
+
+    // One device per citizen: a sign in on another device ended this session
+    if (await sessionEnded(this.redis?.client, payload.sid)) {
+      if (isPublic) return true;
+      throw new AppError("SESSION_REPLACED", "You signed in on another device");
     }
 
     const user: AuthenticatedUser = {
