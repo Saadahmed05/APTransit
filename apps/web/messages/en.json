@@ -340,7 +340,8 @@
     "NETWORK": "You are offline. Your tickets still open. We will retry when you are back online.",
     "EMAIL_DELIVERY_FAILED": "We could not send the code by email. Try again in a few minutes.",
     "INTERNAL": "Something went wrong on our side. Try again in a moment.",
-    "BAD_RESPONSE": "We got an answer we did not understand. Try again in a moment."
+    "BAD_RESPONSE": "We got an answer we did not understand. Try again in a moment.",
+    "CONTACT_IN_USE": "This email or phone number belongs to another account."
   },
   "notFound": {
     "title": "Page not found",
@@ -402,7 +403,11 @@
       "nameInvalid": "Enter a name up to 100 letters.",
       "email": "Email",
       "phone": "Phone",
-      "notAdded": "Not added"
+      "notAdded": "Not added",
+      "verified": "Verified",
+      "notVerified": "Not verified",
+      "change": "Change",
+      "add": "Add"
     },
     "preferences": {
       "title": "Preferences"
@@ -421,6 +426,31 @@
       "help": "Help and complaints",
       "terms": "Terms and conditions",
       "busTypes": "Bus types and ticket rules"
+    },
+    "notifications": {
+      "title": "Email notifications",
+      "hint": "Choose which emails you get. Alerts inside the app always arrive.",
+      "trips": "Trip changes and delays",
+      "tickets": "Tickets and refunds",
+      "passes": "Passes",
+      "complaints": "Complaint updates"
+    },
+    "savedRoutes": {
+      "title": "Saved routes",
+      "loadFailed": "Saved routes could not load",
+      "empty": "No saved routes yet",
+      "emptyHint": "Routes you save will show here for one tap search.",
+      "pair": "{from} to {to}",
+      "remove": "Remove saved route {from} to {to}"
+    },
+    "devices": {
+      "title": "Signed in devices",
+      "loadFailed": "Devices could not load",
+      "unknown": "Unknown device",
+      "lastActive": "Last active {when}",
+      "thisDevice": "This device",
+      "signOutOthers": "Sign out other devices",
+      "signedOut": "Other devices were signed out"
     }
   },
   "roles": {
@@ -1728,5 +1758,22 @@
       "track": "Track buses",
       "plan": "Plan your journey"
     }
+  },
+  "welcome": {
+    "title": "Welcome to AP TransitOS",
+    "intro": "Add these details once. We use them for your tickets and to keep your account safe.",
+    "name": "Your name",
+    "email": "Your email",
+    "phone": "Your mobile number",
+    "done": "Done",
+    "todo": "Still to do"
+  },
+  "contact": {
+    "savedUnverified": "Number saved. It is not verified yet because SMS codes are not available.",
+    "emailVerified": "Email verified",
+    "phoneVerified": "Phone number verified",
+    "codeSent": "We sent a code to {target}. Enter it below.",
+    "verify": "Verify",
+    "cancel": "Cancel"
   }
 }

@@ -24,6 +24,7 @@ import { useInstallPrompt } from "../../../lib/install-prompt";
 import { writePreferenceCookie } from "../../../lib/preferences";
 import { queryKeys } from "../../../lib/query-keys";
 import { ROLE_HOME, sortedRoles } from "../../../lib/roles";
+import { ContactRow, DevicesList, NotificationPrefsForm, SavedRoutesList } from "./account-sections";
 
 export function AccountView() {
   const t = useTranslations();
@@ -77,21 +78,16 @@ function AccountDetails({ me }: { me: MeDto }) {
 
       <Section id="account-profile" title={t("account.profile.title")}>
         <NameForm me={me} />
-        <dl className="grid gap-4 sm:grid-cols-2">
-          <div className="min-w-0">
-            <dt className="text-small text-muted">{t("account.profile.email")}</dt>
-            <dd className="truncate text-body text-fg">
-              {me.email ?? t("account.profile.notAdded")}
-            </dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-small text-muted">{t("account.profile.phone")}</dt>
-            {/* The API sends the phone already masked (docs/06 MeDto) */}
-            <dd className="text-body text-fg tabular-nums">
-              {me.phone ?? t("account.profile.notAdded")}
-            </dd>
-          </div>
-        </dl>
+        <ContactRow me={me} channel="EMAIL" />
+        <ContactRow me={me} channel="PHONE" />
+      </Section>
+
+      <Section id="account-notifications" title={t("account.notifications.title")}>
+        <NotificationPrefsForm me={me} />
+      </Section>
+
+      <Section id="account-saved-routes" title={t("account.savedRoutes.title")}>
+        <SavedRoutesList />
       </Section>
 
       <Section id="account-preferences" title={t("account.preferences.title")}>
@@ -102,6 +98,10 @@ function AccountDetails({ me }: { me: MeDto }) {
           </div>
         </div>
         <ThemeChoice />
+      </Section>
+
+      <Section id="account-devices" title={t("account.devices.title")}>
+        <DevicesList />
       </Section>
 
       <InstallApp />

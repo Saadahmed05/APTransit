@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { pickTrip } from "./helpers";
+import { login, pickTrip } from "./helpers";
 
 /**
  * E2E-2 (docs/14): login with OTP (dev echo), book a seat, pay with the fake payment flag, see the
@@ -15,16 +15,8 @@ test.describe("E2E-2: Citizen books and pays", () => {
     test.setTimeout(120_000);
     const email = `e2e-${Date.now()}-${Math.floor(Math.random() * 1000)}@example.test`;
 
-    // 1. Login with the dev echoed code
-    await page.goto("/login?next=%2F");
-    await page.getByRole("textbox", { name: /email address/i }).fill(email);
-    const otpResponse = page.waitForResponse((res) => res.url().includes("/auth/otp/request") && res.request().method() === "POST");
-    await page.keyboard.press("Enter");
-    const { devCode } = (await (await otpResponse).json()) as { devCode?: string };
-    expect(devCode, "API must run with OTP_DEV_ECHO=1").toMatch(/^\d{6}$/);
-    await page.getByRole("textbox", { name: /digit 1 of 6/i }).click();
-    await page.keyboard.type(devCode!);
-    await page.waitForURL((url) => url.pathname === "/", { timeout: 20_000 });
+    // 1. Login with the dev echoed code, then the first sign in profile (D-048)
+    await login(page, email);
 
     // 2. Search Kurnool to Vijayawada for tomorrow (E2E-1 covers the home form itself)
     const { tripId, from, to, date } = await pickTrip(page);

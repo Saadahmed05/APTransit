@@ -25,6 +25,24 @@ export async function login(page: Page, email: string, next = "/"): Promise<void
   expect(devCode, "API must run with OTP_DEV_ECHO=1").toMatch(/^\d{6}$/);
   await page.getByRole("textbox", { name: /digit 1 of 6/i }).click();
   await page.keyboard.type(devCode!);
+  await page.waitForURL((url) => url.pathname === next || url.pathname === "/welcome", { timeout: 20_000 });
+  if (new URL(page.url()).pathname === "/welcome") await completeProfile(page, next);
+}
+
+/**
+ * D-048: a new citizen adds a name and a phone on /welcome (the email login already verified the
+ * email), then lands on `next`. Every call uses a fresh phone number.
+ */
+export async function completeProfile(page: Page, next = "/"): Promise<void> {
+  await page.getByRole("textbox", { name: /^name$/i }).fill("E2E Traveller");
+  await page.getByRole("button", { name: /^save name$/i }).click();
+  await page.getByRole("textbox", { name: /mobile number/i }).fill(`9${String(Math.floor(Math.random() * 1e9)).padStart(9, "0")}`);
+  const codeResponse = page.waitForResponse((res) => res.url().includes("/me/contact/otp/request") && res.request().method() === "POST");
+  await page.getByRole("button", { name: /^send code$/i }).click();
+  const { devCode } = (await (await codeResponse).json()) as { devCode?: string };
+  expect(devCode, "API must run with OTP_DEV_ECHO=1").toMatch(/^d{6}$/);
+  await page.getByRole("textbox", { name: /digit 1 of 6/i }).click();
+  await page.keyboard.type(devCode!);
   await page.waitForURL((url) => url.pathname === next, { timeout: 20_000 });
 }
 

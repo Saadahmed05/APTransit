@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { User } from "lucide-react";
 import { LanguageSwitch } from "../../components/language-switch";
 import { NotificationBell } from "../../components/notification-bell";
+import { ProfileGate } from "../../components/profile-gate";
 import { SkipLink } from "../../components/skip-link";
 import { ThemeSwitch } from "../../components/theme-switch";
 import { CitizenBottomNav, CitizenTopNav } from "./citizen-nav";
@@ -18,6 +19,7 @@ export default async function CitizenLayout({ children }: { children: ReactNode 
   return (
     <div className="flex min-h-screen flex-col bg-bg text-fg">
       <SkipLink label={t("nav.skipToContent")} />
+      <ProfileGate />
 
       <header className="sticky top-0 z-header border-b border-default bg-surface-raised">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-2 px-gutter">

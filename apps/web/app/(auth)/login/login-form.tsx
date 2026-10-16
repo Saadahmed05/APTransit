@@ -2,6 +2,7 @@
 
 import {
   AuthVerifyResponse,
+  type MeDto,
   maskEmail,
   maskPhone,
   type OtpChannel,
@@ -24,14 +25,21 @@ import { Bus, BusFront, Info, Landmark, Mail, Phone, ScanLine, ShieldCheck, Ware
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { type FormEvent, type Ref, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useAuth, useMe } from "../../../components/auth-provider";
+import { PhoneInput } from "../../../components/phone-input";
 import { GoogleSignIn, googleSignInEnabled } from "../../../components/google-sign-in";
 import { api, type ApiError, errorKey, isApiError } from "../../../lib/api";
+import { needsProfile, welcomeHref } from "../../../lib/profile";
 import { writePreferenceCookie } from "../../../lib/preferences";
 import { roleHome, safeNextPath } from "../../../lib/roles";
 
 const CODE_LENGTH = 6;
+
+/** D-048: a citizen with an incomplete profile goes to /welcome first, then on to where they were going. */
+function destination(user: MeDto, safeNext: string | null): string {
+  return needsProfile(user) ? welcomeHref(safeNext) : (safeNext ?? roleHome(user));
+}
 
 interface Sent {
   channel: OtpChannel;
@@ -78,7 +86,7 @@ export function LoginForm({ next }: { next: string | null }) {
 
   // Logged in (just now, or already when opening /login): go to `next` or the role home.
   useEffect(() => {
-    if (status === "authenticated" && me.data) router.replace(safeNext ?? roleHome(me.data));
+    if (status === "authenticated" && me.data) router.replace(destination(me.data, safeNext));
   }, [status, me.data, safeNext, router]);
 
   const describe = (error: unknown): string => {
@@ -93,7 +101,7 @@ export function LoginForm({ next }: { next: string | null }) {
     // A full load renders every layout in that language; the marker cookie restores the session.
     if (document.documentElement.lang !== result.user.preferredLocale) {
       writePreferenceCookie("locale", result.user.preferredLocale);
-      window.location.replace(safeNext ?? roleHome(result.user));
+      window.location.replace(destination(result.user, safeNext));
       return;
     }
     login(result);
@@ -386,37 +394,3 @@ const STAFF_PORTALS = [
   { path: "/gov", key: "gov", Icon: Landmark },
   { path: "/admin", key: "admin", Icon: ShieldCheck },
 ] as const;
-
-interface PhoneInputProps {
-  value: string;
-  onChange: (digits: string) => void;
-  id?: string;
-  "aria-describedby"?: string;
-  "aria-invalid"?: "true";
-  ref?: Ref<HTMLInputElement>;
-}
-
-/** 10 digit Indian mobile number after a fixed +91 (the API expects +91 followed by 10 digits). */
-function PhoneInput({ value, onChange, ref, ...a11y }: PhoneInputProps) {
-  return (
-    <div className="flex items-stretch">
-      <span
-        className="inline-flex items-center rounded-l-md border border-r-0 border-strong bg-surface px-3 text-body text-muted"
-        aria-hidden="true"
-      >
-        +91
-      </span>
-      <Input
-        ref={ref}
-        {...a11y}
-        type="tel"
-        inputMode="numeric"
-        autoComplete="tel-national"
-        maxLength={10}
-        className="rounded-l-none tabular-nums"
-        value={value}
-        onChange={(event) => onChange(event.currentTarget.value.replace(/\D/g, "").slice(0, 10))}
-      />
-    </div>
-  );
-}

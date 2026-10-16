@@ -16,6 +16,7 @@ export const PROTECTED_PREFIXES = [
   "/passes",
   "/free-travel",
   "/account",
+  "/welcome",
   "/updates",
   "/driver",
   "/conductor",

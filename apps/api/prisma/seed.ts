@@ -488,8 +488,8 @@ export async function runSeed(): Promise<void> {
   const knlDistrictId = districtMap.get("KNL")!;
 
   const demoUsers = [
-    { email: "citizen@aptransit.test", name: "Citizen Ravi", role: "CITIZEN" as const },
-    { email: "citizen2@aptransit.test", name: "Citizen Lakshmi", role: "CITIZEN" as const },
+    { email: "citizen@aptransit.test", name: "Citizen Ravi", phone: "+919000000001", role: "CITIZEN" as const },
+    { email: "citizen2@aptransit.test", name: "Citizen Lakshmi", phone: "+919000000002", role: "CITIZEN" as const },
     { email: "driver.knl@aptransit.test", name: "Driver Srinivas", role: "DRIVER" as const, depotId: knlDepotId },
     { email: "conductor.knl@aptransit.test", name: "Conductor Prasad", role: "CONDUCTOR" as const, depotId: knlDepotId },
     { email: "staff.knl@aptransit.test", name: "Staff Venkat", role: "DEPOT_STAFF" as const, depotId: knlDepotId },
@@ -504,13 +504,19 @@ export async function runSeed(): Promise<void> {
   for (const u of demoUsers) {
     const user = await prisma.user.upsert({
       where: { email: u.email },
+      // D-048: demo accounts are complete profiles (verified email, and a verified phone for citizens)
       create: {
         email: u.email,
         name: u.name,
+        phone: u.phone,
+        emailVerifiedAt: new Date(),
+        phoneVerifiedAt: u.phone ? new Date() : undefined,
         preferredLocale: "en",
       },
       update: {
         name: u.name,
+        emailVerifiedAt: new Date(),
+        ...(u.phone ? { phone: u.phone, phoneVerifiedAt: new Date() } : {}),
       },
     });
     userMap.set(u.email, user.id);
