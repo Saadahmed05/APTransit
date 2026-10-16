@@ -40,10 +40,10 @@ export function MapPicker({
   const [locateError, setLocateError] = useState<string | null>(null);
   const point = centre ?? START_CENTRE;
   const stops = useQuery({
-    queryKey: ["places", "nearby", point.lat, point.lng, centre ? 20 : 40],
+    queryKey: ["places", "nearby", point.lat, point.lng, centre ? 30 : 50],
     queryFn: () =>
       api("/places/nearby", {
-        query: { lat: point.lat, lng: point.lng, limit: centre ? 20 : 40 },
+        query: { lat: point.lat, lng: point.lng, limit: centre ? 30 : 50 },
         schema: PlacesNearbyResponse,
         redirectOn401: false,
       }),
@@ -171,6 +171,8 @@ export function MapPicker({
             process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/liberty"
           }
           markers={markers}
+          center={centre ?? START_CENTRE}
+          zoom={centre ? 13 : 12.5}
           connect
           fitBounds
           fitKey={`${from?.id ?? ""}|${to?.id ?? ""}`}
@@ -196,7 +198,7 @@ export function MapPicker({
           <p className="p-4 pt-0 text-body text-muted">{t("empty")}</p>
         ) : (
           <ul className="flex flex-col divide-y divide-hairline">
-            {list.slice(0, 20).map((s) => (
+            {list.slice(0, 50).map((s) => (
               <li key={s.id} className="flex items-center justify-between gap-2 px-4 py-2">
                 <span className="min-w-0 text-body text-fg">
                   {name(s)}

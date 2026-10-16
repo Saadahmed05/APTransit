@@ -168,13 +168,16 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
       expect(res.body.map((r: { code: string }) => r.code)).toEqual([
         // D-046: Kurnool city lines and local routes to Adoni and Atmakur
         "KCC-01",
+        "KCL-01",
         "KCM-01",
+        "KHL-01",
         "KNL-ADN-01",
         "KNL-ATK-01",
         "KNL-ATP-01",
         "KNL-NDL-01",
         "KNL-TPT-01",
         "KNL-VJA-01",
+        "KOT-01",
       ]);
       const vja = res.body.find((r: { code: string }) => r.code === "KNL-VJA-01");
       expect(vja.destination.nameEn).toBe("Vijayawada PNBS");
