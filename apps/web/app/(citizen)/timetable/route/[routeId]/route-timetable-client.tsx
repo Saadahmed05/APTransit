@@ -17,6 +17,7 @@ import {
   EmptyState,
   ErrorState,
   Skeleton,
+  ServiceTypeIcon,
   StatusBadge,
 } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -309,6 +310,7 @@ export function RouteTimetableClient({
 
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
+                          <ServiceTypeIcon serviceType={trip.serviceType} />
                           <span className="text-small font-medium text-fg">
                             {serviceName}
                           </span>

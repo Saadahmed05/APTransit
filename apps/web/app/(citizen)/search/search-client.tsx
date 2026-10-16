@@ -445,6 +445,7 @@ export function SearchClient({
                       seats,
                       fare,
                     })}
+                    serviceType={trip.serviceType}
                     departureTime={departure}
                     arrivalTime={arrival}
                     duration={formatDuration(trip.durationMin, locale)}

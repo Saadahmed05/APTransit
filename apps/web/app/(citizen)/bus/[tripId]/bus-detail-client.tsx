@@ -16,6 +16,7 @@ import {
   EmptyState,
   ErrorState,
   Skeleton,
+  ServiceTypeIcon,
   StatusBadge,
 } from "@aptransit/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -196,6 +197,7 @@ export function BusDetailClient({
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
+              <ServiceTypeIcon serviceType={trip.busType.serviceType} className="size-9" />
               <span className="text-h2 font-bold text-fg">
                 {serviceName}
               </span>

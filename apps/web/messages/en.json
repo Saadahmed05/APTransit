@@ -73,7 +73,7 @@
       "error": "The map could not load.",
       "retry": "Try again",
       "listTitle": "Stops near you (list)",
-      "stopsIn": "Bus stops in {place}",
+      "stopsIn": "Buses live in {place}",
       "otherCities": "Other cities",
       "empty": "No stops found here.",
       "distance": "{km} km away",

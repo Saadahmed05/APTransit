@@ -1,7 +1,8 @@
 import * as React from "react";
-import type { DisplayStatus } from "@aptransit/shared";
+import type { DisplayStatus, ServiceType } from "@aptransit/shared";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { cn } from "../cn";
+import { ServiceTypeIcon } from "./service-type-icon";
 import { StatusBadge } from "./status-badge";
 
 export interface TripCardProps extends React.HTMLAttributes<HTMLElement> {
@@ -9,6 +10,8 @@ export interface TripCardProps extends React.HTMLAttributes<HTMLElement> {
   arrivalTime: string;
   duration: string;
   serviceTypeName: string;
+  /** Shows the icon of this kind of bus next to its name. */
+  serviceType?: ServiceType;
   /** Visible destination line, already translated (for example "to Vijayawada"). */
   destinationText: string;
   seatsLeft: number;
@@ -35,6 +38,7 @@ export const TripCard = React.forwardRef<HTMLElement, TripCardProps>(
       arrivalTime,
       duration,
       serviceTypeName,
+      serviceType,
       destinationText,
       seatsLeft,
       fareFormatted,
@@ -103,6 +107,7 @@ export const TripCard = React.forwardRef<HTMLElement, TripCardProps>(
 
         {/* Middle row: Service type name and route code */}
         <div className="mt-2 flex items-center gap-2 flex-wrap min-w-0">
+          {serviceType && <ServiceTypeIcon serviceType={serviceType} />}
           <span className="text-small font-medium text-fg">
             {serviceTypeName}
           </span>
