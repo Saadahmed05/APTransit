@@ -457,6 +457,12 @@
       "thisDevice": "This device",
       "signOutOthers": "Sign out other devices",
       "signedOut": "Other devices were signed out"
+    },
+    "hub": {
+      "title": "My travel",
+      "tickets": "Upcoming tickets",
+      "passes": "Active passes",
+      "track": "Track a bus"
     }
   },
   "roles": {

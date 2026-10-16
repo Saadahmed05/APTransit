@@ -6,14 +6,17 @@ import {
   type NotificationPrefs,
   type SavedRouteDto,
   SavedRoutesResponse,
+  PassDto,
   SessionsResponse,
+  TicketsResponse,
   type SessionDto,
   UpdateMeInput,
 } from "@aptransit/shared";
 import { Button, EmptyState, ErrorState, Skeleton, Switch, toast } from "@aptransit/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, CheckCircle2, Smartphone, Trash2, TriangleAlert } from "lucide-react";
+import { Bookmark, CheckCircle2, CreditCard, MapPin, Smartphone, Ticket, Trash2, TriangleAlert, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { z } from "zod";
 import Link from "next/link";
 import { useState } from "react";
 import { ContactVerify } from "../../../components/contact-verify";
@@ -227,6 +230,46 @@ export function SavedRoutesList() {
           </Button>
         </li>
       ))}
+    </ul>
+  );
+}
+
+function HubTile({ href, icon: Icon, label, count }: { href: string; icon: LucideIcon; label: string; count?: number }) {
+  return (
+    <li className="min-w-0">
+      <Link
+        href={href}
+        className="flex h-full min-h-24 flex-col justify-between gap-2 rounded-lg border border-default bg-surface-raised p-3 transition-colors duration-fast hover:border-strong hover:bg-surface"
+      >
+        <span className="flex items-center justify-between gap-2">
+          <span className="inline-flex size-10 items-center justify-center rounded-md bg-primary-soft text-primary">
+            <Icon className="size-5" aria-hidden="true" />
+          </span>
+          {count !== undefined ? <span className="text-h2 tabular-nums text-fg">{count}</span> : null}
+        </span>
+        <span className="text-body font-medium text-fg">{label}</span>
+      </Link>
+    </li>
+  );
+}
+
+/** D-048 travel hub: what is coming up at a glance. Counts are quiet if a list cannot load. */
+export function TravelHub() {
+  const t = useTranslations("account.hub");
+  const tickets = useQuery({
+    queryKey: queryKeys.tickets("upcoming"),
+    queryFn: ({ signal }) => api("/tickets", { query: { scope: "upcoming" }, schema: TicketsResponse, signal }),
+  });
+  const passes = useQuery({
+    queryKey: queryKeys.passes,
+    queryFn: ({ signal }) => api("/passes", { schema: z.array(PassDto), signal }),
+  });
+  const activePasses = passes.data?.filter((p) => p.status === "ACTIVE").length;
+  return (
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <HubTile href="/tickets" icon={Ticket} label={t("tickets")} count={tickets.data?.length} />
+      <HubTile href="/passes" icon={CreditCard} label={t("passes")} count={activePasses} />
+      <HubTile href="/track" icon={MapPin} label={t("track")} />
     </ul>
   );
 }

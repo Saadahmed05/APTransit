@@ -907,3 +907,19 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 **Open**
 
 - Human tasks in `prompts/next/README.md`. Pallevelugu and other (A) values still need the owner.
+
+
+## D-048 phases 3 to 5, 2026-10-16
+
+**Done**
+
+- Phase 3 API tests: `profile-contact.test.ts` (24 tests: profile completion, contact codes, preferences, devices) and `me.service.test.ts` (6 tests: saved routes).
+- `/welcome` profile screen, profile gate, account sections (verified contacts with add and change, email notification switches, saved routes, signed in devices), travel hub. Demo citizens in the seed have a verified phone. E2E `login()` completes `/welcome`.
+- Phase 4: map first home with a search sheet over the map and saved route chips. Specs `d048-profile.spec.ts` and `d048-home.spec.ts`.
+- Lint, typecheck, unit tests, i18n and dashes pass.
+
+**Not done**
+
+- About 40 more Kurnool spots: Overpass was down on three mirrors and positions must come from OpenStreetMap. Query is in D-048.
+- Phase 6 field features: needs owner answers, listed in D-048.
+- Docs proposal text for Phase 3 to 5 (docs 05, 06, 11) is not written yet.

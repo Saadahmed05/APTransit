@@ -18,6 +18,21 @@ Read order for a new session:
 
 Open work is listed in `prompts/next/README.md`. Tell your agent: "I am Mukheeth (or Saad), complete the work" and it follows the trigger section in `AGENTS.md`. Branch `a/kurnool-spots` holds D-044, D-046 and the 45 Kurnool spots. On 2026-10-16 lint, typecheck, i18n, dashes and unit tests passed; the seeded E2E suite was not run. Update 2026-10-16 (branch `b/finish-kurnool-round-r3ppnx`): Kurnool data check added to `seed-local.test.ts`, D-047 lists the locked doc edits to agree with Dev A. Seeded E2E run on 2026-10-16: Desktop Chrome and Pixel 7 pass (E2E-11 flaked once on Pixel 7). New spec `v3-child-scan.spec.ts`; stale specs fixed (E2E-8, group, passes, map-home); admin sweep fixes (adminApp.timetables and departure keys, role chip contrast, pass types page width); `prisma/reset.ts` no longer passes the removed `--skip-seed`. Still open: the human tasks in `prompts/next/README.md`.
 
+## Current state (D-048 profile, map first home, 2026-10-16)
+
+Branch `b/finish-kurnool-round-r3ppnx`. D-048 Phases 1 to 5 are built (see D-048 in `progress/decisions-log.md`): buses for the whole booking window, category tickets with no seats on local buses, profile and verify (`/welcome`, account sections, signed in devices, saved routes), map first home with a search sheet, and the account travel hub. **Not built:** about 40 more Kurnool spots (needs real OpenStreetMap data, Overpass was down) and the Phase 6 field features (needs owner answers, listed in D-048).
+
+| New | Where |
+| --- | --- |
+| Profile and contact codes | `apps/api/src/modules/auth/auth.service.ts` (`requestContactOtp`, `verifyContactOtp`, `sessions`), tests `profile-contact.test.ts` |
+| Saved routes | `apps/api/src/modules/me/`, web `app/(citizen)/saved-routes.tsx` |
+| Welcome screen and gate | `app/(auth)/welcome/`, `components/profile-gate.tsx`, `lib/profile.ts` |
+| Contact add and verify UI | `components/contact-verify.tsx` (used by welcome and account) |
+| Account sections | `app/(citizen)/account/account-sections.tsx` |
+| Map first home | `app/(citizen)/map-picker.tsx` (`sheet` prop), `home-search.tsx` |
+
+Gotchas: a new citizen is sent to `/welcome` after login, so E2E logins go through `login()` in `e2e/helpers.ts`, which completes it; that costs a second OTP request, so the 10 per hour limit runs out after about 5 new accounts (restart `scripts/dev-redis.mjs`). Seeded demo citizens already have a verified phone. Background servers started from a PowerShell tool call can die when the call ends; start PGlite, Redis, the API and the web app as separate background tasks. In Git Bash write the PGlite path with forward slashes (`--db=E:/aptdb`), a backslash path creates a stray folder.
+
 ## Current state (Kurnool spots, map view and staff portals, 2026-10-15)
 
 Branch `a/kurnool-spots` (from upstream main after D-046). 45 Kurnool spots are stops (OpenStreetMap positions; Telugu names need a native review) with city lines `KCM-01`, `KCC-01`, `KHL-01`, `KCL-01`, `KOT-01`. The map picker starts at street level on Kurnool (`center` and `zoom` in `map-picker.tsx`) and frames only A and B once they are set (`connect` and `fitKey` in `map-view.tsx`). The sign in page links to the staff portals (driver, conductor, depot, government, admin); `e2e/staff-portals.spec.ts` checks driver and conductor sign in.

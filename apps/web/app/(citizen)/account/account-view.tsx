@@ -24,7 +24,7 @@ import { useInstallPrompt } from "../../../lib/install-prompt";
 import { writePreferenceCookie } from "../../../lib/preferences";
 import { queryKeys } from "../../../lib/query-keys";
 import { ROLE_HOME, sortedRoles } from "../../../lib/roles";
-import { ContactRow, DevicesList, NotificationPrefsForm, SavedRoutesList } from "./account-sections";
+import { ContactRow, DevicesList, NotificationPrefsForm, SavedRoutesList, TravelHub } from "./account-sections";
 
 export function AccountView() {
   const t = useTranslations();
@@ -75,6 +75,10 @@ function AccountDetails({ me }: { me: MeDto }) {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <h1 className="text-h1 text-fg">{t("nav.account")}</h1>
+
+      <Section id="account-hub" title={t("account.hub.title")}>
+        <TravelHub />
+      </Section>
 
       <Section id="account-profile" title={t("account.profile.title")}>
         <NameForm me={me} />
