@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState, useSyncExternalStore } from "react";
 import { PlaceCombobox } from "../../components/place-combobox";
 import { MapPicker } from "./map-picker";
+import { SavedRoutes } from "./saved-routes";
 import {
   MAX_DAYS_AHEAD,
   readSavedSearch as readSaved,
@@ -88,9 +89,8 @@ function SearchForm() {
     router.push(`/search?${params.toString()}`);
   };
 
-  return (
-    <div className="flex flex-col gap-6">
-      <Card padding="lg" className="flex flex-col gap-5 shadow-md">
+  const sheet = (
+    <Card padding="lg" className="relative -mt-6 mx-2 flex flex-col gap-5 shadow-lg md:mx-0 md:max-w-xl">
         <form
           onSubmit={onSubmit}
           noValidate
@@ -160,9 +160,13 @@ function SearchForm() {
             {t("search.cta")}
           </Button>
         </form>
+        <SavedRoutes
+          from={from}
+          to={to}
+          onPick={(f, t2) => update({ from: f, to: t2 })}
+        />
       </Card>
-      {/* D-042: pick From and To on the map, like Google Maps */}
-      <MapPicker from={from} to={to} onPick={(field, place) => update({ [field]: place })} />
-    </div>
   );
+
+  return <MapPicker from={from} to={to} onPick={(field, place) => update({ [field]: place })} sheet={sheet} />;
 }

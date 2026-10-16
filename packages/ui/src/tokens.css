@@ -519,5 +519,5 @@
 @theme {
   --spacing-tracking-map: 40svh;
   /* D-042: the home map picker */
-  --spacing-home-map: 52svh;
+  --spacing-home-map: 64svh;
 }

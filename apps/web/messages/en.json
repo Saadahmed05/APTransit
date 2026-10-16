@@ -85,6 +85,12 @@
       "chooseDrop": "Choose drop stop",
       "tapPickup": "Tap a stop on the map to set your pickup.",
       "tapDrop": "Tap a stop on the map to set where you get down."
+    },
+    "saved": {
+      "title": "Saved routes",
+      "pair": "{from} to {to}",
+      "save": "Save this route",
+      "unsave": "Remove from saved routes"
     }
   },
   "search": {
