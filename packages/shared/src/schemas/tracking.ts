@@ -148,8 +148,11 @@ export const DriverIncidentInput = z
     type: IncidentType,
     severity: Severity.optional(),
     note: z.string().trim().max(280).optional(),
+    /** D-048: how late the bus is running now, for a DELAY report. */
+    delayMinutes: z.number().int().min(1).max(240).optional(),
   })
-  .strict();
+  .strict()
+  .refine((v) => v.delayMinutes === undefined || v.type === "DELAY", { path: ["delayMinutes"], message: "Only a delay report has delay minutes" });
 export type DriverIncidentInput = z.infer<typeof DriverIncidentInput>;
 
 export const IncidentDto = z.object({

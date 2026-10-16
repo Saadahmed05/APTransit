@@ -6,7 +6,7 @@ import {
   ValidateTicketInput,
   ValidateTicketResult,
 } from "@aptransit/shared";
-import { Body, Controller, Get, HttpCode, Param, Post, Req } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
 import type { AuthenticatedUser } from "../../common/auth/auth.types";
@@ -14,6 +14,7 @@ import { Can } from "../../common/decorators/can.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { auditActorFromRequest } from "../audit/audit.service";
+import { DriverService } from "../driver/driver.service";
 import { ConductorService } from "./conductor.service";
 import { ValidateService } from "./validate.service";
 
@@ -38,6 +39,19 @@ export class ConductorController {
     @Param("id", new ZodValidationPipe(PublicId)) id: string,
   ) {
     return ConductorAlightingDto.parse(await this.conductor.alighting(user.id, id));
+  }
+}
+
+/** D-048: the conductor raises an SOS on the trip (CRITICAL incident, same as a driver incident). */
+@Controller("conductor")
+@Can("conductor:manifest")
+export class ConductorSosController {
+  constructor(private readonly driver: DriverService) {}
+  @Post("sos")
+  @Throttle({ default: { limit: 5, ttl: 600_000 } })
+  @HttpCode(HttpStatus.CREATED)
+  sos(@CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
+    return this.driver.reportConductorSos(user.id, auditActorFromRequest(req));
   }
 }
 

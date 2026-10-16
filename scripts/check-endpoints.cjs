@@ -14,6 +14,7 @@ const ALLOWED_EXTRA = new Map([
   ["GET /ops/bus-types", "D-029"],
   ["GET /ops/routes", "D-029"],
   ["GET /driver/trips", "Day 11: today's trip list for the driver app (D-025)"],
+  ["POST /conductor/sos", "D-048: crew SOS from the conductor app"],
   ["POST /me/contact/otp/request", "D-048: add or change the email or phone"],
   ["POST /me/contact/otp/verify", "D-048"],
   ["GET /auth/sessions", "D-048: signed in devices"],

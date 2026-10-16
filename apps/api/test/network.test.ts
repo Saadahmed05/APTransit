@@ -178,6 +178,10 @@ describe("Network and search endpoints (docs/06, Day 4)", () => {
         "KNL-TPT-01",
         "KNL-VJA-01",
         "KOT-01",
+        "KSA-01",
+        "KSB-01",
+        "KSC-01",
+        "KSD-01",
       ]);
       const vja = res.body.find((r: { code: string }) => r.code === "KNL-VJA-01");
       expect(vja.destination.nameEn).toBe("Vijayawada PNBS");

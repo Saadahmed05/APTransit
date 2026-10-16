@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import { AlightingPanel } from "../../components/alighting-panel";
 import { ConductorCounts } from "../../components/conductor-counts";
+import { SosButton } from "../../components/sos-button";
 import { useConductorToday } from "../../lib/conductor-today";
 import { errorKey } from "../../lib/api";
 export function ConductorHome() {
@@ -57,6 +58,7 @@ export function ConductorHome() {
       )}
       {trip.status !== "RUNNING" && <p>{t("notRunning")}</p>}
       {trip.status === "RUNNING" && <AlightingPanel tripId={trip.id} />}
+      <SosButton />
       <Button size="xl" variant="secondary" asChild>
         <Link href="/conductor/manifest">{t("manifest")}</Link>
       </Button>

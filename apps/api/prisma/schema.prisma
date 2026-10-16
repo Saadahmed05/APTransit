@@ -158,6 +158,7 @@ enum IncidentType {
   BUS_PROBLEM
   MEDICAL
   DELAY
+  SOS
   OTHER
 }
 

@@ -121,6 +121,8 @@ export const IncidentType = z.enum([
   "BUS_PROBLEM",
   "MEDICAL",
   "DELAY",
+  /** D-048: the crew pressed SOS. Always CRITICAL. */
+  "SOS",
   "OTHER",
 ]);
 export type IncidentType = z.infer<typeof IncidentType>;

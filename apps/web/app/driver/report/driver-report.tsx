@@ -1,9 +1,9 @@
 "use client";
 
 import { type DriverIncidentInput, IncidentDto } from "@aptransit/shared";
-import { Button, Card, Field, Textarea } from "@aptransit/ui";
+import { Button, Card, Field, Input, Textarea } from "@aptransit/ui";
 import { useMutation } from "@tanstack/react-query";
-import { Ambulance, Ban, BellRing, CarFront, CircleCheck, CircleEllipsis, Construction, Timer, TrafficCone, Wrench } from "lucide-react";
+import { Ambulance, Ban, BellRing, CarFront, CircleCheck, CircleEllipsis, Construction, Siren, Timer, TrafficCone, Wrench } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
@@ -11,6 +11,7 @@ import { api, errorKey } from "../../../lib/api";
 import { useDriverToday } from "../../../lib/driver-today";
 
 const TILES = [
+  { type: "SOS", icon: Siren },
   { type: "DELAY", icon: Timer },
   { type: "TRAFFIC", icon: TrafficCone },
   { type: "BREAKDOWN", icon: Wrench },
@@ -27,6 +28,7 @@ export function DriverReport() {
   const [type, setType] = useState<DriverIncidentInput["type"] | null>(null);
   const [note, setNote] = useState("");
   const [missingType, setMissingType] = useState(false);
+  const [delay, setDelay] = useState("");
 
   const report = useMutation({
     mutationFn: (body: DriverIncidentInput) => api("/driver/incidents", { method: "POST", body, schema: IncidentDto }),
@@ -53,7 +55,12 @@ export function DriverReport() {
       setMissingType(true);
       return;
     }
-    report.mutate({ type, ...(note.trim() ? { note: note.trim().slice(0, 280) } : {}) });
+    const minutes = Number.parseInt(delay, 10);
+    report.mutate({
+      type,
+      ...(note.trim() ? { note: note.trim().slice(0, 280) } : {}),
+      ...(type === "DELAY" && minutes >= 1 && minutes <= 240 ? { delayMinutes: minutes } : {}),
+    });
   };
 
   return (
@@ -89,6 +96,14 @@ export function DriverReport() {
           </p>
         )}
       </fieldset>
+
+      {type === "DELAY" ? (
+        <Card padding="md">
+          <Field id="incident-delay" label={t("report.delayLabel")} hint={t("report.delayHint")}>
+            <Input id="incident-delay" type="text" inputMode="numeric" maxLength={3} value={delay} onChange={(e) => setDelay(e.target.value.replace(/[^0-9]/g, ""))} className="text-body-lg tabular-nums" />
+          </Field>
+        </Card>
+      ) : null}
 
       <Card padding="md">
         <Field id="incident-note" label={t("report.noteLabel")} hint={t("report.noteHint")}>

@@ -958,7 +958,8 @@
         "ACCIDENT": "Accident",
         "ROAD_BLOCK": "Road block",
         "MEDICAL": "Medical",
-        "OTHER": "Other"
+        "OTHER": "Other",
+        "SOS": "SOS emergency"
       },
       "noteLabel": "Note (optional)",
       "noteHint": "A few words for the depot.",
@@ -966,7 +967,9 @@
       "pickFirst": "Pick what happened first.",
       "sentTitle": "Depot alerted",
       "sentHint": "Report {code} was sent with your location.",
-      "backToTrip": "Back to trip"
+      "backToTrip": "Back to trip",
+      "delayLabel": "Minutes late (optional)",
+      "delayHint": "How late is the bus running now? 1 to 240."
     }
   },
   "tracking": {
@@ -1127,6 +1130,13 @@
       "ADULT": "Adult",
       "CHILD": "Child",
       "SENIOR": "Senior citizen"
+    },
+    "sos": {
+      "button": "SOS emergency",
+      "question": "Send an SOS to the depot now?",
+      "confirm": "Yes, send SOS",
+      "cancel": "Cancel",
+      "sent": "SOS sent to the depot with your location. Code {code}."
     }
   },
   "opsApp": {

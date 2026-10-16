@@ -184,29 +184,59 @@ export class DriverService {
     const assignments = await this.todaysAssignments(userId, now);
     const pick = assignments.find((a) => a.trip.status === "RUNNING") ?? assignments.find((a) => a.trip.status === "SCHEDULED");
     if (!pick) throw new AppError("TRIP_NOT_ASSIGNED", "No trip is assigned to you now");
-    const context = await this.trips.load(pick.trip.id);
+    return this.recordIncident(userId, pick.trip.id, input, actor, now);
+  }
+
+  /**
+   * D-048: POST /conductor/sos. The conductor of a running (or next) trip raises a CRITICAL SOS on
+   * it. Same record as a driver incident, so the depot and the command center see it at once.
+   */
+  async reportConductorSos(userId: string, actor: AuditActor, now = new Date()): Promise<IncidentDto> {
+    const rows = await this.prisma.tripAssignment.findMany({
+      where: { endedAt: null, conductor: { userId }, trip: { serviceDate: serviceDateOf(now), status: { in: ["SCHEDULED", "RUNNING"] } } },
+      select: { tripId: true, trip: { select: { status: true } } },
+      orderBy: { trip: { scheduledDepartureAt: "asc" } },
+    });
+    const pick = rows.find((r) => r.trip.status === "RUNNING") ?? rows[0];
+    if (!pick) throw new AppError("TRIP_NOT_ASSIGNED", "No trip is assigned to you now");
+    return this.recordIncident(userId, pick.tripId, { type: "SOS" }, actor, now);
+  }
+
+  private async recordIncident(userId: string, tripId: string, input: DriverIncidentInput, actor: AuditActor, now: Date): Promise<IncidentDto> {
+    const context = await this.trips.load(tripId);
     if (!context.assignment) throw new AppError("TRIP_NOT_ASSIGNED", "No trip is assigned to you now");
 
     const location = await this.locate(context);
+    const severity = input.type === "SOS" ? "CRITICAL" : (input.severity ?? "MEDIUM");
+    const note = [input.delayMinutes ? `Running ${input.delayMinutes} min late.` : null, input.note?.length ? input.note : null].filter(Boolean).join(" ") || null;
     const incident = await this.prisma.$transaction(async (tx) => {
       const row = await tx.incident.create({
         data: {
           code: generateIncidentCode(),
           type: input.type,
-          severity: input.severity ?? "MEDIUM",
+          severity,
           status: "OPEN",
           tripId: context.trip.id,
           busId: context.assignment!.busId,
           reportedById: userId,
           lat: location.lat,
           lng: location.lng,
-          note: input.note?.length ? input.note : null,
+          note,
         },
       });
-      await tx.trip.update({ where: { id: context.trip.id }, data: { hasOpenIncident: true } });
+      // A reported delay sets the trip delay now; the next GPS ping corrects it if the bus is closer to time.
+      await tx.trip.update({
+        where: { id: context.trip.id },
+        data: { hasOpenIncident: true, ...(input.delayMinutes ? { delayMinutes: input.delayMinutes } : {}) },
+      });
       if (BREAKDOWN_TYPES.has(input.type)) await tx.bus.update({ where: { id: context.assignment!.busId }, data: { status: "BREAKDOWN" } });
       return row;
     });
+    if (input.delayMinutes) {
+      const fresh = await this.trips.load(tripId);
+      this.publishStatus(fresh);
+      void this.notifications.update(fresh, input.delayMinutes, fresh.trip.lastStopSeq, now).catch((error: unknown) => this.logger.error("Trip notifications failed", error));
+    }
 
     const dto: IncidentDto = {
       id: incident.id,

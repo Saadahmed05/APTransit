@@ -462,6 +462,26 @@ describe("Driver, tracking and sockets (Day 11)", () => {
       expect((await as("driver").post("/driver/incidents", { type: "DELAY" }).expect(403)).body.error.code).toBe("TRIP_NOT_ASSIGNED");
     });
 
+    it("D-048: an SOS is always CRITICAL, even when the client asks for less", async () => {
+      const res = await as("driver").post("/driver/incidents", { type: "SOS", severity: "LOW" }).expect(201);
+      expect(res.body).toMatchObject({ type: "SOS", severity: "CRITICAL", status: "OPEN", tripId: ids.trip });
+      expect(tables.trip![0]!.hasOpenIncident).toBe(true);
+      expect(tables.bus![0]!.status).toBe("IDLE");
+    });
+
+    it("D-048: a delay report with minutes sets the trip delay and notes the minutes", async () => {
+      const res = await as("driver").post("/driver/incidents", { type: "DELAY", delayMinutes: 12, note: "Level crossing" }).expect(201);
+      expect(res.body.note).toBe("Running 12 min late. Level crossing");
+      expect(tables.trip![0]!.delayMinutes).toBe(12);
+    });
+
+    it("D-048: delay minutes only belong to a delay report, within 1 to 240", async () => {
+      await as("driver").post("/driver/incidents", { type: "TRAFFIC", delayMinutes: 5 }).expect(400);
+      await as("driver").post("/driver/incidents", { type: "DELAY", delayMinutes: 0 }).expect(400);
+      await as("driver").post("/driver/incidents", { type: "DELAY", delayMinutes: 241 }).expect(400);
+      expect(tables.incident).toHaveLength(0);
+    });
+
     it("falls back to the first stop when there is no position yet", async () => {
       const res = await as("driver").post("/driver/incidents", { type: "TRAFFIC", severity: "LOW" }).expect(201);
       expect(res.body).toMatchObject({ lat: STOPS[0]!.lat, lng: STOPS[0]!.lng, severity: "LOW" });

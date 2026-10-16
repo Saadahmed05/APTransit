@@ -32,7 +32,7 @@ describe("local services in the seed (D-046)", () => {
   });
 
   it("puts every Kurnool spot on a city line with a Telugu name and a unique code", () => {
-    const cityLines = ROUTE_DEFS.filter((r) => ["KCM-01", "KCC-01", "KHL-01", "KCL-01", "KOT-01"].includes(r.code));
+    const cityLines = ROUTE_DEFS.filter((r) => ["KCM-01", "KCC-01", "KHL-01", "KCL-01", "KOT-01", "KSA-01", "KSB-01", "KSC-01", "KSD-01"].includes(r.code));
     const onLine = new Set(cityLines.flatMap((r) => r.stops.map((s) => s.stopCode)));
     const spots = STOPS.filter((s) => s.districtCode === "KNL" && s.lat > 15.77 && s.lat < 15.88 && s.lng > 77.98 && s.lng < 78.1);
     expect(new Set(spots.map((s) => s.code)).size).toBe(spots.length);
@@ -106,7 +106,7 @@ describe("hourly services (D-048)", () => {
   });
 
   it("runs every Kurnool city line at least every 30 min, 05:00 to 23:00", () => {
-    for (const code of ["KCM-01", "KCC-01", "KHL-01", "KCL-01", "KOT-01"]) {
+    for (const code of ["KCM-01", "KCC-01", "KHL-01", "KCL-01", "KOT-01", "KSA-01", "KSB-01", "KSC-01", "KSD-01"]) {
       const times = departuresOf(code).map((t) => minutesOf(t.departureLocal));
       expect(times[0], code).toBe(minutesOf("05:00"));
       expect(times.at(-1), code).toBeGreaterThanOrEqual(minutesOf("23:00") - 30);

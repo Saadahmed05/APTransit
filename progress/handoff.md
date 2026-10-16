@@ -20,7 +20,7 @@ Open work is listed in `prompts/next/README.md`. Tell your agent: "I am Mukheeth
 
 ## Current state (D-048 profile, map first home, 2026-10-16)
 
-Branch `b/finish-kurnool-round-r3ppnx`. D-048 Phases 1 to 5 are built (see D-048 in `progress/decisions-log.md`): buses for the whole booking window, category tickets with no seats on local buses, profile and verify (`/welcome`, account sections, signed in devices, saved routes), map first home with a search sheet, and the account travel hub. **Not built:** about 40 more Kurnool spots (needs real OpenStreetMap data, Overpass was down) and the Phase 6 field features (needs owner answers, listed in D-048).
+Branch `b/finish-kurnool-round-r3ppnx`. D-048 Phases 1 to 6 (first slice) are built (see D-048 in `progress/decisions-log.md`): buses for the whole booking window, category tickets with no seats on local buses, profile and verify (`/welcome`, account sections, signed in devices, saved routes), map first home with a search sheet, and the account travel hub. 43 more Kurnool spots are stops on lines `KSA-01` to `KSD-01`, and the crew can raise an SOS and report delay minutes. **Not built (owner input needed):** break button, crew alerts, conductor end of trip report, GPS with scans, richer manifest; see D-048.
 
 | New | Where |
 | --- | --- |
