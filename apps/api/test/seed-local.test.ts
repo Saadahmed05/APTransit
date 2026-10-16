@@ -21,7 +21,7 @@ describe("local services in the seed (D-046)", () => {
   it("has Kurnool malls and colleges as stops with distinct codes", () => {
     const codes = STOPS.map((s) => s.code);
     expect(new Set(codes).size).toBe(codes.length);
-    for (const name of ["Jyothi Mall", "G Pulla Reddy Engineering College", "Kurnool Medical College"]) {
+    for (const name of ["Jyothi Mall", "TGV Anantha City Square Mall", "Skandhanshi Prithvi", "G Pulla Reddy Engineering College", "Kurnool Medical College"]) {
       expect(STOPS.some((s) => s.nameEn === name && s.districtCode === "KNL"), name).toBe(true);
     }
   });

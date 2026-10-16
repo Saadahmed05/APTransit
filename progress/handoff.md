@@ -20,7 +20,7 @@ Open work is listed in `prompts/next/README.md`. Tell your agent: "I am Mukheeth
 
 ## Current state (bus map icons, logo, iOS install, 2026-10-16)
 
-Branch `a/bus-map-logo-hourly` (from upstream main). Map stop and A/B markers are bus icons (`map-view.tsx`). `BrandMark` and `BrandLogo` (`apps/web/components/brand-logo.tsx`) sit in the citizen, login and field headers and on the splash; the splash is 1.2 s (`--dur-splash`). iOS: apple touch icon, `appleWebApp` metadata and viewport in `app/layout.tsx`, and an Add to Home Screen steps card on the account page (`useIosInstallSteps`, iOS has no install prompt). Not added yet: City Square Mall and Prithvi by Skandanshi (no sourced coordinates; do not guess them). Gotcha: a full C: drive makes pnpm report "disk I/O error"; delete `apps/web/.next` to free space.
+Branch `a/bus-map-logo-hourly` (from upstream main). Map stop and A/B markers are bus icons (`map-view.tsx`). `BrandMark` and `BrandLogo` (`apps/web/components/brand-logo.tsx`) sit in the citizen, login and field headers and on the splash; the splash is 1.2 s (`--dur-splash`). iOS: apple touch icon, `appleWebApp` metadata and viewport in `app/layout.tsx`, and an Add to Home Screen steps card on the account page (`useIosInstallSteps`, iOS has no install prompt). Added from owner supplied Google Maps pins: TGV Anantha City Square Mall (CSM) and Skandhanshi Prithvi (PRT) on line KCM-01. Gotcha: a full C: drive makes pnpm report "disk I/O error"; delete `apps/web/.next` to free space.
 
 ## Current state (D-048 profile, map first home, 2026-10-16)
 
