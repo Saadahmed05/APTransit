@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PartyDto } from "./tickets";
 import { BusClass } from "../bus-class";
 import { ScanReason, StopSource, TicketType } from "../enums";
 import { PassengerCategory } from "../fare";
@@ -75,7 +76,14 @@ export const ValidateTicketResult = z.object({
     })
     .optional(),
   /** Group passes (D-036): VALID boardings on this trip so far, including this one, of size. */
-  group: z.object({ boarded: z.number().int().nonnegative(), size: z.number().int().positive() }).optional(),
+  group: z
+    .object({
+      boarded: z.number().int().nonnegative(),
+      size: z.number().int().positive(),
+      /** D-051: a group ticket boards everyone at one scan; who was boarded, by fare category. */
+      party: PartyDto.optional(),
+    })
+    .optional(),
   ticket: z
     .object({
       passengerName: z.string(),

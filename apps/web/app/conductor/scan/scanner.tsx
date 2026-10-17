@@ -10,6 +10,7 @@ import { Button, EmptyState, ErrorState, Input, Skeleton, cn } from "@aptransit/
 import { Camera, CircleCheck, CircleX, Flashlight, Volume2, VolumeX, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
+import { usePartyText } from "../../../lib/party";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type QrScanner from "qr-scanner";
@@ -26,6 +27,7 @@ type Result = ValidateTicketResult;
 export function ConductorScanner() {
   const t = useTranslations("conductorApp"),
     root = useTranslations(),
+    party = usePartyText(),
     locale = useLocale(),
     today = useConductorToday(),
     client = useQueryClient();
@@ -414,6 +416,8 @@ export function ConductorScanner() {
           {result.group && (
             <p className="text-h2 tabular-nums">{t("groupBoarded", { boarded: result.group.boarded, size: result.group.size })}</p>
           )}
+          {/* D-051: one scan boarded everyone on a group ticket */}
+          {result.group?.party && <p className="text-h3">{t("groupParty", { members: party.members(result.group.party) })}</p>}
           <p>{helperText}</p>
           {result.result === "VALID" && context?.anyBus && <p className="text-h3">{t("anyBus")}</p>}
           {result.ticket && (

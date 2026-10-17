@@ -18,6 +18,25 @@ Read order for a new session:
 
 Open work is listed in `prompts/next/README.md`. Tell your agent: "I am Mukheeth (or Saad), complete the work" and it follows the trigger section in `AGENTS.md`. Branch `a/kurnool-spots` holds D-044, D-046 and the 45 Kurnool spots. On 2026-10-16 lint, typecheck, i18n, dashes and unit tests passed; the seeded E2E suite was not run. Update 2026-10-16 (branch `b/finish-kurnool-round-r3ppnx`): Kurnool data check added to `seed-local.test.ts`, D-047 lists the locked doc edits to agree with Dev A. Seeded E2E run on 2026-10-16: Desktop Chrome and Pixel 7 pass (E2E-11 flaked once on Pixel 7). New spec `v3-child-scan.spec.ts`; stale specs fixed (E2E-8, group, passes, map-home); admin sweep fixes (adminApp.timetables and departure keys, role chip contrast, pass types page width); `prisma/reset.ts` no longer passes the removed `--skip-seed`. Still open: the human tasks in `prompts/next/README.md`.
 
+## Current state (40 Kurnool stops, crew, sample data for today, 2026-10-17)
+
+Branch `a/kurnool-40-stops-dashboards` (from upstream main after PR #19). See D-050.
+
+| New | Where |
+| --- | --- |
+| 40 Kurnool neighbourhood stops (Raj Vihar Circle, Kotla Circle, Birla Gate, A, B and C Camp, colonies, villages) on Kurnool Local J to N (`KSE-01` to `KSI-01`) | `apps/api/prisma/seed-data.ts`, tests `seed-local.test.ts`, `network.test.ts` |
+| More crew per depot and a driver phone waiting for approval | `CREW` in `seed-data.ts`, `seed.ts` |
+| Today so far for every portal: `pnpm db:seed --today` | `apps/api/prisma/seed-today.ts`, on by default in `.github/workflows/seed-demo.yml` |
+| Conductor home picks the next trip like the driver app | `ConductorService.assignment`, test `conductor.service.test.ts` |
+
+Update: Kurnool Local O (Bus Stand to Orvakal via City Square Mall and the engineering colleges) and P (cross town). `pnpm simulate --fleet` drives six Kurnool crews at once (needs `--today` on the same day and `OTP_DEV_ECHO=1`). The history generator now writes tickets in batches of 30,000 (it ran out of memory at 2 GB with 3 days).
+
+D-051 (same branch): group tickets have one QR and one scan boards the whole group (`tickets/party.ts`); a citizen sign in signs out the citizen's other devices (`common/auth/session-end.ts`, error `SESSION_REPLACED`). Gotcha: E2E specs that sign the same citizen in on two pages at once now see the first one signed out.
+
+What each portal shows after `--today`: driver (today's trips, the earlier ones completed), conductor (next trip with passengers pending, manifest), depot (completed trips, crew roster, open incidents, complaints, a device to approve), government (today's passengers, revenue, incidents and complaints on the map and drill downs), admin (recent audit events). Live bus positions still need `pnpm simulate`.
+
+Gotchas: seed-today rows have ids starting with `todayseed`; a rerun deletes them and puts the trips it completed back to scheduled first. Run it after `--history` (the seed does). A rerun late at night finds no next trips for the demo crew (none left today).
+
 ## Current state (bus map icons, logo, iOS install, 2026-10-16)
 
 Branch `a/bus-map-logo-hourly` (from upstream main). Map stop and A/B markers are bus icons (`map-view.tsx`). `BrandMark` and `BrandLogo` (`apps/web/components/brand-logo.tsx`) sit in the citizen, login and field headers and on the splash; the splash is 1.2 s (`--dur-splash`). iOS: apple touch icon, `appleWebApp` metadata and viewport in `app/layout.tsx`, and an Add to Home Screen steps card on the account page (`useIosInstallSteps`, iOS has no install prompt). Added from owner supplied Google Maps pins: TGV Anantha City Square Mall (CSM) and Skandhanshi Prithvi (PRT) on line KCM-01. Gotcha: a full C: drive makes pnpm report "disk I/O error"; delete `apps/web/.next` to free space.

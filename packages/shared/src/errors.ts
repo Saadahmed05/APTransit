@@ -5,6 +5,8 @@ import { z } from "zod";
 export const ErrorCode = {
   VALIDATION_FAILED: "VALIDATION_FAILED",
   UNAUTHENTICATED: "UNAUTHENTICATED",
+  /** A citizen signed in on another device; this device was signed out (one device per citizen). */
+  SESSION_REPLACED: "SESSION_REPLACED",
   FORBIDDEN: "FORBIDDEN",
   NOT_FOUND: "NOT_FOUND",
   RATE_LIMITED: "RATE_LIMITED",
@@ -46,6 +48,7 @@ export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   VALIDATION_FAILED: 400,
   UNAUTHENTICATED: 401,
+  SESSION_REPLACED: 401,
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   RATE_LIMITED: 429,

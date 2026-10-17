@@ -33,6 +33,7 @@ import { api, type ApiError, errorKey, isApiError } from "../../../lib/api";
 import { needsProfile, welcomeHref } from "../../../lib/profile";
 import { writePreferenceCookie } from "../../../lib/preferences";
 import { roleHome, safeNextPath } from "../../../lib/roles";
+import { clearSignedOutElsewhere, useSignedOutElsewhere } from "../../../lib/session-notice";
 
 const CODE_LENGTH = 6;
 
@@ -62,6 +63,7 @@ function useNow(active: boolean): number {
 
 export function LoginForm({ next, initialEmail = null }: { next: string | null; initialEmail?: string | null }) {
   const t = useTranslations();
+  const signedOutElsewhere = useSignedOutElsewhere();
   const router = useRouter();
   const { status, login, logout } = useAuth();
   const me = useMe();
@@ -156,6 +158,7 @@ export function LoginForm({ next, initialEmail = null }: { next: string | null; 
 
   const sendCode = (event?: FormEvent) => {
     event?.preventDefault();
+    clearSignedOutElsewhere();
     setTargetError(null);
     const target = channel === "EMAIL" ? email.trim() : `+91${phone}`;
     const parsed = OtpRequestInput.safeParse({ channel, target });
@@ -272,6 +275,13 @@ export function LoginForm({ next, initialEmail = null }: { next: string | null; 
         <h1 className="text-h1 text-fg">{t("auth.login")}</h1>
         <p className="text-body text-muted">{t("login.intro")}</p>
       </div>
+
+      {signedOutElsewhere ? (
+        <p role="status" className="flex items-start gap-2 rounded-md bg-surface-sunken p-3 text-small text-fg">
+          <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+          {t("login.signedOutElsewhere")}
+        </p>
+      ) : null}
 
       {googleSignInEnabled ? (
         <div className="flex flex-col gap-3">

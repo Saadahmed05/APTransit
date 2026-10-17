@@ -5,6 +5,7 @@
  *
  *   pnpm simulate --trip <tripId> [--speed 10]
  *   pnpm simulate --all [--depot KNL] [--speed 10]
+ *   pnpm simulate --fleet [--speed 10]   (six Kurnool crews at once, after `pnpm db:seed --today`)
  *
  * Options: --api <url> (API_URL or http://localhost:4000), --email (driver.knl@aptransit.test),
  * --key (SIM_DEVICE_KEY or the seeded sim_driver_key_kurnool_01).
@@ -245,7 +246,38 @@ async function runTrip(tripId: string): Promise<void> {
   );
 }
 
+/** The seeded Kurnool crews with approved simulator phones (seed.ts), each in its own process. */
+const FLEET = [1, 3, 4, 5, 6, 7].map((n) => ({
+  email: n === 1 ? "driver.knl@aptransit.test" : `driver${n}.knl@aptransit.test`,
+  key: `sim_driver_key_kurnool_0${n}`,
+}));
+
+async function fleet(): Promise<void> {
+  const { spawn } = await import("node:child_process");
+  console.log(`Fleet: ${FLEET.length} drivers, each drives its trips due now`);
+  await Promise.all(
+    FLEET.map(
+      ({ email, key }) =>
+        new Promise<void>((resolve) => {
+          const child = spawn(
+            process.execPath,
+            [...process.execArgv, process.argv[1]!, "--all", "--email", email, "--key", key, "--api", API, "--speed", String(SPEED)],
+            { stdio: ["ignore", "pipe", "pipe"] },
+          );
+          const tag = email.split("@")[0];
+          const relay = (chunk: Buffer) => {
+            for (const line of chunk.toString().split("\n")) if (line.trim()) console.log(`[${tag}] ${line}`);
+          };
+          child.stdout.on("data", relay);
+          child.stderr.on("data", relay);
+          child.on("exit", () => resolve());
+        }),
+    ),
+  );
+}
+
 async function main(): Promise<void> {
+  if (flag("fleet")) return fleet();
   await login();
   const tripId = option("trip");
   if (tripId) return runTrip(tripId);

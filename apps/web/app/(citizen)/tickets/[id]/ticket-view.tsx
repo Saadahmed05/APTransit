@@ -36,6 +36,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BusClassNote } from "../../../../components/bus-class-note";
 import { LiveQr, type LiveQrData } from "../../../../components/live-qr";
+import { usePartyText } from "../../../../lib/party";
 import { api, errorKey, isApiError } from "../../../../lib/api";
 import { type OfflineTicket, readOfflineTicket, removeOfflineTicket, saveOfflineTicket } from "../../../../lib/offline-tickets";
 import { serverOffsetMs } from "../../../../lib/qr-code";
@@ -50,6 +51,7 @@ type QrWithOffset = TicketQrDto & { serverOffsetMs: number };
 export function TicketView({ id }: { id: string }) {
   const t = useTranslations();
   const locale = useLocale();
+  const party = usePartyText();
   const online = useOnline();
   const queryClient = useQueryClient();
   const [cached, setCached] = useState<OfflineTicket | null | undefined>(undefined);
@@ -153,17 +155,27 @@ export function TicketView({ id }: { id: string }) {
   const showLiveStatus = ticket.displayStatus !== "UPCOMING" && !FINAL.has(ticket.status);
 
   const details = [
-    { label: t("ticketDetail.details.passenger"), value: ticket.passengerName ?? t("common.notAvailable") },
-    // D-048: Adult, Child or Senior (the conductor may ask for proof of age)
-    ...(ticket.passengerCategory
-      ? [{ label: t("ticketDetail.details.category"), value: t(`book.travellers.${ticket.passengerCategory}`) }]
-      : []),
+    // D-051: a group ticket lists who travels on it instead of one passenger
+    ...(ticket.party
+      ? [{ label: t("ticketDetail.details.passenger"), value: party.summary(ticket.party), wide: true }]
+      : [
+          { label: t("ticketDetail.details.passenger"), value: ticket.passengerName ?? t("common.notAvailable") },
+          // D-048: Adult, Child or Senior (the conductor may ask for proof of age)
+          ...(ticket.passengerCategory
+            ? [{ label: t("ticketDetail.details.category"), value: t(`book.travellers.${ticket.passengerCategory}`) }]
+            : []),
+        ]),
     // D-046: local tickets have no seat, so the row is left out
     ...(ticket.seatNo ? [{ label: t("ticketDetail.details.seat"), value: ticket.seatNo }] : []),
     { label: t("ticketDetail.details.bus"), value: ticket.busRegNo ?? t("ticketDetail.details.busPending") },
     {
       label: t("ticketDetail.details.fare"),
-      value: ticket.type === "FREE_TRAVEL" ? t("ticketDetail.details.free") : formatMoney(ticket.farePaise, locale),
+      value:
+        ticket.type === "FREE_TRAVEL"
+          ? t("ticketDetail.details.free")
+          : ticket.party
+            ? t("ticketDetail.groupTotal", { amount: formatMoney(ticket.party.totalPaise, locale) })
+            : formatMoney(ticket.farePaise, locale),
     },
     { label: t("ticketDetail.details.boarding"), value: pick(ticket.boarding), wide: true },
     { label: t("ticketDetail.details.destination"), value: pick(ticket.dropping), wide: true },
@@ -213,6 +225,7 @@ export function TicketView({ id }: { id: string }) {
             <div className={justActivated ? "w-full animate-fade-in" : "w-full"}>
               {ticket.status === "SCANNED" && <EndedPanel icon={BadgeCheck} tone="success" title={t("ticketDetail.scanned.title")} hint={t("ticketDetail.scanned.hint")} />}
               <LiveQr data={qrData} label={t("ticketDetail.qr.label", { route })} />
+              {ticket.party && <p className="mt-2 text-center text-small text-muted">{t("ticketDetail.groupNote")}</p>}
             </div>
           ) : ticket.status === "SCANNED" ? (
             <EndedPanel icon={BadgeCheck} tone="success" title={t("ticketDetail.scanned.title")} hint={t("ticketDetail.scanned.hint")} />

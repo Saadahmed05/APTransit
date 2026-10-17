@@ -40,6 +40,7 @@ import {
   type TicketSettingKey,
   type TicketSettings,
 } from "./ticket-rules";
+import { groupTickets, partyOf, siblingsWhere } from "./party";
 
 type AuditActor = Pick<LogAuditParams, "actorUserId" | "actorRole" | "ip" | "userAgent">;
 
@@ -130,9 +131,10 @@ export class TicketsService {
       include: TICKET_INCLUDE,
     })) as unknown as LoadedTicket[];
     const settings = await this.settings();
-    const rows = tickets
-      .filter((t) => isUpcoming(t, now) === (scope === "upcoming"))
-      .map((t) => this.toSummary(t, settings));
+    // D-051: one ticket per group (the lead), carrying the party
+    const rows = groupTickets(tickets)
+      .filter(({ lead }) => isUpcoming(lead, now) === (scope === "upcoming"))
+      .map(({ lead, members }) => this.toSummary(lead, settings, partyOf(members)));
     // Upcoming: soonest first. Past: most recent first.
     rows.sort((a, b) => (scope === "upcoming" ? 1 : -1) * a.departureAt.localeCompare(b.departureAt));
     return rows;
@@ -140,13 +142,32 @@ export class TicketsService {
 
   async get(userId: string, ticketId: string, now = new Date()): Promise<TicketDto> {
     const ticket = await this.load(userId, ticketId);
-    return this.toDto(ticket, await this.settings(), now, await this.quote(ticket, now));
+    const members = await this.members(ticket);
+    return this.toDto(ticket, await this.settings(), now, await this.quote(ticket, now), partyOf([ticket, ...members]));
+  }
+
+  /** D-051: the other tickets of this ticket's group (same booking, trip and holder). */
+  private async members(ticket: LoadedTicket): Promise<LoadedTicket[]> {
+    if (!ticket.bookingId) return [];
+    return (await this.prisma.ticket.findMany({
+      where: siblingsWhere(ticket),
+      include: TICKET_INCLUDE,
+      orderBy: { id: "asc" },
+    })) as unknown as LoadedTicket[];
   }
 
   async refundQuote(userId: string, ticketId: string, now = new Date()): Promise<RefundQuoteDto> {
     const ticket = await this.load(userId, ticketId);
     const { quote, policyName } = await this.quote(ticket, now);
-    return { cancellable: canCancel(ticket, quote.cancellable).ok, percent: quote.percent, amountPaise: quote.amountPaise, feePaise: quote.feePaise, policyName };
+    // D-051: a group cancels together, so the quote is for everyone on it
+    let amountPaise = quote.amountPaise;
+    let feePaise = quote.feePaise;
+    for (const member of await this.members(ticket)) {
+      const other = (await this.quote(member, now)).quote;
+      amountPaise += other.amountPaise;
+      feePaise += other.feePaise;
+    }
+    return { cancellable: canCancel(ticket, quote.cancellable).ok, percent: quote.percent, amountPaise, feePaise, policyName };
   }
 
   /** Token always; the rotating secret only while ACTIVE (ADR 003). */
@@ -194,6 +215,13 @@ export class TicketsService {
         ? new AppError("TICKET_ALREADY_ACTIVE", this.message("TICKET_ALREADY_ACTIVE"))
         : new AppError("TICKET_NOT_ACTIVATABLE", this.message("TICKET_NOT_ACTIVATABLE"));
     }
+    // D-051: the whole group travels on the one QR, so everyone on it is activated together
+    if (ticket.bookingId) {
+      await this.prisma.ticket.updateMany({
+        where: { ...siblingsWhere(ticket), status: "BOOKED" },
+        data: { status: "ACTIVE", activatedAt: now, validUntil, version: { increment: 1 } },
+      });
+    }
 
     await this.audit.log({
       action: "ticket.activate",
@@ -213,6 +241,28 @@ export class TicketsService {
   /** BOOKED to CANCELLED with a refund from the active policy (docs/07 section 6). */
   async cancel(userId: string, ticketId: string, actor: AuditActor, now = new Date()): Promise<CancelTicketResult> {
     const ticket = await this.load(userId, ticketId);
+    const members = await this.members(ticket);
+    // All or nothing: never leave half a group cancelled
+    for (const member of members) {
+      if (!canCancel(member, (await this.quote(member, now)).quote.cancellable).ok)
+        throw new AppError("TICKET_NOT_CANCELLABLE", this.message("TICKET_NOT_CANCELLABLE"));
+    }
+    const first = await this.cancelOne(ticket, actor, now);
+    // D-051: cancelling a group ticket cancels everyone on it, each with its own refund
+    let amountPaise = first.amountPaise;
+    let pending = first.status !== "PROCESSED";
+    let failed = first.status === "FAILED";
+    for (const member of members) {
+      const refund = await this.cancelOne(member, actor, now);
+      amountPaise += refund.amountPaise;
+      pending ||= refund.status !== "PROCESSED";
+      failed ||= refund.status === "FAILED";
+    }
+    const status = failed ? "FAILED" : pending ? "PENDING" : "PROCESSED";
+    return { ticket: await this.get(userId, ticketId, now), refund: { amountPaise, status } };
+  }
+
+  private async cancelOne(ticket: LoadedTicket, actor: AuditActor, now: Date): Promise<{ amountPaise: number; status: "PENDING" | "PROCESSED" | "FAILED" }> {
     const { quote, policyId } = await this.quote(ticket, now);
     const rule = canCancel(ticket, quote.cancellable);
     if (!rule.ok || !policyId) throw new AppError("TICKET_NOT_CANCELLABLE", this.message("TICKET_NOT_CANCELLABLE"));
@@ -269,7 +319,7 @@ export class TicketsService {
       ...actor,
     });
 
-    return { ticket: await this.get(userId, ticketId, now), refund: { amountPaise: refund.amountPaise, status: refund.status } };
+    return { amountPaise: refund.amountPaise, status: refund.status };
   }
 
   /**
@@ -298,6 +348,8 @@ export class TicketsService {
     const settings = await this.settings();
     const rule = canGift(ticket, this.times(ticket).boarding.boardingDepartureAt, now, settings);
     if (!ticket.giftable || !rule.ok) await deny("TICKET_NOT_GIFTABLE", "This ticket cannot be gifted");
+    // D-051: a group ticket travels together and is not gifted (owner to confirm)
+    if ((await this.members(ticket)).length) await deny("TICKET_NOT_GIFTABLE", "A group ticket cannot be gifted");
 
     const target = await this.prisma.user.findFirst({
       where: { ...(recipient.channel === "EMAIL" ? { email: recipient.value } : { phone: recipient.value }), deletedAt: null },
@@ -389,7 +441,7 @@ export class TicketsService {
     return { quote, policyName: policy?.name ?? "", policyId: policy?.id ?? null };
   }
 
-  private toSummary(ticket: LoadedTicket, settings: TicketSettings): TicketSummaryDto {
+  private toSummary(ticket: LoadedTicket, settings: TicketSettings, party: TicketSummaryDto["party"] = null): TicketSummaryDto {
     const times = this.times(ticket);
     const window = activationWindow(times.boarding, settings);
     return {
@@ -411,14 +463,15 @@ export class TicketsService {
       arrivalAt: times.droppingArrivalAt.toISOString(),
       activationOpensAt: window.opensAt.toISOString(),
       refund: ticket.refunds[0] ? { amountPaise: ticket.refunds[0].amountPaise, status: ticket.refunds[0].status } : null,
+      party,
     };
   }
 
-  private toDto(ticket: LoadedTicket, settings: TicketSettings, now: Date, quoted: { quote: RefundQuote }): TicketDto {
+  private toDto(ticket: LoadedTicket, settings: TicketSettings, now: Date, quoted: { quote: RefundQuote }, party: TicketDto["party"] = null): TicketDto {
     const times = this.times(ticket);
     const window = activationWindow(times.boarding, settings);
     return {
-      ...this.toSummary(ticket, settings),
+      ...this.toSummary(ticket, settings, party),
       passengerName: ticket.passenger?.name ?? null,
       passengerCategory: ticket.type === "FREE_TRAVEL" ? null : (ticket.passenger?.category ?? null),
       farePaise: ticket.farePaise,
@@ -441,7 +494,7 @@ export class TicketsService {
       giftCutoffAt: new Date(times.boarding.boardingDepartureAt.getTime() - settings["gift.cutoffMinutesBefore"] * MS_PER_MIN).toISOString(),
       canActivate: canActivate(ticket, window, ticket.trip.status, now).ok,
       canCancel: canCancel(ticket, quoted.quote.cancellable).ok,
-      canGift: ticket.giftable && canGift(ticket, times.boarding.boardingDepartureAt, now, settings).ok,
+      canGift: !party && ticket.giftable && canGift(ticket, times.boarding.boardingDepartureAt, now, settings).ok,
     };
   }
 

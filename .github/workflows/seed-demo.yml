@@ -11,6 +11,10 @@ on:
         description: "Days of past tickets and complaints for the dashboards (0 for none)"
         default: "14"
         required: true
+      today_sample:
+        description: "Also fill today so far (completed trips, waiting passengers, incidents, complaints, audit events)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -24,6 +28,8 @@ jobs:
       DIRECT_URL: ${{ secrets.DEMO_DIRECT_URL }}
       QR_SECRET_KEY: ${{ secrets.DEMO_QR_SECRET_KEY }}
       HISTORY_DAYS: ${{ inputs.history_days }}
+      NODE_OPTIONS: --max-old-space-size=4096
+      TODAY_FLAG: ${{ inputs.today_sample && '--today' || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -48,7 +54,7 @@ jobs:
           test -n "$DATABASE_URL" || { echo "Set the DEMO_DATABASE_URL secret first"; exit 1; }
           pnpm exec prisma migrate deploy
           if [ "$HISTORY_DAYS" -gt 0 ]; then
-            pnpm exec tsx prisma/seed.ts --history "$HISTORY_DAYS"
+            pnpm exec tsx prisma/seed.ts --history "$HISTORY_DAYS" $TODAY_FLAG
           else
-            pnpm exec tsx prisma/seed.ts
+            pnpm exec tsx prisma/seed.ts $TODAY_FLAG
           fi

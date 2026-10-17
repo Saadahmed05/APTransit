@@ -11,6 +11,7 @@ import { type AutoAssignSetting, TripGeneratorService } from "../src/modules/tri
 import {
   AP_STATE,
   BUS_TYPES,
+  CREW,
   DEPOTS,
   DISTRICTS,
   ROUTE_DEFS,
@@ -601,6 +602,58 @@ export async function runSeed(): Promise<void> {
   }
   console.log("Approved driver devices registered.");
 
+  // More crew per depot (CREW in seed-data.ts) for the depot roster and the history rotation
+  for (const c of CREW) {
+    const depotId = depotMap.get(c.depotCode)!;
+    const user = await prisma.user.upsert({
+      where: { email: c.email },
+      create: { email: c.email, name: c.name, emailVerifiedAt: new Date(), preferredLocale: "en" },
+      update: { name: c.name },
+    });
+    const role = await prisma.userRole.findFirst({ where: { userId: user.id, role: c.kind, depotId } });
+    if (!role) await prisma.userRole.create({ data: { userId: user.id, role: c.kind, depotId } });
+    if (c.kind === "DRIVER") {
+      await prisma.driver.upsert({
+        where: { userId: user.id },
+        create: { userId: user.id, depotId, employeeCode: c.employeeCode, licenseNo: `AP21-2018-${c.employeeCode.slice(-3)}0417` },
+        update: { depotId },
+      });
+    } else {
+      await prisma.conductor.upsert({
+        where: { userId: user.id },
+        create: { userId: user.id, depotId, employeeCode: c.employeeCode },
+        update: { depotId },
+      });
+    }
+  }
+  // One phone waiting for the depot manager's approval (ops devices queue)
+  const pendingDriver = await prisma.user.findUnique({ where: { email: "driver2.knl@aptransit.test" } });
+  if (pendingDriver) {
+    await prisma.device.upsert({
+      where: { deviceKeyHash: hashKey("demo_pending_device_knl_02") },
+      create: { userId: pendingDriver.id, label: "Mahesh phone", deviceKeyHash: hashKey("demo_pending_device_knl_02") },
+      update: { userId: pendingDriver.id },
+    });
+  }
+  // Approved simulator phones for five more Kurnool drivers (`pnpm simulate --fleet`)
+  for (let n = 3; n <= 7; n++) {
+    const fleetDriver = await prisma.user.findUnique({ where: { email: `driver${n}.knl@aptransit.test` } });
+    if (!fleetDriver) continue;
+    const keyHash = hashKey(`sim_driver_key_kurnool_0${n}`);
+    await prisma.device.upsert({
+      where: { deviceKeyHash: keyHash },
+      create: {
+        userId: fleetDriver.id,
+        label: `Simulator Device ${n}`,
+        deviceKeyHash: keyHash,
+        approvedAt: new Date("2026-09-01T00:00:00.000Z"),
+        approvedById: userMap.get("manager.knl@aptransit.test"),
+      },
+      update: { userId: fleetDriver.id },
+    });
+  }
+  console.log(`Crew seeded: ${CREW.length} more drivers and conductors.`);
+
   // 11. Buses per depot (fictional AP 39 Z registrations)
   const expressTypeId = busTypeMap.get("EXPRESS")!;
   const palleveluguTypeId = busTypeMap.get("PALLEVELUGU")!;
@@ -752,6 +805,10 @@ export async function runSeed(): Promise<void> {
     const days = parseInt(args[historyIdx + 1]!, 10) || 14;
     const { generateHistory } = await import("./seed-history.js");
     await generateHistory(prisma, days);
+  }
+  if (args.includes("--today")) {
+    const { generateToday } = await import("./seed-today.js");
+    await generateToday(prisma);
   }
 
   console.log("\nDeterministic seed complete!");

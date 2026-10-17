@@ -31,6 +31,7 @@ Without Neon yet, a local PGlite socket server plus `node scripts/dev-redis.mjs`
 | `db:seed` | deterministic AP demo data (`prisma/seed.ts`, docs/19) |
 | `db:reset` | wipes and reseeds; refuses the Neon `main` branch and production |
 | `db:seed --history 14` | also 14 days of history (trips, bookings, payments, scans, passes, complaints, incidents) and the rollups; reruns replace earlier history |
+| `db:seed --today` | also today so far (`prisma/seed-today.ts`): trips that already arrived are completed with crew, passengers and scans, the demo crew's next 3 trips have passengers waiting, plus open incidents, new complaints and recent audit events; rows carry the `todayseed` id prefix and a rerun replaces them. Needs `QR_SECRET_KEY`. Live positions still come from `pnpm simulate` |
 | `rollups:backfill --days 14` | recompute daily_stats for the last N days |
 | `demo:window <ticket> [min]` | development only: move a ticket into its activation window |
 
