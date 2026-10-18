@@ -30,6 +30,7 @@ import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
 import { z } from "zod";
+import { AdSlot } from "../../../components/ad-slot";
 import { LiveQr } from "../../../components/live-qr";
 import { api, errorKey, isApiError } from "../../../lib/api";
 import { usePayment } from "../../../lib/payments";
@@ -261,6 +262,7 @@ function ActivePassCard({ pass }: { pass: PassDto }) {
       </div>
       <p className="text-small text-muted">{t("passes.services", { services: serviceList(pass.eligibleServiceTypes, t, locale) })}</p>
       <PassScope pass={pass} />
+      <AdSlot seed={pass.id} />
     </article>
   );
 }

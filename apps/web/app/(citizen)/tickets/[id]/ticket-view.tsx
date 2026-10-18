@@ -35,6 +35,7 @@ import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BusClassNote } from "../../../../components/bus-class-note";
+import { AdSlot } from "../../../../components/ad-slot";
 import { LiveQr, type LiveQrData } from "../../../../components/live-qr";
 import { usePartyText } from "../../../../lib/party";
 import { api, errorKey, isApiError } from "../../../../lib/api";
@@ -245,6 +246,7 @@ export function TicketView({ id }: { id: string }) {
 
         {/* D-044: which buses this ticket rides */}
         {(ticket.status === "BOOKED" || ticket.status === "ACTIVE") && <BusClassNote serviceType={ticket.serviceType} />}
+        {(ticket.status === "BOOKED" || ticket.status === "ACTIVE" || ticket.status === "SCANNED") && <AdSlot seed={ticket.id} />}
 
         {ticket.status === "USED" && (
           <EndedPanel icon={BadgeCheck} tone="neutral" title={t("ticketDetail.used.title")} hint={t("ticketDetail.used.hint")} />
