@@ -24,10 +24,36 @@ const themeSubscribe = (notify: () => void) => {
 };
 const themeRead = () => {
   const css = getComputedStyle(document.documentElement);
-  return ["--success-solid", "--neutral-solid", "--info-solid", "--map-line-width"]
+  return [
+    "--success-solid",
+    "--neutral-solid",
+    "--info-solid",
+    "--map-line-width",
+    "--primary",
+    "--on-primary",
+    "--surface-raised",
+  ]
     .map((k) => css.getPropertyValue(k).trim())
     .join("|");
 };
+
+/** Map picker stops are one WebGL symbol layer: HTML markers for 100+ stops made panning janky on phones. */
+const STOP_LAYER = "pick-stops";
+const STOP_ICON = "pick-stop-bus";
+/** Half of the 44 px tap target around a stop icon. */
+const STOP_HIT_PX = 22;
+
+/** The same look as the HTML stop marker: a primary circle, a surface ring and the lucide Bus glyph. */
+function stopIconSvg(fill: string, ink: string, ring: string): string {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 28 28">` +
+    `<circle cx="14" cy="14" r="13" fill="${fill}" stroke="${ring}" stroke-width="2"/>` +
+    `<g transform="translate(6 6) scale(0.6667)" fill="none" stroke="${ink}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+    `<path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/>` +
+    `<path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/>` +
+    `<circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></g></svg>`
+  );
+}
 /** [minLng, minLat, maxLng, maxLat] of a state (GET /states, D-034). */
 export type MapBounds = [number, number, number, number];
 
@@ -94,8 +120,28 @@ export function MapView({
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const colors = useSyncExternalStore(themeSubscribe, themeRead, () => "|||");
-  const [doneColor, aheadColor, currentColor, spacing] = colors.split("|");
+  const [doneColor, aheadColor, currentColor, spacing, primary, onPrimary, surfaceRaised] =
+    colors.split("|");
   const unit = parseFloat(spacing ?? "") || 0;
+  const [iconReady, setIconReady] = useState(false);
+  const [hovering, setHovering] = useState(false);
+  const stopMarkers = markers.filter((m) => m.tone === "stop");
+  /** Draws the stop icon in the current theme colours; runs on load and again when the theme changes. */
+  const loadStopIcon = () => {
+    const map = ref.current?.getMap();
+    if (!map || !primary || !onPrimary || !surfaceRaised) return;
+    const img = new Image(56, 56);
+    img.onload = () => {
+      if (map.hasImage(STOP_ICON)) map.updateImage(STOP_ICON, img);
+      else map.addImage(STOP_ICON, img, { pixelRatio: 2 });
+      setIconReady(true);
+    };
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(stopIconSvg(primary, onPrimary, surfaceRaised))}`;
+  };
+  useEffect(() => {
+    if (ref.current?.getMap().loaded()) loadStopIcon();
+    // only a theme change should redraw the icon; the first draw happens in onLoad
+  }, [colors]);
   const coords = polyline ? decodePolyline(polyline).map(([lat, lng]) => [lng, lat]) : [];
   const lengths = [0];
   for (let i = 1; i < coords.length; i++) {
@@ -192,8 +238,29 @@ export function MapView({
           }
           attributionControl={{ compact: false }}
           keyboard={false}
-          onLoad={fit}
+          onLoad={() => {
+            loadStopIcon();
+            fit();
+          }}
           onError={() => setFailed(true)}
+          interactiveLayerIds={onMarkerClick ? [STOP_LAYER] : undefined}
+          cursor={hovering ? "pointer" : undefined}
+          onMouseEnter={() => setHovering(true)}
+          onMouseLeave={() => setHovering(false)}
+          onClick={(e) => {
+            const map = ref.current;
+            if (!onMarkerClick || !map?.getLayer(STOP_LAYER)) return;
+            const { x, y } = e.point;
+            const [hit] = map.queryRenderedFeatures(
+              [
+                [x - STOP_HIT_PX, y - STOP_HIT_PX],
+                [x + STOP_HIT_PX, y + STOP_HIT_PX],
+              ],
+              { layers: [STOP_LAYER] },
+            );
+            const id: unknown = hit?.properties?.id;
+            if (typeof id === "string") onMarkerClick(id);
+          }}
         >
           {doneColor && coords.length > 1 && (
             <>
@@ -250,26 +317,44 @@ export function MapView({
               />
             </Source>
           )}
-          {markers.map((m) => (
-            <Marker
-              key={m.id}
-              longitude={m.lng}
-              latitude={m.lat}
-              anchor="bottom"
-              onClick={
-                onMarkerClick
-                  ? (e) => (e.originalEvent.stopPropagation(), onMarkerClick(m.id))
-                  : undefined
-              }
+          {iconReady && stopMarkers.length > 0 && (
+            <Source
+              id={STOP_LAYER}
+              type="geojson"
+              data={{
+                type: "FeatureCollection",
+                features: stopMarkers.map((m) => ({
+                  type: "Feature",
+                  properties: { id: m.id },
+                  geometry: { type: "Point", coordinates: [m.lng, m.lat] },
+                })),
+              }}
             >
-              {m.tone === "stop" ? (
-                // The dot is small but the tap area is 44 px
-                <span className="flex size-11 cursor-pointer items-center justify-center" title={m.label}>
-                  <span className="flex size-7 items-center justify-center rounded-full border-2 border-surface-raised bg-primary text-on-primary shadow-md">
-                    <Bus className="size-4" aria-hidden="true" />
-                  </span>
-                </span>
-              ) : (
+              <Layer
+                id={STOP_LAYER}
+                type="symbol"
+                layout={{
+                  "icon-image": STOP_ICON,
+                  "icon-allow-overlap": true,
+                  "icon-ignore-placement": true,
+                }}
+              />
+            </Source>
+          )}
+          {markers
+            .filter((m) => m.tone !== "stop")
+            .map((m) => (
+              <Marker
+                key={m.id}
+                longitude={m.lng}
+                latitude={m.lat}
+                anchor="bottom"
+                onClick={
+                  onMarkerClick
+                    ? (e) => (e.originalEvent.stopPropagation(), onMarkerClick(m.id))
+                    : undefined
+                }
+              >
                 <span className="flex flex-col items-center gap-1">
                   {(m.tone === "from" || m.tone === "to") && (
                     <span className="max-w-40 truncate rounded-full bg-surface-raised px-2 py-0.5 text-caption font-medium text-fg shadow-md">
@@ -292,9 +377,8 @@ export function MapView({
                     </span>
                   </span>
                 </span>
-              )}
-            </Marker>
-          ))}
+              </Marker>
+            ))}
           {position && (
             <Marker
               longitude={position.lng}

@@ -4,6 +4,13 @@ Newest day on top. Each dev adds their own block at the end of every day using `
 
 Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this week), **S3** polish (known issues list).
 
+## 2026-10-19: ad space, home map speed, Kurnool stops (Dev A)
+
+- Ad slot under the ticket and pass QR (D-052), English and Telugu, test `lib/ads.test.ts`.
+- Home map stops drawn as one WebGL layer instead of about 160 HTML markers; tap to pick still works (checked in Chrome on a local seeded database).
+- The two stop list on the demo was an old database: after a reseed the list shows 134 Kurnool stops (checked locally).
+- Not done: rerun the seed on the demo database, Telugu ad copy needs a native review, ad management (owner and Dev B).
+
 ## v2 P4: 2026-10-09, pass catalog (Dev B and Dev A)
 
 **Done**

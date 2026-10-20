@@ -494,3 +494,10 @@ The only way to change a locked doc in `docs/`. Add an entry, agree at the daily
 - **One device:** a citizen sign in revokes the citizen's sessions on every other device and marks them ended in Redis (`auth:ended:{familyId}`, session id `sid` in the access token), so the old device is refused at its next request with `SESSION_REPLACED` (401) and the login page says "You signed in on another device". Staff accounts are exempt (drivers already need an approved phone; demo staff accounts are shared). Redis errors fail open. Test in `auth.test.ts`.
 - **Docs to change (Dev B to agree):** docs/06 (`SESSION_REPLACED`, `party` fields), docs/07 (group ticket rules), docs/12 (one device per citizen).
 
+
+### D-052: Ad space on ticket and pass screens, faster home map (2026-10-19)
+
+- Owner request (Saad): advertising space for companies on the ticket and pass QR screens; Kurnool stops (colleges, malls, Raj Vihar) on the home list; a fast site for the government demo.
+- **Ad slot:** `apps/web/components/ad-slot.tsx` sits below the QR, the boarding hints and the bus class note on the ticket (BOOKED, ACTIVE, SCANNED) and on every active pass card, so it never covers the code the conductor scans. Always labelled "Advertisement". Three sample house creatives (`ads.creatives` in both message files, `lib/ads.ts`) until advertisers sign up; a ticket or pass always shows the same one. **Not decided (owner):** who sells and approves ads, pricing, whether ads show to free travel pass holders, and an admin screen plus API to manage creatives (Dev B, needs a table).
+- **Stops:** the 134 Kurnool stops were already in `seed-data.ts`; a database seeded before D-050 shows only Kurnool Bus Stand and Orvakal. Rerun the seed (Actions, "Seed demo database") on the demo database.
+- **Map:** map picker stops are one WebGL symbol layer with the same bus icon (`STOP_LAYER` in `map-view.tsx`) instead of one HTML marker per stop; taps use a 44 px box around the point. A and B stay HTML markers.

@@ -1821,5 +1821,22 @@
     "codeSent": "We sent a code to {target}. Enter it below.",
     "verify": "Verify",
     "cancel": "Cancel"
+  },
+  "ads": {
+    "label": "Advertisement",
+    "creatives": {
+      "brand": {
+        "title": "Your brand here",
+        "body": "Reach thousands of bus riders across Andhra Pradesh every day, right on their ticket screen."
+      },
+      "shops": {
+        "title": "Shops near your stop",
+        "body": "Local shops and malls can show offers to riders who board close to them."
+      },
+      "colleges": {
+        "title": "Admissions open?",
+        "body": "Colleges and coaching centres can reach students on the screen they open on every trip."
+      }
+    }
   }
 }

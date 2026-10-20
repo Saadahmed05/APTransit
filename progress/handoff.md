@@ -18,6 +18,12 @@ Read order for a new session:
 
 Open work is listed in `prompts/next/README.md`. Tell your agent: "I am Mukheeth (or Saad), complete the work" and it follows the trigger section in `AGENTS.md`. Branch `a/kurnool-spots` holds D-044, D-046 and the 45 Kurnool spots. On 2026-10-16 lint, typecheck, i18n, dashes and unit tests passed; the seeded E2E suite was not run. Update 2026-10-16 (branch `b/finish-kurnool-round-r3ppnx`): Kurnool data check added to `seed-local.test.ts`, D-047 lists the locked doc edits to agree with Dev A. Seeded E2E run on 2026-10-16: Desktop Chrome and Pixel 7 pass (E2E-11 flaked once on Pixel 7). New spec `v3-child-scan.spec.ts`; stale specs fixed (E2E-8, group, passes, map-home); admin sweep fixes (adminApp.timetables and departure keys, role chip contrast, pass types page width); `prisma/reset.ts` no longer passes the removed `--skip-seed`. Still open: the human tasks in `prompts/next/README.md`.
 
+## Current state (ad space, faster home map, 2026-10-19)
+
+Same branch `a/kurnool-40-stops-dashboards`. See D-052. An `AdSlot` (`apps/web/components/ad-slot.tsx`, creatives in `lib/ads.ts` and `ads.*` messages) sits under the ticket and pass QR. Map picker stops are one WebGL symbol layer in `map-view.tsx` (`STOP_LAYER`, icon drawn from theme tokens and redrawn on a theme change); A and B are still HTML markers.
+
+Gotchas: a demo that lists only Kurnool Bus Stand and Orvakal has a database seeded before D-050: rerun "Seed demo database" (the seed only adds and updates). For the government demo, show a production build (Vercel, or `pnpm build` then `pnpm --filter web start`), never `pnpm dev`: dev compiles every page on its first visit (several seconds each). A sleeping free API host also makes the first request slow, so open the site a few minutes before presenting.
+
 ## Current state (40 Kurnool stops, crew, sample data for today, 2026-10-17)
 
 Branch `a/kurnool-40-stops-dashboards` (from upstream main after PR #19). See D-050.
