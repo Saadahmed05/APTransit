@@ -186,7 +186,7 @@ export default function TripDetailClient({ id }: { id: string }) {
         </Card>
 
         <Card className="flex flex-col p-4">
-          <span className="text-small text-muted">{t("arrival")}</span>
+          <span className="text-small text-muted">{common("arrival")}</span>
           <span className="text-body font-semibold">{formatTime(trip.scheduledArrivalAt)}</span>
         </Card>
 

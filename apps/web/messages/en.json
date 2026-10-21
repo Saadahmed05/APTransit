@@ -980,6 +980,7 @@
         "BREAKDOWN": "Breakdown",
         "ACCIDENT": "Accident",
         "ROAD_BLOCK": "Road block",
+        "BUS_PROBLEM": "Bus problem",
         "MEDICAL": "Medical",
         "OTHER": "Other",
         "SOS": "SOS emergency"
