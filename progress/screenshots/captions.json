@@ -1,0 +1,258 @@
+{
+ "00-login-mobile": [
+  "One door for everyone",
+  "Citizens, drivers, conductors, depot staff, officers and admins all sign in from one screen."
+ ],
+ "00-login-desktop": [
+  "One door for everyone",
+  "Email or phone code, or Google. Every staff portal is one tap away."
+ ],
+ "10-citizen-home-map": [
+  "Pick From and To on a map",
+  "Every Kurnool stop, college, mall and bus stand on a live map, like a ride app."
+ ],
+ "11-citizen-search": [
+  "Search in seconds",
+  "Type a place in English or Telugu and see every bus that serves it."
+ ],
+ "12-citizen-results": [
+  "Every bus, every class",
+  "Express, Ultra Deluxe, Super Luxury and Pallevelugu with seats left and the fare."
+ ],
+ "13-citizen-bus-details": [
+  "Know the bus before you board",
+  "Stops, timings, class and live seat count from the server."
+ ],
+ "14-citizen-booking": [
+  "Book for the whole family",
+  "Adults, children and seniors on one ticket, fare worked out by the server."
+ ],
+ "15-citizen-seat-map": [
+  "Pick your seat",
+  "Live seat map with a 10 minute hold, so two people never get the same seat."
+ ],
+ "16-citizen-tickets": [
+  "All tickets in one place",
+  "Upcoming, active and past tickets, always on the phone."
+ ],
+ "17-citizen-ticket-qr": [
+  "A QR that cannot be copied",
+  "The code changes every 3 seconds, so a screenshot is useless."
+ ],
+ "18-citizen-ticket-ad": [
+  "Ad space that pays",
+  "A labelled ad under the QR, never covering the code the conductor scans."
+ ],
+ "19-citizen-passes": [
+  "Passes with a live countdown",
+  "Daily, weekly, monthly and zone passes, renewed before they run out."
+ ],
+ "20-citizen-pass-buy": [
+  "Buy a pass in two taps",
+  "Pay once, ride all week or all month. Prepaid revenue for APSRTC."
+ ],
+ "21-citizen-school-pass": [
+  "School and student passes",
+  "Route limited student passes with an eligibility check."
+ ],
+ "22-citizen-free-travel": [
+  "Free travel, counted",
+  "Free travel schemes get a zero fare ticket, so every ride is on record."
+ ],
+ "23-citizen-track": [
+  "Where is my bus?",
+  "Every running bus near you with its next stop."
+ ],
+ "24-citizen-live-track": [
+  "Track your trip",
+  "Route, stops and the bus position once it leaves, with delays shown."
+ ],
+ "25-citizen-timetable": [
+  "Timetables for every route",
+  "The full day's departures from any bus stand."
+ ],
+ "26-citizen-updates": [
+  "Updates that reach people",
+  "Delay, replacement bus and pass expiry alerts in English and Telugu."
+ ],
+ "27-citizen-feedback": [
+  "Complaints with a status",
+  "Every complaint goes to the right depot and can be tracked."
+ ],
+ "28-citizen-account": [
+  "One account, many devices",
+  "Profile, saved routes, family and signed in devices."
+ ],
+ "29-citizen-bus-types": [
+  "Clear rules, plainly told",
+  "Which ticket works on which bus class, in simple words."
+ ],
+ "30-telugu-home": [
+  "Fully in Telugu",
+  "Every screen, every message, the same data."
+ ],
+ "31-telugu-passes": [
+  "Passes in Telugu",
+  "Language is one tap, saved to the account."
+ ],
+ "40-driver-home": [
+  "Today's duty at a glance",
+  "Big buttons, the next trip and the bus, nothing else."
+ ],
+ "41-driver-home-trips": [
+  "The whole day's trips",
+  "Completed and upcoming trips for this driver."
+ ],
+ "42-driver-trip": [
+  "Start trip, share GPS",
+  "One tap starts the trip and sends the bus position every few seconds."
+ ],
+ "43-driver-report": [
+  "Report a problem fast",
+  "Breakdown, accident or SOS reaches the depot instantly with the location."
+ ],
+ "50-conductor-home": [
+  "The conductor's next trip",
+  "Passengers booked, boarded and pending, before the bus leaves."
+ ],
+ "51-conductor-scan": [
+  "Scan and board",
+  "Green VALID or red ALREADY SCANNED within 2 seconds. Group tickets board at once."
+ ],
+ "52-conductor-manifest": [
+  "Who gets down where",
+  "Live manifest with drop counts at every stop."
+ ],
+ "60-depot-dashboard": [
+  "The depot in one screen",
+  "Trips running, buses free, crew on duty and open incidents."
+ ],
+ "61-depot-trips": [
+  "Every trip of the day",
+  "Scheduled, running, completed and cancelled, with live status."
+ ],
+ "62-depot-trip-detail": [
+  "Inside a trip",
+  "Bus, crew, stage counts and position. Replace a bus in a few clicks."
+ ],
+ "63-depot-buses": [
+  "Fleet status",
+  "Every bus with its class, depot and health."
+ ],
+ "64-depot-staff": [
+  "Crew roster",
+  "Drivers and conductors, devices waiting for approval."
+ ],
+ "65-depot-incidents": [
+  "Incidents in real time",
+  "Breakdowns and SOS appear without a refresh."
+ ],
+ "66-depot-complaints": [
+  "Complaints to close",
+  "Citizen complaints routed to this depot with deadlines."
+ ],
+ "67-staff-dashboard": [
+  "Depot staff view",
+  "Staff see what they need for the shift, managers see more."
+ ],
+ "70-gov-command-center": [
+  "The whole state, live",
+  "Buses running, passengers, incidents and complaints on the AP map."
+ ],
+ "71-gov-command-center-lower": [
+  "Numbers that update",
+  "Today's figures by district, without waiting for reports."
+ ],
+ "72-gov-district": [
+  "Drill down to a district",
+  "Depots, routes and performance for one district."
+ ],
+ "73-gov-depot": [
+  "Then to a depot",
+  "How each depot is doing today."
+ ],
+ "74-gov-route": [
+  "Then to a route",
+  "Demand, trips and delays on one route."
+ ],
+ "75-gov-trip": [
+  "Then to one bus",
+  "From the whole state down to a single trip in four clicks."
+ ],
+ "76-gov-analytics": [
+  "Demand and delays",
+  "Busy hours, route demand and delay peaks, for planning."
+ ],
+ "77-gov-analytics-lower": [
+  "Evidence for decisions",
+  "Where to add buses and when, from real ridership data."
+ ],
+ "78-gov-reports": [
+  "Reports in one click",
+  "CSV exports that open in Excel, with Telugu names."
+ ],
+ "80-admin-home": [
+  "Admin console",
+  "Users, routes, stops, timetables, fares and policies."
+ ],
+ "81-admin-users": [
+  "Users and roles",
+  "Who can see and do what, by role and depot."
+ ],
+ "82-admin-routes": [
+  "Routes",
+  "Every route and its stops, in order."
+ ],
+ "83-admin-stops": [
+  "Stops",
+  "Stops and bus stands with map positions and Telugu names."
+ ],
+ "84-admin-timetables": [
+  "Timetables",
+  "Departures that generate the day's trips automatically."
+ ],
+ "85-admin-pass-types": [
+  "Pass catalog",
+  "Pass prices and rules, changed without touching code."
+ ],
+ "86-admin-policies": [
+  "Policies",
+  "Refund and booking policies set by APSRTC."
+ ],
+ "87-admin-audit": [
+  "Audit log",
+  "Every sensitive action is recorded with who and when."
+ ],
+ "15b-citizen-review": [
+  "Check, then pay",
+  "Fare, seat and passenger on one screen before UPI payment."
+ ],
+ "15c-citizen-booked": [
+  "Booked in under a minute",
+  "Confirmation on screen and by email, ticket saved on the phone."
+ ],
+ "63b-depot-bus-profile": [
+  "Every bus has a history",
+  "Trips, incidents and service status for one bus."
+ ],
+ "62b-depot-replace-bus": [
+  "Replace a bus in minutes",
+  "Pick a free bus; every passenger on the trip is told automatically."
+ ],
+ "75b-gov-live-trip": [
+  "Down to a single bus",
+  "From the state view to one running trip, with its live status."
+ ],
+ "77b-gov-delays": [
+  "Where and when buses run late",
+  "Delay by hour of day and the most delayed routes, in plain words."
+ ],
+ "77c-gov-demand": [
+  "Demand by route and hour",
+  "Plan extra buses for the hours and routes that need them."
+ ],
+ "77d-gov-passengers": [
+  "Passengers and passes",
+  "Tickets sold, pass use and busy hours across the state."
+ ]
+}
