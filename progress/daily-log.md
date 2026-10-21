@@ -963,3 +963,21 @@ Severity: **S1** blocks the demo (fix today), **S2** wrong behaviour (fix this w
 - One device per citizen login: a new sign in signs the other devices out at once (`SESSION_REPLACED`); test in `auth.test.ts`.
 - Checks: API 590 tests, shared and web tests, typecheck web and API, eslint on changed files, i18n and dashes.
 
+
+## 2026-10-22 (Dev A, portal screenshots and pitch PDF)
+
+**Done**
+
+- Screenshots of every portal on seeded Kurnool data: sign in, citizen (map home, search, booking, seat map, live QR, ad slot, passes, free travel, tracking, Telugu), driver, conductor, depot, government (command center, drill down, analytics tabs, reports) and admin. 56 screens.
+- Enhanced versions: each screen in a phone or browser frame on a branded card with a title and caption (`progress/screenshots/showcase/`).
+- `progress/pitch/AP-TransitOS-Portal-Tour.pdf`: 38 page portal tour with benefits, cashless operation, passes and retention, data, advertising estimates, scale to other states and rollout. Every estimate is labelled as an assumption; sources are on the last page.
+- Fix: the depot and government incident cards showed the raw key `driverApp.report.types.BUS_PROBLEM`, and the depot trip page showed `opsApp.arrival`. Added the Bus problem label (English and Telugu) and used `common.arrival`.
+
+**Checks**
+
+- i18n check, `check:dashes`, web typecheck, eslint on the changed file.
+
+**Not done**
+
+- Native Telugu review of "బస్సు సమస్య".
+- The PDF ad figures differ from the separate value case PDF (that one counts in app ads only at 38.7 lakh trips; this one adds planned sponsored stop listings). Pick one set before presenting.
